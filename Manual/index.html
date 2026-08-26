@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE BOWOTTO — Field Manual</title>
+<style>
+  :root {
+    --varnish: #3a1a14; --varnish-hi: #6b3020; --cream: #e8ddc8;
+    --cream-dark: #cabfa6; --rose: #c98a96; --lilac: #9d8bb8;
+    --ink: #3d2b2b; --gold: #c9a35c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 80px;
+    background: linear-gradient(180deg, var(--varnish-hi), var(--varnish) 60%);
+    color: var(--cream); font-family: Georgia, 'Times New Roman', serif;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 56px 0 8px; }
+  h1 { font-size: 44px; margin: 0; letter-spacing: 2px; color: var(--cream); }
+  .sub { color: var(--rose); letter-spacing: 3px; font-size: 13px; text-transform: uppercase; }
+  .ver { color: var(--gold); font-size: 13px; }
+  h2 {
+    color: var(--gold); font-size: 22px; letter-spacing: 2px;
+    border-bottom: 1px solid rgba(201,163,92,.35); padding-bottom: 6px;
+    margin-top: 48px; text-transform: uppercase;
+  }
+  h3 { color: var(--rose); font-size: 17px; margin-bottom: 4px; }
+  p, li { color: #e6dccf; }
+  .panel {
+    background: rgba(232,221,200,.07); border: 1px solid rgba(232,221,200,.18);
+    border-radius: 10px; padding: 18px 22px; margin: 18px 0;
+  }
+  .knob { color: var(--gold); font-weight: bold; letter-spacing: 1px; }
+  img.shot { width: 100%; border-radius: 10px; border: 1px solid rgba(232,221,200,.25); margin: 18px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid rgba(232,221,200,.15); font-size: 15px; }
+  th { color: var(--rose); text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+  .star { color: var(--gold); }
+  em { color: var(--lilac); font-style: italic; }
+  code { background: rgba(0,0,0,.3); padding: 1px 6px; border-radius: 4px; color: var(--cream); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="sub">Core Focus Productions <span class="star">✦</span> For Otto</div>
+    <h1>THE BOWOTTO</h1>
+    <div class="sub">Fuzz Into Strings</div>
+    <p class="ver">Field Manual · v0.2.0</p>
+  </header>
+
+  <img class="shot" src="bowotto-editor.png" alt="THE BOWOTTO editor">
+
+  <h2>What it is</h2>
+  <p>A Big Muff Pi into a vintage British stack — and one knob that turns the
+  guitar into a violin. The move comes from the records this plugin is named
+  for a fan of: <em>Siamese Dream</em> and <em>Mellon Collie</em> put walls of
+  Muff guitars next to real string sections, treating guitar and strings as
+  the same gesture at different speeds. <span class="knob">MORPH</span> puts
+  both ends of that gesture under one hand.</p>
+  <p>The violin is not an EQ curve. It is THE BOW's modal instrument body —
+  72 resonators built from published violin measurements, signature modes and
+  the 2.3&nbsp;kHz bridge hill included — driven by your own strings. Because it
+  processes the audio instead of re-synthesizing it, <b>it works on chords</b>
+  and keeps your dynamics.</p>
+
+  <h2>THE MUFF</h2>
+  <div class="panel">
+    <h3><span class="knob">SUSTAIN</span></h3>
+    <p>Drives two cascaded feedback-clipping stages — the circuit reason a Muff
+    sustains for days where a one-stage fuzz just distorts. Fuzzy even at the
+    bottom of the knob, exactly like the pedal.</p>
+    <h3><span class="knob">TONE</span></h3>
+    <p>Blends the stack's lowpass and highpass branches. Where they overlap
+    they fight, carving the famous mid scoop around 750&nbsp;Hz.</p>
+    <h3><span class="knob">SCOOP</span></h3>
+    <p>Full up = stock Pi notch. Turn it down and the notch's own band fades
+    back in — the mids-forward mod players pay techs for, on a knob.</p>
+    <h3><span class="knob">GAIN</span></h3>
+    <p>The vintage stack behind the pedal: two warm triode stages on the edge
+    of breakup. It thickens what the Muff sends it instead of re-distorting
+    everything into one flavour.</p>
+  </div>
+
+  <h2>THE BOW</h2>
+  <div class="panel">
+    <h3><span class="knob">MORPH</span></h3>
+    <p>The centre of the plugin. Equal-power crossfade from the guitar cab to
+    the violin body — it <em>replaces</em> the cab rather than stacking on it,
+    because both are the instrument's radiating box and running both gives you
+    neither. Anywhere between "amp with strange sustain" and "string section"
+    is a sound.</p>
+    <h3><span class="knob">SWELL</span></h3>
+    <p>A bowed note has no pick attack — this is the single strongest cue.
+    Every onset is ducked and fades in at the SWELL rate (60&nbsp;ms–1.2&nbsp;s).
+    The detector reads your picking 5&nbsp;ms ahead of the audio so the
+    transient never leaks, and it ignores the beating inside a chord.</p>
+    <h3><span class="knob">BOW</span></h3>
+    <p>Bow force — the same thing that makes a real violin bright or breathy,
+    and the most important knob in this half of the plugin. Down low the string
+    is barely driven; up high it is pushed into full Helmholtz motion.
+    A bowed string's bridge force is a <em>sawtooth</em>: every harmonic
+    present, sustained for as long as the bow moves. That is what this knob
+    builds out of your pick attack, and it is why the morph sounds like an
+    instrument instead of an EQ.</p>
+    <h3><span class="knob">VIBRATO</span></h3>
+    <p>6.5&nbsp;Hz player vibrato — real pitch modulation (up to ~±55 cents)
+    plus the small volume component a rocking finger adds. Measured violin
+    vibrato runs 5.1–8.2&nbsp;Hz and about 40 cents in first position.</p>
+    <h3><span class="knob">ROSIN</span></h3>
+    <p>The friction layer: noise shaped to your note's envelope, sitting up on
+    the bridge hill where bow scrape actually lives. Silent in the gaps.</p>
+    <h3><span class="knob">SECTION</span></h3>
+    <p>Fans the soloist out into four desks — detuned, humanized, spread
+    across the stereo field. The Pumpkins move wants this up.</p>
+    <h3><span class="knob">BODY</span></h3>
+    <p>Violin, viola or cello — three measured bodies. Cello under a low
+    tuning is its own instrument.</p>
+  </div>
+
+  <h2>Front &amp; back end</h2>
+  <table>
+    <tr><th>Control</th><th>What it does</th></tr>
+    <tr><td class="knob">GATE</td><td>Hysteresis gate with a square-law close — 74&nbsp;dB of Muff gain lives behind it, so it shuts <em>hard</em>.</td></tr>
+    <tr><td class="knob">TAPE ECHO</td><td>Repeats darken like oxide; a slow wow moves the read head. TIME / FEED / MIX.</td></tr>
+    <tr><td class="knob">REVERB</td><td>SIZE / MIX. Try it after the SECTION for the full <em>Tonight, Tonight</em>.</td></tr>
+    <tr><td class="knob">OUTPUT</td><td>±24&nbsp;dB into a peak guard that never passes −0.2&nbsp;dBFS — a tested contract, not a hope.</td></tr>
+  </table>
+
+  <h2>Version history</h2>
+  <div class="panel">
+    <h3>v0.2.0 — the morph actually morphs (25 Aug 2026)</h3>
+    <p>The morph was 28&nbsp;dB quieter than the guitar path and everything
+    above 800&nbsp;Hz had collapsed — it "just got quiet and sounded like
+    nothing good". Root cause: a violin body filter over a <em>decaying pluck</em>
+    can only be an EQ'd guitar. A bowed string sustains and radiates a sawtooth.
+    Added <b>BOW DRIVE</b> (sustainer + asymmetric saturation) which supplies
+    both the missing 30&nbsp;dB and the missing harmonics, plus the
+    <b>BOW</b> knob. Level now holds within 0.4&nbsp;dB across the whole MORPH
+    sweep; harmonic slope lands at −6.4&nbsp;dB/oct against the −6.0 target.
+    Bench 15 → 17 tests.</p>
+    <h3>v0.1.0 — first build (25 Aug 2026)</h3>
+    <p>Muff + vintage stack + greenback cab; full violin engine with THE BOW's
+    modal body; gate, tape echo, reverb; 15-test bench (all passing), 30&nbsp;s
+    soak clean. Five bugs found by the bench before first ship — see the
+    README for the honest list. Untuned by ear; Otto's ears are the real test.</p>
+  </div>
+</div>
+</body>
+</html>
