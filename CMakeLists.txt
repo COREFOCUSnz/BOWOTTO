@@ -60,6 +60,7 @@ target_compile_definitions(TheBowotto PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_REPORT_APP_USAGE=0)
+    JUCE_WINDOWS_USE_WINDOW_ASSOCIATION=0
 
 target_link_libraries(TheBowotto
     PUBLIC
