@@ -181,7 +181,15 @@ namespace
         setParam (p, "rosin",    30.0f);
         setParam (p, "section",   0.0f);
         setParam (p, "body",      0.0f);
+        // Every toggleable effect gets an explicit default here, not just the
+        // ones that existed when baseline() was first written — tests silently
+        // inherit any pedal state from the PRECEDING test (same shared processor
+        // `p` across all of runBench()). A test that only sets what IT cares
+        // about needs baseline() to cover everything, always.
+        setParam (p, "phaseron",  0.0f);
+        setParam (p, "choruson",  0.0f);
         setParam (p, "echoon",    0.0f);
+        setParam (p, "tremoloon", 0.0f);
         setParam (p, "reverbon",  0.0f);
         setParam (p, "output",    0.0f);
         setParam (p, "bypass",    0.0f);
@@ -519,6 +527,90 @@ static void runBench()
         report ("T9 SECTION decorrelates L/R", cSolo > 0.99f && cSect < 0.9f,
                 juce::String ("correlation: solo ") + juce::String (cSolo, 3)
                     + ", section " + juce::String (cSect, 3));
+    }
+
+    // T9b — PHASER produces its notch sweep (an off/on audibility test alone
+    // isn't enough here — a phaser's whole signature is TIME-VARYING notches,
+    // and a static "off vs on" comparison could pass on a broken phaser that
+    // just applies a fixed EQ curve. So this measures the actual sweep: total
+    // energy in a probe band should vary meaningfully across the render.
+    {
+        auto off = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "phaseron", 0.0f); });
+        auto on  = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "phaseron", 1.0f);
+                                                    setParam (q, "phasermix", 100.0f); });
+        const float d = diffDb (on, off, skip);
+
+        const int winLen = (int) (0.15 * kSampleRate);
+        float minDb = 1000.0f, maxDb = -1000.0f;
+        for (int w = 0; w < 8; ++w)
+        {
+            const int start = skip + w * winLen;
+            const float e = bandDb (on, 800.0f, 1600.0f, start, winLen, 16);
+            minDb = juce::jmin (minDb, e);
+            maxDb = juce::jmax (maxDb, e);
+        }
+
+        report ("T9b PHASER is audible AND actually sweeps", d > -25.0f && (maxDb - minDb) > 2.0f,
+                juce::String ("audible ") + juce::String (d, 1) + " dB, sweep range "
+                    + juce::String (maxDb - minDb, 1) + " dB");
+    }
+
+    // T9c — CHORUS is audible and depth control actually does something.
+    {
+        auto off  = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "choruson", 0.0f); });
+        auto shallow = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "choruson", 1.0f);
+                                                        setParam (q, "chorusdepth", 30.0f);
+                                                        setParam (q, "chorusmix", 100.0f); });
+        auto deep = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "choruson", 1.0f);
+                                                     setParam (q, "chorusdepth", 100.0f);
+                                                     setParam (q, "chorusmix", 100.0f); });
+        const float dOnOff = diffDb (shallow, off, skip);
+        const float dDepth = diffDb (deep, shallow, skip);
+
+        report ("T9c CHORUS is audible AND depth changes the effect",
+                dOnOff > -25.0f && dDepth > -25.0f,
+                juce::String ("on/off ") + juce::String (dOnOff, 1)
+                    + " dB, depth " + juce::String (dDepth, 1) + " dB");
+    }
+
+    // T9d — TREMOLO produces real, periodic amplitude modulation: the
+    // envelope should swing close to full range at 100% depth (near-silent
+    // troughs, full peaks) and stay essentially flat with tremolo off.
+    // Direct time-domain envelope check rather than a spectral-sideband one
+    // (which turned out too sensitive to Goertzel leakage from a strong
+    // carrier only 6 Hz from the sideband bins to threshold reliably).
+    {
+        const auto sine = makeSine (kSampleRate, 3.0, 440.0f, 0.3f);
+        auto off = render (p, sine, [] (auto& q) { baseline (q); setParam (q, "tremoloon", 0.0f); });
+        auto on  = render (p, sine, [] (auto& q) { baseline (q); setParam (q, "tremoloon", 1.0f);
+                                                   setParam (q, "tremolorate", 6.0f);
+                                                   setParam (q, "tremolodepth", 100.0f); });
+        const int start = (int) (1.0 * kSampleRate), len = (int) (1.5 * kSampleRate);
+
+        // Envelope via 5 ms sliding peak, then report (max-min)/max over the
+        // window — near 0 for a flat carrier, near 1 for full-depth tremolo.
+        auto envSwing = [&] (const juce::AudioBuffer<float>& b)
+        {
+            const auto* d = b.getReadPointer (0);
+            const int hop = (int) (0.005 * kSampleRate);
+            float lo = 1000.0f, hi = 0.0f;
+            for (int i = start; i + hop <= start + len; i += hop)
+            {
+                float m = 0.0f;
+                for (int k = 0; k < hop; ++k)
+                    m = juce::jmax (m, std::abs (d[i + k]));
+                lo = juce::jmin (lo, m);
+                hi = juce::jmax (hi, m);
+            }
+            return hi > 1.0e-6f ? (hi - lo) / hi : 0.0f;
+        };
+
+        const float swingOff = envSwing (off);
+        const float swingOn  = envSwing (on);
+        report ("T9d TREMOLO sweeps the envelope at full depth, flat when off",
+                swingOn > 0.7f && swingOff < 0.15f,
+                juce::String ("envelope swing: on ") + juce::String (swingOn, 2)
+                    + ", off " + juce::String (swingOff, 2));
     }
 
     // T10 — echo and reverb each DO something when engaged
@@ -877,6 +969,23 @@ static void runBench()
                 juce::String ("largest sample step ") + juce::String (worstStep, 3));
     }
 
+    // T23 — REVERB at MIX=0 must be transparent. juce::Reverb::setParameters()
+    // silently applies dryScaleFactor=2.0 to dryLevel internally: authoring
+    // dryLevel=1.0 (intending unity) actually asked for +6 dB of dry gain,
+    // audible even with the wet signal at zero. Found by Corey by ear
+    // ("turn everything down, it should sound normal, but it's distorted and
+    // loud") — this is the regression guard so it can't come back silently.
+    {
+        auto off = render (p, riff, [] (auto& q) { baseline (q); setParam (q, "output", -18.0f); });
+        auto on  = render (p, riff, [] (auto& q) { baseline (q); setParam (q, "output", -18.0f);
+                                                   setParam (q, "reverbon",   1.0f);
+                                                   setParam (q, "reverbsize", 55.0f);
+                                                   setParam (q, "reverbmix",  0.0f); });
+        const float d = diffDb (on, off, skip);
+        report ("T23 REVERB at MIX=0 is transparent (no dry-gain leak)",
+                d < -30.0f, juce::String ("difference ") + juce::String (d, 1) + " dB vs off");
+    }
+
     std::cout << "\n" << (gFailures == 0 ? "ALL PASS" : juce::String (gFailures) + " FAILURE(S)")
               << "\n";
 }
@@ -998,6 +1107,22 @@ static int runRender (const char* inPath, const char* outPath, float gainDb)
 
 //==============================================================================
 /** Realtime factor: one stereo instance on the synthetic riff at 48k/512. */
+static void debugTremOff()
+{
+    TheBowottoAudioProcessor p;
+    const auto sine = makeSine (kSampleRate, 3.0, 440.0f, 0.3f);
+    auto off = render (p, sine, [] (auto& q) { baseline (q); setParam (q, "tremoloon", 0.0f); });
+    const auto* d = off.getReadPointer (0);
+    const int hop = (int) (0.005 * kSampleRate);
+    const int start = (int) (1.0 * kSampleRate);
+    for (int i = start; i < start + (int) (1.5 * kSampleRate); i += hop)
+    {
+        float m = 0.0f;
+        for (int k = 0; k < hop; ++k) m = juce::jmax (m, std::abs (d[i + k]));
+        printf ("%.4f  peak %.5f\n", i / kSampleRate, m);
+    }
+}
+
 static int runCpu()
 {
     struct Config { const char* name; float morph, section, echo; };
@@ -1211,6 +1336,12 @@ int main (int argc, char* argv[])
 
     if (argc >= 2 && juce::String (argv[1]) == "--diagnose")
         return runDiagnose();
+
+    if (argc >= 2 && juce::String (argv[1]) == "--debugtremoff")
+    {
+        debugTremOff();
+        return 0;
+    }
 
     if (argc >= 2 && juce::String (argv[1]) == "--cpu")
         return runCpu();

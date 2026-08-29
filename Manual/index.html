@@ -46,10 +46,10 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="sub">Core Focus Productions <span class="star">✦</span> For Otto</div>
+    <div class="sub">Core Focus Productions <span class="star">✦</span> Fuzz Into Strings</div>
     <h1>THE BOWOTTO</h1>
     <div class="sub">Fuzz Into Strings</div>
-    <p class="ver">Field Manual · v0.2.0</p>
+    <p class="ver">Field Manual · v0.3.0</p>
   </header>
 
   <img class="shot" src="bowotto-editor.png" alt="THE BOWOTTO editor">
@@ -121,17 +121,77 @@
     tuning is its own instrument.</p>
   </div>
 
-  <h2>Front &amp; back end</h2>
-  <table>
-    <tr><th>Control</th><th>What it does</th></tr>
-    <tr><td class="knob">GATE</td><td>Hysteresis gate with a square-law close — 74&nbsp;dB of Muff gain lives behind it, so it shuts <em>hard</em>.</td></tr>
-    <tr><td class="knob">TAPE ECHO</td><td>Repeats darken like oxide; a slow wow moves the read head. TIME / FEED / MIX.</td></tr>
-    <tr><td class="knob">REVERB</td><td>SIZE / MIX. Try it after the SECTION for the full <em>Tonight, Tonight</em>.</td></tr>
-    <tr><td class="knob">OUTPUT</td><td>±24&nbsp;dB into a peak guard that never passes −0.2&nbsp;dBFS — a tested contract, not a hope.</td></tr>
-  </table>
+  <h2>Gate &amp; output</h2>
+  <div class="panel">
+    <h3><span class="knob">GATE</span></h3>
+    <p>Hysteresis gate with a square-law close — 74&nbsp;dB of Muff gain lives behind it, so it shuts <em>hard</em>. The gate also feeds the tuner (see below).</p>
+    <h3><span class="knob">OUTPUT</span></h3>
+    <p>±24&nbsp;dB into a peak guard that never passes −0.2&nbsp;dBFS — a tested contract, not a hope.</p>
+  </div>
+
+  <h2>PEDALS view</h2>
+  <p>Click the <b>PEDALS</b> tab at the top to take over the whole panel with four stompboxes,
+  laid out 2×2 — PHASER and CHORUS on top, ECHO and REVERB below. Click <b>MAIN</b> to return
+  to the amp/violin knobs. GATE and OUTPUT stay visible in both views on the right edge.</p>
+
+  <div class="panel">
+    <h3><span class="knob">PHASER</span> <em>(yellow)</em></h3>
+    <p>Four-stage allpass phaser that sweeps notches across the spectrum. The effect sits
+    subtly in a chord and really sings on a solo. <b>RATE</b> (0.5–6&nbsp;Hz) sets the LFO speed;
+    <b>DEPTH</b> (0–100) controls the notch sweep range; <b>MIX</b> blends it in.</p>
+
+    <h3><span class="knob">CHORUS</span> <em>(blue)</em></h3>
+    <p>Three detuned voices playing together, with gentle modulation. Adds shimmer and thickness
+    to the morph without thickening the attack. <b>RATE</b> (0.5–2&nbsp;Hz) modulates the pitch;
+    <b>DEPTH</b> (0–100) controls the detune range in cents; <b>MIX</b> blends voices in.</p>
+
+    <h3><span class="knob">TAPE ECHO</span> <em>(green)</em></h3>
+    <p>Repeats that darken like oxide tape; a slow wow moves the read head for that analog
+    time feel. <b>TIME</b> (80–900&nbsp;ms) sets the delay; <b>FEED</b> (0–70%) controls repeats;
+    <b>MIX</b> blends it in.</p>
+
+    <h3><span class="knob">REVERB</span> <em>(red)</em></h3>
+    <p><b>SIZE</b> (0–100) controls the room character; <b>MIX</b> sets the wet/dry balance.
+    Try it fully up with SECTION engaged for the full <em>Tonight, Tonight</em> string-section wash.</p>
+  </div>
+
+  <h2>TEMPO SYNC</h2>
+  <div class="panel">
+    <p>PHASER RATE, CHORUS RATE, and ECHO TIME each have a small <b>SYNC</b> toggle above the
+    knob. Off, the knob runs free (Hz for phaser/chorus, ms for echo). On, the knob is replaced
+    by a note-division picker — 1/1 down to 1/32, including dotted and triplet values — locked
+    to your host's tempo. Reads the DAW's BPM automatically; in Standalone (no host tempo) it
+    assumes 120 BPM.</p>
+  </div>
+
+  <h2>TUNER</h2>
+  <div class="panel">
+    <p>A slim strip at the bottom of the <b>MAIN</b> page — non-destructive, always running.
+    Shows the detected note, octave, frequency (Hz), and a cents needle against a ±50 cent
+    scale. Doesn't affect your tone; just there to check you're in tune while dialing in
+    the morph.</p>
+  </div>
 
   <h2>Version history</h2>
   <div class="panel">
+    <h3>v0.3.0 — pedalboard redesign, tempo sync, tuner (27 Aug 2026)</h3>
+    <p>Full UI rework after the v0.2.1 pedal layout piled knobs on top of the MUFF/BOW controls.
+    <b>PEDALS</b> is now a dedicated view (top tab) that fully takes over the panel — same
+    principle as THE TOA's PedalPanel — laid out 2×2 so PHASER/CHORUS/ECHO/REVERB's three
+    knobs each get real room. Each pedal has its own colour: yellow / blue / green / red.
+    Added <b>SYNC</b> to PHASER RATE, CHORUS RATE, and ECHO TIME — lock to the host tempo
+    instead of running free. <b>TUNER</b> moved off its own tab into a slim ribbon docked at
+    the bottom of MAIN. Bench 22 tests (all passing) — this was a UI/architecture pass, no
+    DSP changed apart from CHORUS (replacing FLANGER) and the tempo-sync/tuner additions.</p>
+
+    <h3>v0.2.1 — pedalboard redesign, first pass (26 Aug 2026)</h3>
+    <p>Redesigned the effects layout as a four-pedal board: <b>PHASER</b> and <b>CHORUS</b>
+    (new) sit centre-stage after the morph, followed by TAPE ECHO and REVERB. Added a
+    <b>TUNER</b> display (non-destructive frequency detector showing note, Hz, and cents offset).
+    Replaced flanger with chorus for a cleaner voices-in-unison shimmer. All new pedals fully
+    tested: phaser audible at 2.5&nbsp;dB with 5.1&nbsp;dB sweep range; chorus audible at 3.1&nbsp;dB
+    with effective depth control. Bench 22 tests (all passing).</p>
+
     <h3>v0.2.0 — the morph actually morphs (25 Aug 2026)</h3>
     <p>The morph was 28&nbsp;dB quieter than the guitar path and everything
     above 800&nbsp;Hz had collapsed — it "just got quiet and sounded like

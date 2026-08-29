@@ -30,15 +30,23 @@ the two halves of its own name.
 ## Signal chain
 
 ```
-IN -> GATE -> WAH/VIBE -> BIG MUFF (fuzz) -> VINTAGE STACK preamp (4x OS)
+[ TUNER ] (parallel, non-destructive display)
+    |
+IN -> GATE -> BIG MUFF (fuzz) -> VINTAGE STACK preamp (4x OS)
    -> TONE STACK -> [ MORPH ] -> CAB  ......................  guitar path
                              \-> VIOLIN ENGINE ............  violin path
-   -> PHASER -> FLANGER -> TAPE ECHO -> TREMOLO -> REVERB -> OUT
+   -> PHASER -> CHORUS -> TAPE ECHO -> REVERB -> OUT
 ```
 
 `MORPH` crossfades the guitar path into the violin path. It **replaces the
 cab** rather than stacking on it — a guitar cabinet and a violin body are both
 the instrument's radiating box, and running both gives you neither.
+
+**Tuner** is a parallel frequency detector (doesn't affect audio flow). Shows
+note + cents offset, always available.
+
+**Pedal chain** (post-morph): Phaser → Chorus → Echo (tape) → Reverb, each
+with independent on/off.
 
 ## The two engines
 
@@ -77,6 +85,30 @@ audio, so it works on chords and stays expressive:
 
 `BODY` selects violin / viola / cello, so the morph can track a lead line or a
 low string pad.
+
+---
+
+## The pedals (post-morph effects)
+
+### PHASER
+A four-stage allpass phaser that adds movement to the morph. Sweeps the
+notches across the spectrum. Minimal at depth 0, full sweep at 100.
+- **Rate** (0.5–4 Hz)
+- **Depth** (0–100, notch sweep range)
+- **On** (toggle)
+
+### CHORUS
+A classic voices-in-unison effect: three detuned delay lines modulated by
+LFOs, summed back to the dry signal. Adds shimmer and thickness to strings.
+- **Rate** (0.5–2 Hz)
+- **Depth** (0–100, detune range in cents)
+- **On** (toggle)
+
+### TUNER
+Non-destructive frequency detection. Displays the detected fundamental, note
+name, and cents offset from equal temperament. Always running.
+- **Display** (note + cents)
+- No parameters (display-only)
 
 ---
 

@@ -398,6 +398,71 @@ private:
 
 //==============================================================================
 /**
+    CLEAN channel — bright, articulate, lightly compressed. Not "the Muff
+    with less gain": real clean tone (black-face Fender school, the sound
+    under Corgan's verses before the Muff comes back for the chorus) needs
+    its own voicing. Reuses the Muff's SUSTAIN/TONE knobs for a different
+    job — SUSTAIN drives a fast-attack/slow-release compressor for that
+    "always singing" indie sustain, TONE tilts dark/bright around 700 Hz —
+    and only ever applies the gentlest edge-of-breakup warmth, never a
+    Muff-style clip.
+*/
+struct CleanPreamp
+{
+    void prepare (double sr) noexcept
+    {
+        hp.prepare (sr, 70.0f);
+        tiltLP.prepare (sr, 700.0f);
+        dc.prepare (sr);
+        reset();
+    }
+
+    void reset() noexcept
+    {
+        hp.reset();
+        tiltLP.reset();
+        dc.reset();
+        envelope = 0.0f;
+    }
+
+    /** sustain: 0..1 compression amount. tone: 0..1 dark->bright tilt.
+        drive: >=1 from the GAIN knob, used gently (never a hard clip). */
+    inline float process (float x, float sustain, float tone, float drive) noexcept
+    {
+        x = hp.process (x);
+
+        // Fast-attack / slow-release envelope follower -> gain reduction.
+        const float rectified = std::abs (x);
+        const float coeff = rectified > envelope ? 0.4f : 0.004f;
+        envelope += coeff * (rectified - envelope);
+        const float excess = juce::jmax (0.0f, envelope - 0.22f);
+        const float gr = 1.0f / (1.0f + excess * sustain * 7.0f);
+        x *= gr;
+
+        // Tilt EQ: symmetric around the 700 Hz split, neutral at tone = 0.5.
+        const float low  = tiltLP.process (x);
+        const float high = x - low;
+        const float t    = (tone - 0.5f) * 2.0f;
+        x = low * (1.0f - 0.5f * t) + high * (1.0f + 0.5f * t);
+
+        // Gentle edge-of-breakup warmth — unity gain at drive == 1, and even
+        // at the top of the GAIN knob this never approaches the Muff's clip.
+        const float dSafe = juce::jmax (0.05f, drive);
+        x = std::tanh (dSafe * x) / std::tanh (dSafe);
+        x = dc.process (x);
+
+        return x;
+    }
+
+private:
+    OnePoleHP  hp;
+    OnePoleLP  tiltLP;
+    DcBlocker  dc;
+    float envelope { 0.0f };
+};
+
+//==============================================================================
+/**
     Synthesised starter IR for the guitar path's cabinet: a 4x12 with
     greenback-school speakers, not the Toa's V30 metal rig. Softer upper-mid
     lift lower down (~1.9 kHz vs the V30's 2.2 kHz spike), warmer mids — the
@@ -499,6 +564,37 @@ struct TapeEcho
     int length { 0 }, writePos { 0 };
     float wowPhase { 0.0f };
     OnePoleLP loss;
+};
+
+//==============================================================================
+/**
+    TREMOLO — amplitude modulation from a free-running sine LFO. No JUCE
+    built-in for this one (Phaser and the Chorus-as-flanger below are), so
+    it's a small custom block: gain = 1 - depth * 0.5 * (1 - cos(phase)),
+    which dips smoothly from 1.0 down to (1-depth) and back, the standard
+    "bias/opto" tremolo shape rather than a symmetric double-sided ring mod.
+*/
+struct Tremolo
+{
+    void prepare (double sampleRate) noexcept { sr = sampleRate; reset(); }
+    void reset() noexcept { phase = 0.0f; }
+
+    /** Advances the LFO once and returns the gain for THIS sample. Split
+        from applying it so a stereo pair shares one LFO instant instead of
+        calling this twice (which would double the rate) or improvising a
+        ratio between channels (which breaks the moment either channel is 0).
+        rateHz 0.5..12, depth 0..1, both pre-smoothed. */
+    inline float nextGain (float rateHz, float depth) noexcept
+    {
+        phase += juce::MathConstants<float>::twoPi * rateHz / (float) sr;
+        if (phase > juce::MathConstants<float>::twoPi)
+            phase -= juce::MathConstants<float>::twoPi;
+
+        return 1.0f - depth * 0.5f * (1.0f - std::cos (phase));
+    }
+
+    double sr { 44100.0 };
+    float phase { 0.0f };
 };
 
 } // namespace bowotto

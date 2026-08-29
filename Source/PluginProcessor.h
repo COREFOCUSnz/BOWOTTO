@@ -65,9 +65,12 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    /** Gate LED + morph position for the editor. */
-    std::atomic<float> uiGateDb  { 0.0f };
-    std::atomic<float> uiMorph   { 0.0f };
+    /** Gate LED + morph position + tuner display for the editor. */
+    std::atomic<float> uiGateDb    { 0.0f };
+    std::atomic<float> uiMorph     { 0.0f };
+    std::atomic<float> uiTunerHz   { 0.0f };  // detected fundamental frequency
+    std::atomic<float> uiTunerCents{ 0.0f };  // cents offset from equal temperament
+    std::atomic<int>   uiTunerNote { -1 };    // MIDI note number, -1 = no confident pitch
 
     // Fixed gain architecture — same discipline as The Toa:
     //   kWetTrim keeps the wet path from clipping the host,
@@ -93,10 +96,27 @@ private:
     std::atomic<float>* pSection    = nullptr;
     std::atomic<float>* pForce      = nullptr;
     std::atomic<float>* pBody       = nullptr;
+    std::atomic<float>* pPhaserOn   = nullptr;
+    std::atomic<float>* pPhaserRate = nullptr;
+    std::atomic<float>* pPhaserDepth= nullptr;
+    std::atomic<float>* pPhaserMix  = nullptr;
+    std::atomic<float>* pPhaserSync = nullptr;
+    std::atomic<float>* pPhaserDivision = nullptr;
+    std::atomic<float>* pChorusOn   = nullptr;
+    std::atomic<float>* pChorusRate = nullptr;
+    std::atomic<float>* pChorusDepth= nullptr;
+    std::atomic<float>* pChorusMix  = nullptr;
+    std::atomic<float>* pChorusSync = nullptr;
+    std::atomic<float>* pChorusDivision = nullptr;
     std::atomic<float>* pEchoOn     = nullptr;
     std::atomic<float>* pEchoTime   = nullptr;
     std::atomic<float>* pEchoFb     = nullptr;
     std::atomic<float>* pEchoMix    = nullptr;
+    std::atomic<float>* pEchoSync   = nullptr;
+    std::atomic<float>* pEchoDivision = nullptr;
+    std::atomic<float>* pTremoloOn   = nullptr;
+    std::atomic<float>* pTremoloRate = nullptr;
+    std::atomic<float>* pTremoloDepth= nullptr;
     std::atomic<float>* pReverbOn   = nullptr;
     std::atomic<float>* pReverbSize = nullptr;
     std::atomic<float>* pReverbMix  = nullptr;
@@ -108,17 +128,28 @@ private:
     bowotto::VintageAmp   amp;
     bowotto::ViolinEngine violin;
     bowotto::TapeEcho     echoL, echoR;
+    bowotto::Tremolo      tremolo;
 
     juce::dsp::Convolution     cab;
     juce::Reverb               reverb;
+
+    // Family precedent: The Toa wraps juce::dsp::Chorus directly rather than
+    // hand-rolling a modulated delay. FLANGER reuses the same module with a
+    // much shorter centre delay and real feedback — a flanger IS a chorus
+    // with a tight delay and a resonant comb, not a different mechanism.
+    juce::dsp::Phaser<float> phaser;
+    juce::dsp::Chorus<float> chorus;
     juce::dsp::Oversampling<float> oversampler { 1, 2,
         juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR };
 
     // Param smoothing (zipper safety). Control-block rate, like the family.
     juce::SmoothedValue<float> smMorph, smSustain, smTone, smScoop, smDrive,
                                smSwell, smVibrato, smRosin, smSection, smForce,
-                               smEchoTime, smEchoFb, smEchoMix, smReverbMix,
-                               smOutput;
+                               smPhaserRate, smPhaserDepth, smPhaserMix,
+                               smChorusRate, smChorusDepth, smChorusMix,
+                               smEchoTime, smEchoFb, smEchoMix,
+                               smTremoloRate, smTremoloDepth,
+                               smReverbMix, smOutput;
 
     juce::AudioBuffer<float> monoBuffer, guitarBuffer, violinL, violinR;
 

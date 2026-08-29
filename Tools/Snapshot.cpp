@@ -45,6 +45,10 @@ int main (int argc, char* argv[])
 
     editor->setOpaque (true);
 
+    if (argc > 2)
+        if (auto* e = dynamic_cast<TheBowottoAudioProcessorEditor*> (editor.get()))
+            e->setCurrentView (std::atoi (argv[2]));
+
     juce::Image image (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
     juce::Graphics g (image);
     editor->paintEntireComponent (g, true);

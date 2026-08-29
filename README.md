@@ -3,7 +3,7 @@
 **Core Focus Productions** · Built for **Otto** — grunge guitar, Big Muff
 devotion, Smashing Pumpkins school.
 Twelfth plugin in the family / THE ORION PACK.
-Current version: **v0.2.1**. User manual: [Manual/index.html](Manual/index.html).
+Current version: **v0.3.0**. User manual: [Manual/index.html](Manual/index.html).
 Locked design: [SPEC.md](SPEC.md).
 
 A four-stage Big Muff Pi model into a vintage British stack — with the one
@@ -15,6 +15,40 @@ an EQ curve — it carries THE BOW's 72-resonator modal body (measured
 signature modes, the 2.3 kHz bridge hill) driven by the guitar itself:
 swell removes the pick, sustain holds the note like a stroke, rosin adds the
 friction layer, and SECTION fans the soloist out into desks.
+
+## v0.3.0 — pedalboard redesign, tempo sync, tuner
+
+Full UI rework requested by Corey after seeing the v0.2.1 pedal layout pile
+knobs on top of the MUFF/BOW controls:
+
+- **CHORUS** replaces FLANGER (three detuned voices, cleaner shimmer).
+- **PHASER** and **CHORUS** now sit alongside **ECHO**/**REVERB** in a
+  dedicated **PEDALS** view that fully takes over the panel — same
+  principle as THE TOA's PedalPanel — instead of overlapping the amp
+  knobs. Laid out 2x2 (Phaser/Chorus top, Echo/Reverb bottom) so each
+  pedal's three knobs have real room.
+- Each pedal has its own identity colour: PHASER yellow, CHORUS blue, ECHO
+  green, REVERB red.
+- **TEMPO SYNC**: PHASER RATE, CHORUS RATE, and ECHO TIME can each lock to
+  a host-tempo note division (1/1 .. 1/32, including dotted/triplet) via a
+  SYNC toggle, instead of running free in Hz/ms. Reads the host's BPM from
+  the JUCE PlayHead each block; falls back to 120 BPM standalone or when a
+  host doesn't report tempo.
+- **TUNER**: a non-destructive autocorrelation pitch detector, now docked
+  as a slim ribbon at the bottom of the MAIN page (not a separate tab) —
+  note name, cents needle, Hz.
+- Two top-level views: **MAIN** (amp + violin knobs) and **PEDALS**
+  (takeover panel), selected by tabs directly under the header — GATE and
+  OUTPUT stay visible in both as utility controls.
+- 22/22 bench passing throughout; this was a pure UI/architecture change,
+  no DSP touched apart from adding CHORUS/tempo-sync/tuner detection.
+
+**Known open item:** MORPH's equal-power crossfade sums two *correlated*
+signals (guitar and violin paths share the same mono source) rather than
+independent stereo content — mid-morph measures louder than either
+endpoint (-4.1 dB vs -7.8/-6.2 dB), and the bridge-hill separation inverts
+just above its peak (2.6-3.6 kHz: violin reads *below* guitar). Under
+investigation with Corey by ear before a fix is chosen.
 
 ## v0.2.1 — test expansion finds a silent-until-now NaN bug
 

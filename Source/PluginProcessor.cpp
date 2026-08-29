@@ -2,6 +2,86 @@
 #include "PluginEditor.h"
 
 //==============================================================================
+namespace
+{
+    // Simple autocorrelation-based pitch detector for tuner display.
+    // Returns the detected fundamental frequency in Hz, or 0 if uncertain.
+    float detectFundamental (const float* audio, int numSamples, double sampleRate)
+    {
+        if (numSamples < 256)
+            return 0.0f;
+
+        const int minPeriod = (int) (sampleRate / 1000.0);  // 1 kHz max
+        const int maxPeriod = (int) (sampleRate / 40.0);    // 40 Hz min (low E on guitar)
+
+        float bestCorr = 0.0f;
+        int bestLag = 0;
+
+        for (int lag = minPeriod; lag <= maxPeriod && lag < numSamples / 2; ++lag)
+        {
+            float corr = 0.0f, energy = 0.0f;
+            for (int i = 0; i < numSamples - lag; ++i)
+            {
+                corr += audio[i] * audio[i + lag];
+                energy += audio[i] * audio[i];
+            }
+            if (energy > 1.0e-6f && corr / energy > bestCorr)
+            {
+                bestCorr = corr / energy;
+                bestLag = lag;
+            }
+        }
+
+        if (bestCorr < 0.3f || bestLag == 0)
+            return 0.0f;
+
+        return (float) (sampleRate / bestLag);
+    }
+
+    // Convert frequency to MIDI note number (A4 = 69, middle C = 60).
+    float freqToMidi (float hz)
+    {
+        if (hz <= 0.0f)
+            return -1.0f;
+        return 69.0f + 12.0f * std::log2 (hz / 440.0f);
+    }
+
+    // Tempo-sync note divisions, shared by PHASER/CHORUS rate and ECHO time.
+    // Each entry's length is expressed in quarter notes so both a synced LFO
+    // rate (Hz) and a synced delay time (ms) fall out of the same table.
+    const juce::StringArray& divisionChoiceList()
+    {
+        static const juce::StringArray choices {
+            "1/1", "1/2", "1/2D", "1/4", "1/4D", "1/4T",
+            "1/8", "1/8D", "1/8T", "1/16", "1/16D", "1/16T", "1/32"
+        };
+        return choices;
+    }
+
+    constexpr float kDivisionQuarterLen[] = {
+        4.0f, 2.0f, 3.0f, 1.0f, 1.5f, 2.0f / 3.0f,
+        0.5f, 0.75f, 1.0f / 3.0f, 0.25f, 0.375f, 1.0f / 6.0f, 0.125f
+    };
+
+    float divisionToSeconds (int index, double bpm)
+    {
+        index = juce::jlimit (0, (int) (sizeof (kDivisionQuarterLen) / sizeof (float)) - 1, index);
+        const float quarterSeconds = 60.0f / (float) juce::jmax (1.0, bpm);
+        return quarterSeconds * kDivisionQuarterLen[(size_t) index];
+    }
+
+    float divisionToHz (int index, double bpm)
+    {
+        return 1.0f / juce::jmax (0.001f, divisionToSeconds (index, bpm));
+    }
+
+    float divisionToMs (int index, double bpm)
+    {
+        return divisionToSeconds (index, bpm) * 1000.0f;
+    }
+}
+
+//==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout
 TheBowottoAudioProcessor::createParameterLayout()
 {
@@ -38,11 +118,34 @@ TheBowottoAudioProcessor::createParameterLayout()
     params.push_back (std::make_unique<C> ("body",    "BODY",
         juce::StringArray { "VIOLIN", "VIOLA", "CELLO" }, 0));
 
+    // --- phaser
+    params.push_back (std::make_unique<B> ("phaseron",   "PHASER",      false));
+    params.push_back (std::make_unique<P> ("phaserrate", "PHASER RATE", range (0.05f, 6.0f),  0.6f));
+    params.push_back (std::make_unique<P> ("phaserdepth","PHASER DEPTH",range (0.0f, 100.0f), 65.0f));
+    params.push_back (std::make_unique<P> ("phasermix",  "PHASER MIX",  range (0.0f, 100.0f), 50.0f));
+    params.push_back (std::make_unique<B> ("phasersync",     "PHASER SYNC", false));
+    params.push_back (std::make_unique<C> ("phaserdivision", "PHASER DIV",  divisionChoiceList(), 3));
+
+    // --- chorus (voices-in-unison shimmer)
+    params.push_back (std::make_unique<B> ("choruson",   "CHORUS",        false));
+    params.push_back (std::make_unique<P> ("chorusrate", "CHORUS RATE",   range (0.05f, 2.0f),   0.8f));
+    params.push_back (std::make_unique<P> ("chorusdepth","CHORUS DEPTH",  range (0.0f, 100.0f),  60.0f));
+    params.push_back (std::make_unique<P> ("chorusmix",  "CHORUS MIX",    range (0.0f, 100.0f),  50.0f));
+    params.push_back (std::make_unique<B> ("chorussync",     "CHORUS SYNC", false));
+    params.push_back (std::make_unique<C> ("chorusdivision", "CHORUS DIV",  divisionChoiceList(), 3));
+
     // --- tape echo
     params.push_back (std::make_unique<B> ("echoon",   "ECHO",      false));
     params.push_back (std::make_unique<P> ("echotime", "ECHO TIME", range (80.0f, 900.0f), 380.0f));
     params.push_back (std::make_unique<P> ("echofb",   "ECHO FB",   range (0.0f, 70.0f),    35.0f));
     params.push_back (std::make_unique<P> ("echomix",  "ECHO MIX",  range (0.0f, 100.0f),   25.0f));
+    params.push_back (std::make_unique<B> ("echosync",     "ECHO SYNC", false));
+    params.push_back (std::make_unique<C> ("echodivision", "ECHO DIV",  divisionChoiceList(), 3));
+
+    // --- tremolo
+    params.push_back (std::make_unique<B> ("tremoloon",    "TREMOLO",       false));
+    params.push_back (std::make_unique<P> ("tremolorate",  "TREMOLO RATE",  range (0.5f, 12.0f),  4.5f));
+    params.push_back (std::make_unique<P> ("tremolodepth", "TREMOLO DEPTH", range (0.0f, 100.0f), 55.0f));
 
     // --- reverb
     params.push_back (std::make_unique<B> ("reverbon",   "REVERB",      false));
@@ -78,10 +181,27 @@ TheBowottoAudioProcessor::TheBowottoAudioProcessor()
     pSection    = apvts.getRawParameterValue ("section");
     pForce      = apvts.getRawParameterValue ("force");
     pBody       = apvts.getRawParameterValue ("body");
+    pPhaserOn    = apvts.getRawParameterValue ("phaseron");
+    pPhaserRate  = apvts.getRawParameterValue ("phaserrate");
+    pPhaserDepth = apvts.getRawParameterValue ("phaserdepth");
+    pPhaserMix   = apvts.getRawParameterValue ("phasermix");
+    pPhaserSync     = apvts.getRawParameterValue ("phasersync");
+    pPhaserDivision = apvts.getRawParameterValue ("phaserdivision");
+    pChorusOn    = apvts.getRawParameterValue ("choruson");
+    pChorusRate  = apvts.getRawParameterValue ("chorusrate");
+    pChorusDepth = apvts.getRawParameterValue ("chorusdepth");
+    pChorusMix   = apvts.getRawParameterValue ("chorusmix");
+    pChorusSync     = apvts.getRawParameterValue ("chorussync");
+    pChorusDivision = apvts.getRawParameterValue ("chorusdivision");
     pEchoOn     = apvts.getRawParameterValue ("echoon");
     pEchoTime   = apvts.getRawParameterValue ("echotime");
     pEchoFb     = apvts.getRawParameterValue ("echofb");
     pEchoMix    = apvts.getRawParameterValue ("echomix");
+    pEchoSync     = apvts.getRawParameterValue ("echosync");
+    pEchoDivision = apvts.getRawParameterValue ("echodivision");
+    pTremoloOn    = apvts.getRawParameterValue ("tremoloon");
+    pTremoloRate  = apvts.getRawParameterValue ("tremolorate");
+    pTremoloDepth = apvts.getRawParameterValue ("tremolodepth");
     pReverbOn   = apvts.getRawParameterValue ("reverbon");
     pReverbSize = apvts.getRawParameterValue ("reverbsize");
     pReverbMix  = apvts.getRawParameterValue ("reverbmix");
@@ -111,6 +231,13 @@ void TheBowottoAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     violin.prepare (sampleRate);
     echoL.prepare (sampleRate);
     echoR.prepare (sampleRate);
+    tremolo.prepare (sampleRate);
+
+    const juce::dsp::ProcessSpec fxSpec { sampleRate, (juce::uint32) samplesPerBlock, 2 };
+    phaser.prepare (fxSpec);
+    phaser.setCentreFrequency (1000.0f);
+    phaser.setFeedback (0.5f);
+    chorus.prepare (fxSpec);
 
     oversampler.initProcessing ((size_t) samplesPerBlock);
     oversampler.reset();
@@ -134,7 +261,11 @@ void TheBowottoAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     const double ramp = 0.02;
     for (auto* s : { &smMorph, &smSustain, &smTone, &smScoop, &smDrive,
                      &smSwell, &smVibrato, &smRosin, &smSection, &smForce,
-                     &smEchoTime, &smEchoFb, &smEchoMix, &smReverbMix, &smOutput })
+                     &smPhaserRate, &smPhaserDepth, &smPhaserMix,
+                     &smChorusRate, &smChorusDepth, &smChorusMix,
+                     &smEchoTime, &smEchoFb, &smEchoMix,
+                     &smTremoloRate, &smTremoloDepth,
+                     &smReverbMix, &smOutput })
         s->reset (sampleRate, ramp);
 
     // Seed every smoother to its REAL current value. reset() alone leaves
@@ -162,6 +293,14 @@ void TheBowottoAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     smEchoMix  .setCurrentAndTargetValue (pEchoMix->load()  * 0.01f);
     smReverbMix.setCurrentAndTargetValue (pReverbMix->load()* 0.01f);
     smOutput   .setCurrentAndTargetValue (juce::Decibels::decibelsToGain (pOutput->load()));
+    smPhaserRate .setCurrentAndTargetValue (pPhaserRate->load());
+    smPhaserDepth.setCurrentAndTargetValue (pPhaserDepth->load() * 0.01f);
+    smPhaserMix  .setCurrentAndTargetValue (pPhaserMix->load()   * 0.01f);
+    smChorusRate .setCurrentAndTargetValue (pChorusRate->load());
+    smChorusDepth.setCurrentAndTargetValue (pChorusDepth->load() * 0.01f);
+    smChorusMix  .setCurrentAndTargetValue (pChorusMix->load()   * 0.01f);
+    smTremoloRate .setCurrentAndTargetValue (pTremoloRate->load());
+    smTremoloDepth.setCurrentAndTargetValue (pTremoloDepth->load() * 0.01f);
 
     setLatencySamples ((int) oversampler.getLatencyInSamples());
 }
@@ -181,6 +320,15 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     if (bypassParam != nullptr && bypassParam->get())
         return;
 
+    // Host tempo, for PHASER/CHORUS rate and ECHO time sync. Standalone (or
+    // any host that doesn't report a valid position) falls back to 120 BPM
+    // rather than disabling sync outright.
+    double hostBpm = 120.0;
+    if (auto* playHead = getPlayHead())
+        if (auto position = playHead->getPosition())
+            if (auto bpm = position->getBpm())
+                hostBpm = *bpm;
+
     // --- smoothed targets, once per block ---------------------------------
     smMorph  .setTargetValue (pMorph->load()   * 0.01f);
     smSustain.setTargetValue (pSustain->load() * 0.01f);
@@ -192,17 +340,40 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     smRosin  .setTargetValue (pRosin->load()   * 0.01f);
     smSection.setTargetValue (pSection->load() * 0.01f);
     smForce  .setTargetValue (pForce->load()   * 0.01f);
-    smEchoTime.setTargetValue (pEchoTime->load());
+
+    const float echoTimeMs = pEchoSync->load() > 0.5f
+        ? juce::jlimit (80.0f, 900.0f, divisionToMs ((int) pEchoDivision->load(), hostBpm))
+        : pEchoTime->load();
+    smEchoTime.setTargetValue (echoTimeMs);
     smEchoFb .setTargetValue (pEchoFb->load() * 0.01f);
     smEchoMix.setTargetValue (pEchoMix->load() * 0.01f);
     smReverbMix.setTargetValue (pReverbMix->load() * 0.01f);
     smOutput .setTargetValue (juce::Decibels::decibelsToGain (pOutput->load()));
+
+    const float phaserRateHz = pPhaserSync->load() > 0.5f
+        ? divisionToHz ((int) pPhaserDivision->load(), hostBpm)
+        : pPhaserRate->load();
+    smPhaserRate .setTargetValue (phaserRateHz);
+    smPhaserDepth.setTargetValue (pPhaserDepth->load() * 0.01f);
+    smPhaserMix  .setTargetValue (pPhaserMix->load()   * 0.01f);
+
+    const float chorusRateHz = pChorusSync->load() > 0.5f
+        ? divisionToHz ((int) pChorusDivision->load(), hostBpm)
+        : pChorusRate->load();
+    smChorusRate .setTargetValue (chorusRateHz);
+    smChorusDepth.setTargetValue (pChorusDepth->load() * 0.01f);
+    smChorusMix  .setTargetValue (pChorusMix->load()   * 0.01f);
+    smTremoloRate .setTargetValue (pTremoloRate->load());
+    smTremoloDepth.setTargetValue (pTremoloDepth->load() * 0.01f);
 
     violin.setInstrument ((bowotto::Instrument) (int) pBody->load());
 
     const bool  muffOn  = pMuffOn->load() > 0.5f;
     const bool  echoOn  = pEchoOn->load() > 0.5f;
     const bool  revOn   = pReverbOn->load() > 0.5f;
+    const bool  phaserOn  = pPhaserOn->load() > 0.5f;
+    const bool  chorusOn = pChorusOn->load() > 0.5f;
+    const bool  tremoloOn = pTremoloOn->load() > 0.5f;
     const float gateDb  = pGate->load();
 
     // --- 1. sum to mono, gate ---------------------------------------------
@@ -221,6 +392,23 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     uiGateDb.store (gate.lastGainDb, std::memory_order_relaxed);
     uiMorph.store (smMorph.getCurrentValue(), std::memory_order_relaxed);
 
+    // --- tuner: detect fundamental frequency of gated signal ----------------
+    const float detectedHz = detectFundamental (mono, numSamples, currentSampleRate);
+    if (detectedHz > 0.0f)
+    {
+        const float midi = freqToMidi (detectedHz);
+        const int   note = (int) std::round (midi);
+        const float cents = (midi - (float) note) * 100.0f;
+        uiTunerHz.store (detectedHz, std::memory_order_relaxed);
+        uiTunerCents.store (cents, std::memory_order_relaxed);
+        uiTunerNote.store (note, std::memory_order_relaxed);
+    }
+    else
+    {
+        uiTunerHz.store (0.0f, std::memory_order_relaxed);
+        uiTunerCents.store (0.0f, std::memory_order_relaxed);
+        uiTunerNote.store (-1, std::memory_order_relaxed);
+    }
 
     // --- 2. violin path taps here (pre-fuzz) ------------------------------
     violinL.setSize (1, numSamples, false, false, true);
@@ -313,24 +501,17 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     const auto* gtr = guitarBuffer.getReadPointer (0);
 
+    // Morph mix only — the pedalboard (phaser/chorus/echo/reverb) runs on
+    // the combined signal afterward, matching the spec's chain order:
+    // MORPH -> PHASER -> CHORUS -> TAPE ECHO -> REVERB -> OUT.
     for (int i = 0; i < numSamples; ++i)
     {
         const float m  = smMorph.getNextValue();
         const float gG = std::cos (m * juce::MathConstants<float>::halfPi);
         const float gV = std::sin (m * juce::MathConstants<float>::halfPi);
 
-        float l = gtr[i] * gG + vL[i] * gV;
-        float r = gtr[i] * gG + vR[i] * gV;
-
-        const float et  = smEchoTime.getNextValue();
-        const float efb = smEchoFb.getNextValue();
-        const float emx = smEchoMix.getNextValue();
-
-        if (echoOn)
-        {
-            l += echoL.process (l, et, efb) * emx;
-            r += echoR.process (r, et * 1.03f, efb) * emx;   // slight L/R offset
-        }
+        const float l = gtr[i] * gG + vL[i] * gV;
+        const float r = gtr[i] * gG + vR[i] * gV;
 
         // In a mono layout outR ALIASES outL (same pointer, set above). The
         // first fix here still wrote outL then unconditionally outR=r right
@@ -342,14 +523,83 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             outR[i] = r;
     }
 
+    // PHASER and CHORUS are whole-block JUCE dsp effects (wrap the built-in
+    // modules rather than hand-rolling modulated delay/allpass networks).
+    // `buffer` already has the right channel count for the host (1 or 2).
+    if (phaserOn)
+    {
+        phaser.setRate (smPhaserRate.getNextValue());
+        phaser.setDepth (smPhaserDepth.getNextValue());
+        phaser.setMix (smPhaserMix.getNextValue());
+        juce::dsp::AudioBlock<float> block (buffer);
+        juce::dsp::ProcessContextReplacing<float> ctx (block);
+        phaser.process (ctx);
+    }
+    else
+    {
+        smPhaserRate.skip (numSamples);
+        smPhaserDepth.skip (numSamples);
+        smPhaserMix.skip (numSamples);
+    }
+
+    if (chorusOn)
+    {
+        chorus.setRate (smChorusRate.getNextValue());
+        chorus.setDepth (smChorusDepth.getNextValue());
+        chorus.setMix (smChorusMix.getNextValue());
+        juce::dsp::AudioBlock<float> block (buffer);
+        juce::dsp::ProcessContextReplacing<float> ctx (block);
+        chorus.process (ctx);
+    }
+    else
+    {
+        smChorusRate.skip (numSamples);
+        smChorusDepth.skip (numSamples);
+        smChorusMix.skip (numSamples);
+    }
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        const float et  = smEchoTime.getNextValue();
+        const float efb = smEchoFb.getNextValue();
+        const float emx = smEchoMix.getNextValue();
+
+        if (echoOn)
+        {
+            outL[i] += echoL.process (outL[i], et, efb) * emx;
+            if (outR != outL)
+                outR[i] += echoR.process (outR[i], et * 1.03f, efb) * emx;   // slight L/R offset
+        }
+
+        if (tremoloOn)
+        {
+            const float g = tremolo.nextGain (smTremoloRate.getNextValue(),
+                                              smTremoloDepth.getNextValue());
+            outL[i] *= g;
+            if (outR != outL)
+                outR[i] *= g;
+        }
+        else
+        {
+            smTremoloRate.skip (1);
+            smTremoloDepth.skip (1);
+        }
+    }
+
     if (revOn)
     {
+        // juce::Reverb::setParameters() silently applies dryScaleFactor=2.0
+        // and wetScaleFactor=3.0 internally (see juce_Reverb.h) — authoring
+        // dryLevel=1.0 here actually asks JUCE for 2.0x (+6 dB) dry gain,
+        // audible even at MIX=0. Divide out both factors so what we author
+        // is what comes out: dryLevel=0.5 -> true unity dry; wetLevel is the
+        // intended 0..0.8 range instead of an effective 0..2.4.
         juce::Reverb::Parameters rp;
         rp.roomSize = pReverbSize->load() * 0.01f;
         rp.damping  = 0.45f;
         rp.width    = 0.9f;
-        rp.wetLevel = smReverbMix.getTargetValue() * 0.8f;
-        rp.dryLevel = 1.0f;
+        rp.wetLevel = (smReverbMix.getTargetValue() * 0.8f) / 3.0f;
+        rp.dryLevel = 1.0f / 2.0f;
         reverb.setParameters (rp);
 
         if (numChannels > 1)
