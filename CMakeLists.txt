@@ -35,6 +35,10 @@ endif()
 # ---------------------------------------------------------------------------
 # Plugin target
 # ---------------------------------------------------------------------------
+# ON locally (drops the build into the user plugin folder); CI passes OFF —
+# a build server has no plugin folder worth installing into.
+option(BOWOTTO_COPY_AFTER_BUILD "Copy the plugin into the plugin folder after building" ON)
+
 juce_add_plugin(TheBowotto
     COMPANY_NAME                "Core Focus Productions"
     BUNDLE_ID                   com.corefocusproductions.thebowotto
@@ -43,7 +47,7 @@ juce_add_plugin(TheBowotto
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD     TRUE
+    COPY_PLUGIN_AFTER_BUILD     ${BOWOTTO_COPY_AFTER_BUILD}
     PLUGIN_MANUFACTURER_CODE    Cfpr
     PLUGIN_CODE                 Bwot
     FORMATS                     VST3 AU Standalone

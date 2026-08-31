@@ -1,0 +1,82 @@
+name: Windows diagnostics
+
+# Runs only on the ci-diag-setup branch. Gathers the facts about the Windows
+# runner (what Visual Studio / CMake it actually has), then attempts the real
+# configure -> build -> test pipeline, and pushes everything it learned to the
+# ci-diag-results branch so it can be read without repo-admin API access.
+
+on:
+  push:
+    branches: [ci-diag-setup]
+
+permissions:
+  contents: write
+
+jobs:
+  diag:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gather facts and attempt real build
+        shell: pwsh
+        run: |
+          $out = "ci-diagnostics.txt"
+
+          "===== RUNNER IMAGE ====="                     | Out-File $out
+          "ImageOS=$env:ImageOS"                          | Out-File $out -Append
+          "ImageVersion=$env:ImageVersion"                | Out-File $out -Append
+
+          "===== CMAKE ====="                             | Out-File $out -Append
+          (cmake --version)                               | Out-File $out -Append
+          "===== CMAKE CAPABILITIES (generators) ====="   | Out-File $out -Append
+          (cmake -E capabilities)                         | Out-File $out -Append
+
+          "===== VSWHERE (all VS instances) ====="        | Out-File $out -Append
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            (& $vswhere -all -products * -property installationVersion,displayName,installationPath) | Out-File $out -Append
+          } else {
+            "vswhere.exe NOT FOUND"                       | Out-File $out -Append
+          }
+
+          "===== CONFIGURE (default generator, no -G) =====" | Out-File $out -Append
+          $conf = cmake -B build-diag -DBOWOTTO_COPY_AFTER_BUILD=OFF -DBOWOTTO_BUILD_SNAPSHOT=OFF 2>&1
+          $confCode = $LASTEXITCODE
+          ($conf | Select-Object -Last 120)               | Out-File $out -Append
+          "CONFIGURE EXIT CODE: $confCode"                | Out-File $out -Append
+
+          if ($confCode -eq 0) {
+            "===== BUILD (VST3 + tests, Release) ====="   | Out-File $out -Append
+            $build = cmake --build build-diag --config Release --target TheBowotto_VST3 BowottoTests --parallel 2>&1
+            $buildCode = $LASTEXITCODE
+            ($build | Select-Object -Last 150)            | Out-File $out -Append
+            "BUILD EXIT CODE: $buildCode"                 | Out-File $out -Append
+
+            "===== ARTEFACT TREE ====="                   | Out-File $out -Append
+            if (Test-Path "build-diag/TheBowotto_artefacts") {
+              (Get-ChildItem -Recurse "build-diag/TheBowotto_artefacts" | ForEach-Object { $_.FullName }) | Out-File $out -Append
+            } else {
+              "no TheBowotto_artefacts directory"         | Out-File $out -Append
+            }
+
+            if ($buildCode -eq 0) {
+              "===== BOWOTTO TESTS ON WINDOWS ====="      | Out-File $out -Append
+              $tests = & (Get-ChildItem -Recurse "build-diag" -Filter "BowottoTests.exe" | Select-Object -First 1).FullName 2>&1
+              $testCode = $LASTEXITCODE
+              $tests                                      | Out-File $out -Append
+              "TESTS EXIT CODE: $testCode"                | Out-File $out -Append
+            }
+          }
+
+      - name: Push results to ci-diag-results branch
+        if: always()
+        shell: pwsh
+        run: |
+          git config user.name  "bowotto-ci"
+          git config user.email "ci@corefocusproductions.invalid"
+          git checkout -B ci-diag-results
+          git add -f ci-diagnostics.txt
+          git commit -m "Windows CI diagnostics"
+          git push -f origin ci-diag-results
