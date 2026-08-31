@@ -1,0 +1,191 @@
+===== RUNNER IMAGE =====
+ImageOS=win25-vs2026
+ImageVersion=20260824.214.3
+===== CMAKE =====
+cmake version 4.4.2
+
+CMake suite maintained and supported by Kitware (kitware.com/cmake).
+===== CMAKE CAPABILITIES (generators) =====
+{"debugger":true,"fileApi":{"requests":[{"kind":"codemodel","version":[{"major":2,"minor":11}]},{"kind":"configureLog","version":[{"major":1,"minor":0}]},{"kind":"cache","version":[{"major":2,"minor":0}]},{"kind":"cmakeFiles","version":[{"major":1,"minor":1}]},{"kind":"toolchains","version":[{"major":1,"minor":1}]}]},"generators":[{"extraGenerators":[],"name":"Visual Studio 18 2026","platformSupport":true,"supportedPlatforms":["x64","Win32","ARM","ARM64","ARM64EC"],"toolsetSupport":true},{"extraGenerators":["CodeBlocks"],"name":"NMake Makefiles JOM","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"MSYS Makefiles","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"Borland Makefiles","platformSupport":false,"toolsetSupport":false},{"extraGenerators":["Kate"],"name":"Ninja Multi-Config","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"Visual Studio 17 2022","platformSupport":true,"supportedPlatforms":["x64","Win32","ARM","ARM64","ARM64EC"],"toolsetSupport":true},{"extraGenerators":[],"name":"Visual Studio 16 2019","platformSupport":true,"supportedPlatforms":["x64","Win32","ARM","ARM64","ARM64EC"],"toolsetSupport":true},{"extraGenerators":[],"name":"Visual Studio 15 2017","platformSupport":true,"supportedPlatforms":["x64","Win32","ARM","ARM64"],"toolsetSupport":true},{"extraGenerators":["CodeBlocks","CodeLite","Eclipse CDT4","Kate","Sublime Text 2"],"name":"NMake Makefiles","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"Visual Studio 14 2015","platformSupport":true,"supportedPlatforms":["x64","Win32","ARM"],"toolsetSupport":true},{"extraGenerators":["CodeBlocks","CodeLite","Eclipse CDT4","Kate","Sublime Text 2"],"name":"MinGW Makefiles","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"Green Hills MULTI","platformSupport":true,"toolsetSupport":true},{"extraGenerators":["CodeBlocks","CodeLite","Eclipse CDT4","Kate","Sublime Text 2"],"name":"Unix Makefiles","platformSupport":false,"toolsetSupport":false},{"extraGenerators":["CodeBlocks","CodeLite","Eclipse CDT4","Kate","Sublime Text 2"],"name":"Ninja","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"FASTBuild","platformSupport":false,"toolsetSupport":false},{"extraGenerators":[],"name":"Watcom WMake","platformSupport":false,"toolsetSupport":false}],"serverMode":false,"tls":true,"version":{"isDirty":false,"major":4,"minor":4,"patch":2,"string":"4.4.2","suffix":""}}
+===== VSWHERE (all VS instances) =====
+===== CONFIGURE (default generator, no -G) =====
+-- Building for: Visual Studio 18 2026
+-- The CXX compiler identification is MSVC 19.51.36256.0
+-- The C compiler identification is MSVC 19.51.36256.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/18/Enterprise/VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring juceaide
+-- Building juceaide
+-- Exporting juceaide
+-- Testing juceaide
+-- Finished setting up juceaide
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Configuring done (89.8s)
+-- Generating done (0.1s)
+-- Build files have been written to: D:/a/BOWOTTO/BOWOTTO/build-diag
+CONFIGURE EXIT CODE: 0
+===== BUILD (VST3 + tests, Release) =====
+MSBuild version 18.9.1+a81b43525 for .NET Framework
+
+  Checking File Globs
+  1>Checking Build System
+  Generating TheBowotto_artefacts/JuceLibraryCode/TheBowotto_resources.rc
+  Building Custom Rule D:/a/BOWOTTO/BOWOTTO/CMakeLists.txt
+  TheBowotto_rc_lib.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_rc_lib.dir\Release\TheBowotto_rc_lib.lib
+  Building Custom Rule D:/a/BOWOTTO/BOWOTTO/CMakeLists.txt
+  Building Custom Rule D:/a/BOWOTTO/BOWOTTO/CMakeLists.txt
+  juce_VST3ManifestHelper.cpp
+  PluginProcessor.cpp
+  PluginEditor.cpp
+  juce_audio_processors.cpp
+  juce_audio_processors_ara.cpp
+  juce_audio_processors_lv2_libs.cpp
+  juce_gui_extra.cpp
+D:\a\BOWOTTO\BOWOTTO\Source\PluginProcessor.cpp(327,15): warning C4458: declaration of 'playHead' hides class member [D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto.vcxproj]
+      D:\a\BOWOTTO\BOWOTTO\build-diag\_deps\juce-src\modules\juce_audio_processors\processors\juce_AudioProcessor.h(1458,33):
+      see declaration of 'juce::AudioProcessor::playHead'
+  
+  juce_gui_basics.cpp
+  juce_graphics.cpp
+  juce_graphics_Harfbuzz.cpp
+  juce_vst3_helper.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\Release\juce_vst3_helper.exe
+  juce_events.cpp
+  juce_core.cpp
+  juce_core_CompilationTime.cpp
+  juce_data_structures.cpp
+  juce_audio_basics.cpp
+  juce_audio_utils.cpp
+  juce_audio_formats.cpp
+  juce_audio_devices.cpp
+  juce_dsp.cpp
+  juce_graphics_Sheenbidi.c
+  TheBowotto.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\The Bowotto_SharedCode.lib
+  Building Custom Rule D:/a/BOWOTTO/BOWOTTO/CMakeLists.txt
+  juce_audio_utils.cpp
+  juce_audio_processors.cpp
+  juce_audio_processors_ara.cpp
+  juce_audio_processors_lv2_libs.cpp
+  juce_gui_extra.cpp
+  juce_gui_basics.cpp
+  juce_graphics.cpp
+  juce_graphics_Harfbuzz.cpp
+  juce_events.cpp
+  juce_core.cpp
+  juce_core_CompilationTime.cpp
+  juce_data_structures.cpp
+  juce_audio_basics.cpp
+  juce_audio_formats.cpp
+  juce_audio_devices.cpp
+  juce_dsp.cpp
+  juce_audio_plugin_client_AAX.cpp
+  juce_audio_plugin_client_AAX_utils.cpp
+  juce_audio_plugin_client_ARA.cpp
+  juce_audio_plugin_client_LV2.cpp
+  juce_audio_plugin_client_Standalone.cpp
+  juce_audio_plugin_client_Unity.cpp
+  juce_audio_plugin_client_VST2.cpp
+  juce_audio_plugin_client_VST3.cpp
+  juce_graphics_Sheenbidi.c
+     Creating library D:/a/BOWOTTO/BOWOTTO/build-diag/TheBowotto_artefacts/Release/VST3/The Bowotto.lib and object D:/a/BOWOTTO/BOWOTTO/build-diag/TheBowotto_artefacts/Release/VST3/The Bowotto.exp
+  Generating code
+  Finished generating code
+  TheBowotto_VST3.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents\x86_64-win\The Bowotto.vst3
+  removing moduleinfo.json
+  creating D:/a/BOWOTTO/BOWOTTO/build-diag/TheBowotto_artefacts/Release/VST3/The Bowotto.vst3/Contents/Resources/moduleinfo.json
+MSBuild version 18.9.1+a81b43525 for .NET Framework
+
+  Checking File Globs
+  TheBowotto.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\The Bowotto_SharedCode.lib
+  Building Custom Rule D:/a/BOWOTTO/BOWOTTO/CMakeLists.txt
+  TestHarness.cpp
+  juce_audio_utils.cpp
+  juce_audio_processors.cpp
+  juce_audio_processors_ara.cpp
+  juce_audio_processors_lv2_libs.cpp
+  juce_gui_extra.cpp
+D:\a\BOWOTTO\BOWOTTO\Tools\TestHarness.cpp(106,30): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data [D:\a\BOWOTTO\BOWOTTO\build-diag\BowottoTests.vcxproj]
+  juce_gui_basics.cpp
+  juce_graphics.cpp
+  juce_graphics_Harfbuzz.cpp
+  juce_events.cpp
+  juce_core.cpp
+  juce_core_CompilationTime.cpp
+  juce_data_structures.cpp
+  juce_audio_basics.cpp
+  juce_audio_formats.cpp
+  juce_audio_devices.cpp
+  juce_dsp.cpp
+  juce_graphics_Sheenbidi.c
+  Generating code
+  Finished generating code
+  BowottoTests.vcxproj -> D:\a\BOWOTTO\BOWOTTO\build-diag\Release\BowottoTests.exe
+BUILD EXIT CODE: 0
+===== ARTEFACT TREE =====
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\Debug
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\MinSizeRel
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\Release
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\RelWithDebInfo
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\Info.txt
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\TheBowotto_resources.rc
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\Debug\Defs.txt
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\MinSizeRel\Defs.txt
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\Release\Defs.txt
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\JuceLibraryCode\RelWithDebInfo\Defs.txt
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\The Bowotto_SharedCode.lib
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.exp
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.lib
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents\Resources
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents\x86_64-win
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents\Resources\moduleinfo.json
+D:\a\BOWOTTO\BOWOTTO\build-diag\TheBowotto_artefacts\Release\VST3\The Bowotto.vst3\Contents\x86_64-win\The Bowotto.vst3
+===== BOWOTTO TESTS ON WINDOWS =====
+PASS  T1 silence in -> silence out  [peak -120.0 dB]
+PASS  T2 riff at defaults is alive and bounded  [rms -7.8 dB, peak -0.3 dB]
+PASS  T3 MUFF off->on is plainly audible  [difference -0.1 dB vs off]
+PASS  T4 SCOOP: stock notch present, fill removes it  [notch 6.5 dB stock, -6.9 dB filled]
+PASS  T5 MORPH=100 applies the violin signature body modes  [lift vs guitar: A0 8.0, B1- 14.0, B1+ 25.5 dB]
+PASS  T5b MORPH holds level across the sweep (no volume drop)  [rms: guitar -25.6, morph50 -25.8, violin -26.3 dB]
+PASS  T5c violin spectrum has no dead octave (Helmholtz slope)  [steepest octave step -10.1 dB (target ~-6, v0.1.0 hit -16.8)]
+PASS  T6 SWELL slows the attack into a bow stroke  [rise: violin 285 ms, guitar 5 ms]
+PASS  T7 VIBRATO makes 6.5 Hz sidebands appear  [sideband/carrier: on 28.1 dB, off -120.0 dB]
+PASS  T8 ROSIN off->full is audible  [difference -8.7 dB]
+PASS  T9 SECTION decorrelates L/R  [correlation: solo 1.000, section 0.832]
+PASS  T9b PHASER is audible AND actually sweeps  [audible 2.5 dB, sweep range 5.1 dB]
+PASS  T9c CHORUS is audible AND depth changes the effect  [on/off 3.1 dB, depth 3.0 dB]
+PASS  T9d TREMOLO sweeps the envelope at full depth, flat when off  [envelope swing: on 1.00, off 0.00]
+PASS  T10 ECHO and REVERB are audible when on  [echo -5.4 dB, reverb -10.0 dB]
+PASS  T11 GATE mutes the floor, passes the riff  [floor rms -105.1 dB, riff rms -7.8 dB]
+PASS  T12 peak guard holds -0.2 dBFS with everything dimed  [peak -0.26 dB]
+PASS  T13 state save/recall round trip
+PASS  T14 output does not depend on host block size  [difference -120.0 dB]
+PASS  T15 44.1k / 96k render stays finite
+PASS  T16 mono render is the summed image, not one side  [distance to mid -30.3 dB vs to right-only -10.3 dB]
+PASS  T17 chord: harmonics still dominate intermodulation  [harmonics beat IMD by 12.0 dB]
+PASS  T18 BOW force sweeps brightness monotonically, useful range  [brightness BOW 0 -> 100: -44.7 -> -23.8 dB, span 20.9]
+PASS  T19 BODY selects a different instrument body  [95 Hz favours cello by 7.0 dB; 2300 Hz favours violin by 19.3 dB]
+PASS  T20 BYPASS passes the input untouched  [difference from input -120.0 dB]
+PASS  T21 reported latency matches the guitar path  [reported 4, measured 5 samples]
+PASS  T22 parameter slams do not click  [largest sample step 0.305]
+PASS  T23 REVERB at MIX=0 is transparent (no dry-gain leak)  [difference -120.0 dB vs off]
+
+ALL PASS
+TESTS EXIT CODE: 0
