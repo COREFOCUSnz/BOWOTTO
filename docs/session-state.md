@@ -1,4 +1,37 @@
-# Session state — 2026-08-26 (pedalboard redesign)
+# Session state — 2026-08-31 (GitHub CI cracked; v0.3.1 released for Otto)
+
+**v0.3.1 tagged and RELEASED on GitHub with working Windows + macOS CI.**
+Repo: https://github.com/COREFOCUSnz/BOWOTTO (SSH auth from this Mac).
+Release v0.3.1 assets: The-Bowotto-Windows-VST3.zip (Otto's download) and
+The-Bowotto-macOS.zip. **All 23 bench tests pass ON THE WINDOWS RUNNER** —
+the bench now runs as a required CI gate on both platforms.
+
+## 2026-08-31 session — the CI war, won by probing instead of guessing
+Every previous GitHub Actions attempt (Corey's manual ones and two of mine)
+failed. Three wrong guesses: `-G Ninja` + `cl` (no MSVC env; historic runs
+also grabbed stray MinGW gcc → the old `memset/strlen not declared` errors —
+JUCE 8 dropped MinGW), `-G "Visual Studio 17 2022"` (not on the image!),
+`Ninja Multi-Config` (same missing env). Locked out of run logs (API needs
+repo admin, no gh CLI on this Mac), so wrote `win-diag.yml`: a probe workflow
+on branch `ci-diag-setup` that runs on the real runner and force-pushes its
+findings to branch `ci-diag-results` — readable via plain git fetch.
+**Probe facts:** windows-latest = `win25-vs2026` image, ONLY Visual Studio 18
+2026 installed (why VS17 pinning died); default generator (no `-G`) works;
+no choco needed; artefacts at `build/TheBowotto_artefacts/Release/VST3/`;
+Windows `.vst3` is a folder-bundle (zip it or the download is a bare
+`Contents`); bench 23/23 green on Windows. Final workflow: no `-G`, bench as
+gate on both platforms, `if-no-files-found: error`, `permissions: contents:
+write` (new repos default read-only — release job silently can't publish
+without it). Also: `BOWOTTO_COPY_AFTER_BUILD` CMake option (ON locally, OFF
+in CI). v0.3.1 tag deleted + re-pushed at the fixed commit to publish the
+release. **This workflow is the template for the rest of the ORION suite.**
+
+Also this session: v0.3.1 = knob value popups hidden + default GAIN 35→20;
+GitHub repo created, SSH key set up, history merged with remote's initial
+commit. Still open: Corey's ear pass (nothing tuned by ear yet), morph
+crossfade loudness bump (README known item), Otto's real-world PC test.
+
+# Previous session state — 2026-08-26 (pedalboard redesign)
 
 **v0.2.1 + pedalboard UI, tuner, phaser, chorus.** Full history in README. Building: 22/22 tests pass.
 
