@@ -197,7 +197,7 @@ TabDisplay::TabDisplay (TheBowottoAudioProcessor& p) : processorRef (p)
         s.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
         s.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
         s.setColour (juce::Slider::rotarySliderFillColourId, accent);
-        s.setPopupDisplayEnabled (true, true, this);
+        s.setPopupDisplayEnabled (false, true, this);
         addAndMakeVisible (s);
         sliderAttachments.push_back (std::make_unique<SliderAttachment> (processorRef.apvts, paramId, s));
         knobLabels.push_back ({ &s, label });
@@ -455,7 +455,7 @@ void TheBowottoAudioProcessorEditor::addKnob (juce::Slider& s, const juce::Strin
     s.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     s.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
     s.setColour (juce::Slider::rotarySliderFillColourId, accent);
-    s.setPopupDisplayEnabled (true, true, this);
+    s.setPopupDisplayEnabled (false, true, this);
     addAndMakeVisible (s);
     sliderAttachments.push_back (std::make_unique<SliderAttachment> (proc.apvts, paramId, s));
     knobLabels.push_back ({ &s, label });
@@ -749,7 +749,7 @@ void TheBowottoAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (gold.withAlpha (0.8f));
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("v0.3.0", (int) w - 100, 20, 64, 16, juce::Justification::right);
+    g.drawText ("v0.3.1", (int) w - 100, 20, 64, 16, juce::Justification::right);
 
     // --- the two top view tabs: MAIN / PEDALS --------------------------------
     {

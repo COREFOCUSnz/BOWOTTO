@@ -105,7 +105,7 @@ TheBowottoAudioProcessor::createParameterLayout()
     params.push_back (std::make_unique<P> ("scoop",   "SCOOP",   range (0.0f, 100.0f),  100.0f));
 
     // --- the amp
-    params.push_back (std::make_unique<P> ("gain",    "GAIN",    range (0.0f, 100.0f),   35.0f));
+    params.push_back (std::make_unique<P> ("gain",    "GAIN",    range (0.0f, 100.0f),   20.0f));
 
     // --- the violin
     params.push_back (std::make_unique<P> ("morph",   "MORPH",   range (0.0f, 100.0f),    0.0f));

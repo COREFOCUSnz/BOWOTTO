@@ -9,7 +9,7 @@ if(APPLE AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
 endif()
 
 # C alongside CXX: juce_audio_formats compiles FLAC/Ogg from C sources.
-project(TheBowotto VERSION 0.3.0 LANGUAGES CXX C)
+project(TheBowotto VERSION 0.3.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

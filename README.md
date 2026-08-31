@@ -16,6 +16,17 @@ signature modes, the 2.3 kHz bridge hill) driven by the guitar itself:
 swell removes the pick, sustain holds the note like a stroke, rosin adds the
 friction layer, and SECTION fans the soloist out into desks.
 
+## v0.3.1 — UI polish & conservative defaults
+
+Minor fixes for a better first-load experience:
+
+- **Hidden parameter value labels** — knob/dial numbers no longer pop up when
+  dragging, eliminating UI clutter during interaction.
+- **Lowered default gain** — amp now loads at 20% instead of 35%, providing a
+  more usable, conservative starting point that won't overwhelm on first use.
+
+All 23 tests passing; cross-platform release ready (Windows VST3 / macOS AU+VST3).
+
 ## v0.3.0 — pedalboard redesign, tempo sync, tuner
 
 Full UI rework requested by Corey after seeing the v0.2.1 pedal layout pile
