@@ -1,5 +1,18 @@
 name: Build THE BOWOTTO
 
+# Lessons learned (probed 2026-08-31 via win-diag.yml, results on the
+# ci-diag-results branch):
+#   - windows-latest is the win25-vs2026 image: Visual Studio 18 2026 only.
+#     Never pin a VS generator version — omit -G and let CMake pick the
+#     newest VS on the image, so image upgrades can't break us again.
+#   - Plain -G Ninja on these runners grabs a stray MinGW gcc from PATH,
+#     and JUCE 8 dropped MinGW. Don't use Ninja on Windows CI.
+#   - No choco installs needed: cmake + MSVC are preinstalled.
+#   - The Windows .vst3 is a folder bundle -> zip it ourselves so the
+#     download extracts as "The Bowotto.vst3", not a bare "Contents".
+#   - The 23-test bench runs green on the Windows runner (proven in the
+#     probe) and exits non-zero on failure, so it gates every build.
+
 on:
   push:
     branches: [main]
@@ -7,53 +20,64 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write   # release job uploads assets
+
 jobs:
   build-windows:
     runs-on: windows-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSVC
-        uses: microsoft/setup-msbuild@v1
+      - name: Configure (default generator picks the image's Visual Studio)
+        run: cmake -B build -DBOWOTTO_COPY_AFTER_BUILD=OFF -DBOWOTTO_BUILD_SNAPSHOT=OFF
 
-      - name: Install CMake and Ninja
-        run: choco install cmake ninja -y
+      - name: Build VST3 + test bench
+        run: cmake --build build --config Release --target TheBowotto_VST3 BowottoTests --parallel
 
-      - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -G "Ninja Multi-Config"
+      - name: Run the 23-test bench on Windows
+        run: build/Release/BowottoTests.exe
 
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Zip the VST3 bundle
+        shell: pwsh
+        run: Compress-Archive -Path "build/TheBowotto_artefacts/Release/VST3/The Bowotto.vst3" -DestinationPath "The-Bowotto-Windows-VST3.zip"
 
-      - name: Upload VST3
+      - name: Upload Windows VST3
         uses: actions/upload-artifact@v4
         with:
-          name: bowotto-vst3-windows
-          path: build/TheBowotto_artefacts/Release/VST3/The Bowotto.vst3
+          name: bowotto-windows-vst3
+          path: The-Bowotto-Windows-VST3.zip
+          if-no-files-found: error
 
   build-macos:
     runs-on: macos-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBOWOTTO_COPY_AFTER_BUILD=OFF -DBOWOTTO_BUILD_SNAPSHOT=OFF
 
       - name: Build
-        run: cmake --build build --config Release
+        run: cmake --build build --config Release --parallel 3
 
-      - name: Create AU + VST3 zip
+      - name: Run the 23-test bench on macOS
+        run: build/BowottoTests
+
+      - name: Zip AU + VST3
         run: |
           mkdir -p bowotto-macos
-          cp -R build/TheBowotto_artefacts/Release/AU/The\ Bowotto.component bowotto-macos/
-          cp -R build/TheBowotto_artefacts/Release/VST3/The\ Bowotto.vst3 bowotto-macos/
-          zip -r bowotto-macos.zip bowotto-macos/
+          cp -R "build/TheBowotto_artefacts/AU/The Bowotto.component" bowotto-macos/ 2>/dev/null || cp -R "build/TheBowotto_artefacts/Release/AU/The Bowotto.component" bowotto-macos/
+          cp -R "build/TheBowotto_artefacts/VST3/The Bowotto.vst3" bowotto-macos/ 2>/dev/null || cp -R "build/TheBowotto_artefacts/Release/VST3/The Bowotto.vst3" bowotto-macos/
+          zip -r The-Bowotto-macOS.zip bowotto-macos/
 
-      - name: Upload macOS
+      - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
           name: bowotto-macos
-          path: bowotto-macos.zip
+          path: The-Bowotto-macOS.zip
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -68,11 +92,18 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/bowotto-vst3-windows/The Bowotto.vst3
-            artifacts/bowotto-macos/bowotto-macos.zip
+            artifacts/bowotto-windows-vst3/The-Bowotto-Windows-VST3.zip
+            artifacts/bowotto-macos/The-Bowotto-macOS.zip
           body: |
-            ## Release Notes
-            For detailed changes, see the changelog in README.md
+            THE BOWOTTO — Big Muff grunge amp that morphs into a violin.
 
-            **Windows:** VST3 plugin (.vst3)
-            **macOS:** AU + VST3 plugins (.component + .vst3)
+            **Windows (Otto):** download `The-Bowotto-Windows-VST3.zip`, extract,
+            and copy the `The Bowotto.vst3` folder into
+            `C:\Program Files\Common Files\VST3`, then rescan plugins in your DAW.
+
+            **macOS:** download `The-Bowotto-macOS.zip` — contains the AU
+            (`.component` -> `~/Library/Audio/Plug-Ins/Components`) and VST3
+            (`.vst3` -> `~/Library/Audio/Plug-Ins/VST3`).
+
+            Both builds pass the full 23-test DSP bench on their own platform in CI.
+            Changelog: see README.md.
