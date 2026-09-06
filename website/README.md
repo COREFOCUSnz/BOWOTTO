@@ -41,17 +41,22 @@ live in the same array if you want to match them to your videos.
 
 ## Deploy to Firebase Hosting
 
-`firebase.json` is already set up. One-time setup:
+Everything is pre-configured for the Firebase project
+**cymatics---by-corefocus** (`firebase.json` + `.firebaserc`), so there is no
+`firebase init` step. One-time setup on your computer:
 
 ```sh
-npm install -g firebase-tools
-firebase login
+npm install -g firebase-tools   # once
+firebase login                  # once — opens a browser to sign in
+```
+
+Then, from this folder, every deploy is one command:
+
+```sh
 cd website
-firebase init hosting        # pick/create your project; keep public dir "." ; NOT a single-page app; don't overwrite index.html
 firebase deploy
 ```
 
-After the first deploy it's just `firebase deploy` from this folder whenever you
-change something. Firebase gives you a free `*.web.app` URL immediately; a
-custom domain can be attached later in the Firebase console under
-Hosting → Add custom domain.
+The site goes live at https://cymatics---by-corefocus.web.app (a
+`*.firebaseapp.com` twin URL works too). A custom domain can be attached later
+in the Firebase console under Hosting → Add custom domain.
