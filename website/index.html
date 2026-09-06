@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Resonance Atlas — an interactive guide to sound and cymatics: the science of vibration, the history of visible sound, a live Chladni plate simulator, ten video lessons, and experiments you can build at home.">
+<title>Resonance Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <span class="mark">Resonance<span class="dot">·</span>Atlas</span>
+  <ul>
+    <li><a href="#sound">Sound</a></li>
+    <li><a href="#cymatics">Cymatics</a></li>
+    <li><a href="#lab">The Lab</a></li>
+    <li><a href="lessons.html">Lessons</a></li>
+    <li><a href="build.html">Build</a></li>
+    <li><a href="#glossary">Glossary</a></li>
+  </ul>
+</nav>
+
+<header class="hero">
+  <canvas id="heroPlate" aria-hidden="true"></canvas>
+  <div class="inner">
+    <p class="tagline">A field guide to vibration</p>
+    <h1>Sound you can <span class="thin">see.</span></h1>
+    <p class="lede">Scatter sand on a black plate, bow its edge, and the grains arrange themselves
+    into geometry. That trick — <strong>cymatics</strong> — is a window into how every note,
+    every voice, and every room actually works. This is moving sand, live, behind these words.</p>
+    <div class="cta-row">
+      <a class="btn" href="#lab">Open the Chladni Lab</a>
+      <a class="btn ghost" href="lessons.html">Start the 10 lessons</a>
+    </div>
+  </div>
+  <p class="credit">LIVE SIMULATION · 4,000 GRAINS · MODE (3,5)</p>
+</header>
+
+<section id="sound">
+  <div class="wrap">
+    <p class="eyebrow">Part I · The physics</p>
+    <div class="cols">
+      <div>
+        <h2>What is sound, really?</h2>
+        <p class="lede">Sound is not a thing that travels — it is a <strong>pattern of pressure</strong> that travels through things.</p>
+        <p>When a guitar string, a violin body, or your vocal folds vibrate, they shove the air
+        molecules next to them. Those molecules shove their neighbours, and a ripple of
+        squeeze-and-stretch — compression and rarefaction — races outward at about
+        <span class="hz">343 m/s</span> in air. Nothing makes the whole trip; each molecule just
+        wobbles in place and passes the push along, like a stadium wave made of people who never
+        leave their seats.</p>
+        <p>Your eardrum catches those pressure wobbles, and your brain decodes their
+        <strong>rate</strong> as pitch and their <strong>size</strong> as loudness. Everything
+        else we call tone, timbre, and texture is built from how many wobbles are stacked
+        together and how they change over time.</p>
+        <p>Cymatics simply moves that decoding job from the ear to the eye: give the vibration a
+        surface and something loose to push around, and the invisible pattern draws itself.</p>
+      </div>
+      <div>
+        <div class="machine">
+          <canvas id="waveCanvas" aria-label="Animated sine wave whose frequency and amplitude follow the sliders below"></canvas>
+          <div class="controls">
+            <div class="control">
+              <label for="wFreq">Frequency <output id="wFreqOut">220 Hz</output></label>
+              <input type="range" id="wFreq" min="55" max="880" value="220" step="1">
+            </div>
+            <div class="control">
+              <label for="wAmp">Amplitude <output id="wAmpOut">70 %</output></label>
+              <input type="range" id="wAmp" min="5" max="100" value="70" step="1">
+            </div>
+          </div>
+          <p class="note" style="margin:.9rem 0 0">The wave machine. Faster wobbles → higher pitch.
+          Bigger wobbles → louder sound. Doubling the frequency raises the note exactly one octave.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid three">
+      <div class="cell">
+        <h3>Frequency</h3>
+        <span class="unit">hertz · Hz</span>
+        <p>How many complete vibrations happen each second. The open A string of a guitar swings 110
+        times a second (110 Hz); a violin's A string, 440. Humans hear roughly 20 Hz to 20,000 Hz.</p>
+      </div>
+      <div class="cell">
+        <h3>Amplitude</h3>
+        <span class="unit">decibels · dB</span>
+        <p>The size of each pressure swing — how hard the air is pushed. We perceive it as loudness,
+        on a logarithmic scale: every +10 dB sounds roughly twice as loud.</p>
+      </div>
+      <div class="cell">
+        <h3>Wavelength</h3>
+        <span class="unit">metres · λ</span>
+        <p>The physical distance one cycle occupies in the air: speed ÷ frequency. A 20 Hz rumble is
+        17 metres long; a 10 kHz shimmer is 3.4 cm. This is why bass fills a room and treble beams.</p>
+      </div>
+      <div class="cell">
+        <h3>Resonance</h3>
+        <span class="unit">the amplifier</span>
+        <p>Every object has frequencies it "wants" to vibrate at. Feed it energy at one of those
+        frequencies and tiny pushes build into huge motion — a wine glass ringing, a violin body
+        blooming, a plate snapping into pattern.</p>
+      </div>
+      <div class="cell">
+        <h3>Harmonics</h3>
+        <span class="unit">the overtone series</span>
+        <p>A real string vibrates at its fundamental <em>and</em> at 2×, 3×, 4× that frequency all
+        at once. The recipe of those overtones is timbre — why a flute and a distorted guitar
+        playing the same note sound nothing alike.</p>
+      </div>
+      <div class="cell">
+        <h3>Standing waves</h3>
+        <span class="unit">the pattern maker</span>
+        <p>When a wave reflects back onto itself, the travelling motion freezes into fixed regions
+        of wild movement (antinodes) and perfect stillness (nodes). Every cymatic figure is a map
+        of standing-wave nodes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cymatics">
+  <div class="wrap">
+    <p class="eyebrow">Part II · Visible sound</p>
+    <div class="cols">
+      <div>
+        <h2>Cymatics: four centuries of watching sound</h2>
+        <p class="lede">The word comes from the Greek <em>kyma</em> — "wave" — but the discovery is
+        older than the name by nearly three hundred years.</p>
+        <p>The core observation has never changed: drive a surface with a tone, and loose material
+        on that surface migrates <strong>away from the regions that move</strong> and settles
+        <strong>where the surface stands still</strong>. Sand bounces off the antinodes and
+        collects on the nodes. The resulting figure is not a picture <em>of</em> the sound — it is
+        a precise diagram of how that particular surface bends at that particular frequency.</p>
+        <p>Raise the pitch and the plate divides itself into smaller vibrating regions, so the
+        pattern grows finer and more intricate. Change the plate's shape, thickness, or material
+        and the whole family of patterns changes with it. This is exactly why a violin's carved
+        top is tap-tuned by luthiers: they are tuning which patterns the body can make, and
+        Chladni figures in spruce dust are still used to check the work.</p>
+        <p>On water the same physics produces something softer — rippling lattices and rosettes on
+        the surface of a driven droplet — which is why water cymatics footage looks alive in a way
+        sand never quite does.</p>
+      </div>
+      <div>
+        <ol class="timeline">
+          <li>
+            <span class="when">1632 — Galileo Galilei</span>
+            <h3>The brass scraper</h3>
+            <p>Scraping a brass plate with a chisel, Galileo notices fine filings arranging into
+            "a long row of fine streaks, parallel and equidistant" whenever the plate sings.</p>
+          </li>
+          <li>
+            <span class="when">1680 — Robert Hooke</span>
+            <h3>Flour on glass</h3>
+            <p>At the Royal Society, Hooke bows the edge of a flour-dusted glass plate and watches
+            the powder gather into figures — the first deliberate cymatics experiment.</p>
+          </li>
+          <li>
+            <span class="when">1787 — Ernst Chladni</span>
+            <h3>The sound figures</h3>
+            <p>The "father of acoustics" systematises the trick: violin bow, metal plate, fine sand,
+            and a published atlas of nodal patterns. His Paris demonstration so impresses Napoleon
+            that a prize is founded for the mathematics of vibrating plates — later won by Sophie
+            Germain.</p>
+          </li>
+          <li>
+            <span class="when">1967 — Hans Jenny</span>
+            <h3>"Cymatics" gets its name</h3>
+            <p>The Swiss physician coins the term, drives plates and membranes with electronic
+            oscillators, films liquids and pastes in motion, and invents the tonoscope — a device
+            that lets the human voice draw its own patterns.</p>
+          </li>
+          <li>
+            <span class="when">Today</span>
+            <h3>Lab bench to stage</h3>
+            <p>Photographers like Alexander Lauterwasser image sound in water; engineers use the
+            same modal analysis to design speaker cones, aircraft panels, and instruments; artists
+            put cymatic plates on stage and let the music draw.</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="lab" class="lab">
+  <div class="wrap">
+    <p class="eyebrow">Part III · The lab</p>
+    <h2>The Chladni Lab</h2>
+    <p class="lede">A square steel plate, four thousand grains of virtual sand, and a tone
+    generator. Pick a vibration mode — or sweep the sliders — and watch the sand find the stillness.</p>
+    <div class="lab-shell">
+      <div class="plate-frame">
+        <canvas id="plate" aria-label="Interactive Chladni plate simulation: sand grains drift toward the nodal lines of the selected vibration mode"></canvas>
+        <div class="readout">
+          <span>MODE (<b id="roM">3</b>,<b id="roN">5</b>)</span>
+          <span>TONE <b id="roHz">742</b> Hz</span>
+          <span id="roAudio">AUDIO OFF</span>
+        </div>
+      </div>
+      <div class="lab-panel">
+        <h3>Drive the plate</h3>
+        <div class="preset-row" id="presets" role="group" aria-label="Mode presets"></div>
+        <div class="control">
+          <label for="modeM">Mode m <output id="modeMOut">3</output></label>
+          <input type="range" id="modeM" min="1" max="8" value="3" step="1">
+        </div>
+        <div class="control">
+          <label for="modeN">Mode n <output id="modeNOut">5</output></label>
+          <input type="range" id="modeN" min="1" max="8" value="5" step="1">
+        </div>
+        <div class="control">
+          <label for="agitate">Agitation <output id="agitateOut">55 %</output></label>
+          <input type="range" id="agitate" min="10" max="100" value="55" step="1">
+        </div>
+        <div class="lab-actions">
+          <button class="btn" id="toneBtn" type="button">♪ Play tone</button>
+          <button class="btn ghost" id="scatterBtn" type="button">Re-scatter sand</button>
+        </div>
+        <p class="lab-note">The two numbers count the nodal lines across each axis of the plate.
+        Higher modes need higher frequencies — watch the tone readout climb, and notice equal
+        mode pairs like (4,4) collapse into simple grids while unequal pairs weave.</p>
+      </div>
+    </div>
+    <p class="note" style="margin-top:1.6rem;max-width:var(--measure)">Under the hood this runs the
+    classic standing-wave equation for a square plate — sand takes a random step, but the step
+    shrinks wherever the plate is still, so grains wander until they strike a node and stop:
+    <span class="hz">cos(nπx)·cos(mπy) − cos(mπx)·cos(nπy) = 0</span>.</p>
+  </div>
+</section>
+
+<section id="go-deeper">
+  <div class="wrap">
+    <p class="eyebrow">Part IV · Go deeper</p>
+    <h2>Watch the lessons. Build the machine.</h2>
+    <div class="portal-grid">
+      <a class="portal" href="lessons.html">
+        <span class="num">10 videos</span>
+        <h3>The Lessons</h3>
+        <p>A guided video course in visible sound — from "what is a wave" all the way to running
+        your own cymatics sessions. Watch in order or dip in anywhere.</p>
+        <span class="go">Open the lessons &rarr;</span>
+      </a>
+      <a class="portal" href="build.html">
+        <span class="num">4 builds</span>
+        <h3>Build Your Own Rig</h3>
+        <p>Salt plate, water speaker, voice tonoscope — full parts lists, step-by-step
+        instructions, troubleshooting, and the safety rules that keep your ears intact.</p>
+        <span class="go">Open the build guide &rarr;</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section id="glossary">
+  <div class="wrap">
+    <p class="eyebrow">Appendix</p>
+    <h2>Field glossary</h2>
+    <dl class="gloss">
+      <dt>Antinode</dt><dd>A point of maximum movement in a standing wave — where the sand refuses to stay.</dd>
+      <dt>Chladni figure</dt><dd>The pattern loose particles form on a vibrating plate, mapping its nodal lines.</dd>
+      <dt>Compression / rarefaction</dt><dd>The squeeze and stretch of air molecules that a sound wave is made of.</dd>
+      <dt>Cymatics</dt><dd>The study and practice of making sound and vibration visible, named by Hans Jenny (1967).</dd>
+      <dt>Fundamental</dt><dd>The lowest frequency in a sound — the one we name as its pitch.</dd>
+      <dt>Mode</dt><dd>One particular shape a surface can vibrate in; each mode has its own frequency and nodal pattern.</dd>
+      <dt>Node</dt><dd>A point (or line) of zero movement in a standing wave — where the sand collects.</dd>
+      <dt>Overtone</dt><dd>Any resonant frequency above the fundamental; whole-number multiples are called harmonics.</dd>
+      <dt>Resonant frequency</dt><dd>A frequency at which an object naturally amplifies vibration fed into it.</dd>
+      <dt>Sine tone</dt><dd>The purest possible sound: a single frequency with no overtones. The pencil of cymatics.</dd>
+      <dt>Standing wave</dt><dd>A wave pattern that oscillates in place, formed when reflections overlap the original wave.</dd>
+      <dt>Timbre</dt><dd>The character of a sound — determined by its recipe of overtones and how they evolve.</dd>
+      <dt>Tonoscope</dt><dd>Jenny's instrument for drawing patterns with the voice: a membrane, sand, and a singing tube.</dd>
+      <dt>Wavelength</dt><dd>The physical length of one wave cycle in a medium: the speed of sound divided by frequency.</dd>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><span class="mark">Resonance·Atlas</span> — a Core Focus Productions field guide to sound and cymatics.</p>
+    <p>Simulation runs the free-plate standing-wave approximation. Turn the volume up, gently.</p>
+  </div>
+</footer>
+
+<script src="assets/chladni.js"></script>
+<script>
+/* --- hero: ambient plate that slowly cycles through modes --- */
+(function(){
+  const canvas = document.getElementById('heroPlate');
+  const plate = makePlate(canvas, {m:3, n:5, agitation:0.5, count:4000, trail:true,
+                                   color:'rgba(234,227,210,0.85)'});
+  const modes = [[3,5],[2,5],[4,6],[1,4],[3,7],[2,3],[5,6]];
+  let i = 0;
+  if (!REDUCED){
+    setInterval(()=>{
+      i = (i+1)%modes.length;
+      plate.state.m = modes[i][0];
+      plate.state.n = modes[i][1];
+      const c = document.querySelector('.hero .credit');
+      if (c) c.textContent = `LIVE SIMULATION · 4,000 GRAINS · MODE (${modes[i][0]},${modes[i][1]})`;
+    }, 9000);
+  }
+})();
+
+/* --- the lab plate + audio --- */
+(function(){
+  const canvas = document.getElementById('plate');
+  const plate = makePlate(canvas, {m:3, n:5, agitation:0.55, count:5000});
+  const mIn = document.getElementById('modeM'),  mOut = document.getElementById('modeMOut');
+  const nIn = document.getElementById('modeN'),  nOut = document.getElementById('modeNOut');
+  const aIn = document.getElementById('agitate'),aOut = document.getElementById('agitateOut');
+  const roM = document.getElementById('roM'), roN = document.getElementById('roN');
+  const roHz = document.getElementById('roHz'), roAudio = document.getElementById('roAudio');
+
+  // Plate-physics-flavoured tone: f grows with m²+n², landed in a musical range.
+  function modeFreq(m,n){ return Math.round(55 + 20.2*(m*m + n*n)); }
+
+  let audioCtx = null, osc = null, gain = null, playing = false;
+
+  function currentFreq(){ return modeFreq(plate.state.m, plate.state.n); }
+
+  function updateReadout(){
+    roM.textContent = plate.state.m;
+    roN.textContent = plate.state.n;
+    roHz.textContent = currentFreq();
+    if (playing && osc)
+      osc.frequency.setTargetAtTime(currentFreq(), audioCtx.currentTime, 0.06);
+  }
+
+  function setMode(m, n, fromSlider){
+    plate.state.m = m; plate.state.n = n;
+    if (!fromSlider){ mIn.value = m; nIn.value = n; }
+    mOut.textContent = m; nOut.textContent = n;
+    updateReadout(); syncChips();
+    if (REDUCED){ plate.scatter(); }
+  }
+
+  mIn.addEventListener('input', ()=> setMode(+mIn.value, +nIn.value, true));
+  nIn.addEventListener('input', ()=> setMode(+mIn.value, +nIn.value, true));
+  aIn.addEventListener('input', ()=>{
+    plate.state.agitation = aIn.value/100;
+    aOut.textContent = aIn.value + ' %';
+  });
+
+  document.getElementById('scatterBtn').addEventListener('click', ()=> plate.scatter());
+
+  const toneBtn = document.getElementById('toneBtn');
+  toneBtn.addEventListener('click', ()=>{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!playing){
+      osc = audioCtx.createOscillator();
+      gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = currentFreq();
+      gain.gain.value = 0;
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      gain.gain.setTargetAtTime(0.14, audioCtx.currentTime, 0.05);
+      playing = true;
+      toneBtn.textContent = '■ Stop tone';
+      roAudio.textContent = 'AUDIO ON';
+    } else {
+      gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+      const o = osc;
+      setTimeout(()=> o.stop(), 300);
+      playing = false; osc = null;
+      toneBtn.textContent = '♪ Play tone';
+      roAudio.textContent = 'AUDIO OFF';
+    }
+  });
+
+  // presets
+  const presets = [[1,2],[1,3],[2,3],[2,5],[3,4],[3,5],[4,6],[5,7]];
+  const row = document.getElementById('presets');
+  presets.forEach(([m,n])=>{
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip';
+    b.textContent = `(${m},${n})`;
+    b.setAttribute('aria-pressed', String(m===plate.state.m && n===plate.state.n));
+    b.addEventListener('click', ()=> setMode(m,n,false));
+    row.appendChild(b);
+  });
+  function syncChips(){
+    [...row.children].forEach((b,i)=>{
+      const [m,n] = presets[i];
+      b.setAttribute('aria-pressed', String(m===plate.state.m && n===plate.state.n));
+    });
+  }
+  updateReadout(); syncChips();
+})();
+
+/* --- wave machine --- */
+(function(){
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  const fIn = document.getElementById('wFreq'), fOut = document.getElementById('wFreqOut');
+  const aIn = document.getElementById('wAmp'),  aOut = document.getElementById('wAmpOut');
+  let t = 0;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = canvas.clientWidth*dpr;
+    canvas.height = canvas.clientHeight*dpr;
+  }
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+
+  function draw(){
+    const w = canvas.width, h = canvas.height;
+    const f = +fIn.value, amp = (+aIn.value/100) * h*0.4;
+    ctx.fillStyle = '#0b0d10';
+    ctx.fillRect(0,0,w,h);
+    // centre line
+    ctx.strokeStyle = '#262d35';
+    ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+    // the wave — teal is reserved for wave drawings
+    ctx.strokeStyle = '#6fc7b7';
+    ctx.lineWidth = Math.max(1.5, w/500);
+    ctx.beginPath();
+    const cycles = f/110;  // 110 Hz shows ~1 cycle per canvas
+    for (let x=0; x<=w; x++){
+      const y = h/2 + amp*Math.sin((x/w)*cycles*2*Math.PI - t*(f/110));
+      x===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    fOut.textContent = f + ' Hz';
+    aOut.textContent = aIn.value + ' %';
+  }
+  function frame(){ t += 0.09; draw(); requestAnimationFrame(frame); }
+  if (REDUCED){ draw(); fIn.addEventListener('input',draw); aIn.addEventListener('input',draw); }
+  else requestAnimationFrame(frame);
+})();
+
+</script>
+</body>
+</html>

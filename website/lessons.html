@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="The Resonance Atlas video course: ten lessons in sound and cymatics, from what a wave is to running your own visible-sound sessions.">
+<title>Resonance Atlas · Lessons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <span class="mark"><a href="index.html" style="color:inherit">Resonance<span class="dot">·</span>Atlas</a></span>
+  <ul>
+    <li><a href="index.html#sound">Sound</a></li>
+    <li><a href="index.html#cymatics">Cymatics</a></li>
+    <li><a href="index.html#lab">The Lab</a></li>
+    <li><a href="lessons.html" aria-current="page" style="color:var(--gold)">Lessons</a></li>
+    <li><a href="build.html">Build</a></li>
+    <li><a href="index.html#glossary">Glossary</a></li>
+  </ul>
+</nav>
+
+<header class="page-hero">
+  <canvas id="pageHeroPlate" aria-hidden="true"></canvas>
+  <div class="inner">
+    <p class="tagline" style="font-family:var(--mono);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:0 0 1.2rem">The course · 10 lessons</p>
+    <h1>Ten lessons in visible sound</h1>
+    <p class="lede">A guided path from "what is a wave" to running your own cymatics sessions.
+    Watch in order — each lesson builds on the last — then follow its <em>Explore</em> link into
+    the Atlas to go deeper.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="lesson-grid" id="lessonGrid"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><span class="mark">Resonance·Atlas</span> — a Core Focus Productions field guide to sound and cymatics.</p>
+    <p><a href="build.html">Next: build your own rig →</a></p>
+  </div>
+</footer>
+
+<script src="assets/chladni.js"></script>
+<script>
+/* Ambient plate behind the page title. */
+makePlate(document.getElementById('pageHeroPlate'),
+          {m:2, n:5, agitation:0.4, count:2500, trail:true, color:'rgba(234,227,210,0.65)'});
+
+/* ============================================================
+   THE LESSONS.
+   Paste each video's YouTube ID into `yt` below — the ID is the
+   part after "v=" in the video URL (youtube.com/watch?v=XXXXXXX).
+   Leave yt:"" and the card shows a placeholder instead.
+   ============================================================ */
+const LESSONS = [
+  { yt:"", title:"What is sound?",
+    blurb:"Pressure waves, the stadium-wave picture, and why nothing actually travels but the pattern.",
+    link:"index.html#sound" },
+  { yt:"", title:"Frequency & pitch",
+    blurb:"Hertz, octaves, and the range of human hearing — from 20 Hz rumble to 20 kHz shimmer.",
+    link:"index.html#sound" },
+  { yt:"", title:"Seeing sound: cymatics",
+    blurb:"The core trick: a driven surface, loose material, and the geometry that appears.",
+    link:"index.html#cymatics" },
+  { yt:"", title:"Chladni and the singing plates",
+    blurb:"A violin bow, a metal plate, a pinch of sand — and the 1787 atlas that started a science.",
+    link:"index.html#cymatics" },
+  { yt:"", title:"Standing waves & nodes",
+    blurb:"Why sand runs from movement and gathers in stillness. The pattern is a map of quiet.",
+    link:"index.html#lab" },
+  { yt:"", title:"Hans Jenny & the tonoscope",
+    blurb:"The 1967 experiments that named the field and let the human voice draw its own shapes.",
+    link:"index.html#cymatics" },
+  { yt:"", title:"Materials matter",
+    blurb:"Salt, sand, water, and paste each reveal a different face of the same vibration.",
+    link:"build.html" },
+  { yt:"", title:"Pitch, harmony & complexity",
+    blurb:"Higher tones, finer figures — and what intervals and chords do to a pattern.",
+    link:"index.html#lab" },
+  { yt:"", title:"Cymatics in nature",
+    blurb:"Spots, stripes, shells, and honeycomb: where wave patterns echo through the living world.",
+    link:"index.html#cymatics" },
+  { yt:"", title:"Build your own rig",
+    blurb:"From baking-tray salt plate to voice tonoscope — a full build session, safely.",
+    link:"build.html" }
+];
+
+const grid = document.getElementById('lessonGrid');
+LESSONS.forEach((L, i)=>{
+  const n = String(i+1).padStart(2,'0');
+  const card = document.createElement('article');
+  card.className = 'lesson';
+  const slot = L.yt
+    ? `<div class="yt-slot">
+         <iframe src="https://www.youtube-nocookie.com/embed/${L.yt}"
+                 title="Lesson ${n}: ${L.title}"
+                 loading="lazy" allowfullscreen
+                 allow="accelerometer; encrypted-media; picture-in-picture"></iframe>
+       </div>`
+    : `<div class="slot" role="img" aria-label="Video coming soon">
+         <div class="slot-empty">
+           <div class="glyph">▶</div>
+           <p>Lesson ${n} · video coming soon<br>paste its YouTube ID in lessons.html</p>
+         </div>
+       </div>`;
+  card.innerHTML = `
+    ${slot}
+    <div class="body">
+      <span class="num">Lesson ${n}</span>
+      <h3>${L.title}</h3>
+      <p>${L.blurb} <a href="${L.link}">Explore&nbsp;→</a></p>
+    </div>`;
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

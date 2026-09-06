@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Build your own cymatics device: full parts lists, step-by-step instructions, starting frequencies, filming tips, troubleshooting, and safety — salt plate, water speaker, voice tonoscope and more.">
+<title>Resonance Atlas · Build</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="nav" aria-label="Site">
+  <span class="mark"><a href="index.html" style="color:inherit">Resonance<span class="dot">·</span>Atlas</a></span>
+  <ul>
+    <li><a href="index.html#sound">Sound</a></li>
+    <li><a href="index.html#cymatics">Cymatics</a></li>
+    <li><a href="index.html#lab">The Lab</a></li>
+    <li><a href="lessons.html">Lessons</a></li>
+    <li><a href="build.html" aria-current="page" style="color:var(--gold)">Build</a></li>
+    <li><a href="index.html#glossary">Glossary</a></li>
+  </ul>
+</nav>
+
+<header class="page-hero">
+  <canvas id="pageHeroPlate" aria-hidden="true"></canvas>
+  <div class="inner">
+    <p class="tagline" style="font-family:var(--mono);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:0 0 1.2rem">The workshop · 4 builds</p>
+    <h1>Build your own cymatics device</h1>
+    <p class="lede">Cymatics is gloriously low-tech: everything here uses hardware-store parts and a
+    phone running a free tone-generator app. Start with the salt plate — it is the classic for a
+    reason — then work down the page.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Before you start</p>
+    <h2>The three-part recipe</h2>
+    <p>Every cymatics device ever made is the same three things: a <strong>driver</strong>
+    (something that vibrates on command — a speaker, a transducer, your voice), a
+    <strong>surface</strong> (plate, membrane, or water that the driver shakes), and a
+    <strong>medium</strong> (salt, sand, or the water itself, free to move and settle). Change any
+    one of the three and you get a whole new instrument. Everything below is a variation on that
+    recipe.</p>
+    <p>For the driver signal, install a free <strong>tone generator app</strong> on your phone
+    (search "function generator" or "tone generator" — you want one with a sine wave and a
+    frequency slider), or use any tone-generator website on a laptop. Sine waves only: music and
+    square waves smear several frequencies together and blur the pattern.</p>
+
+    <!-- ================= BUILD 1 : SALT PLATE ================= -->
+    <article class="build-article" id="salt-plate">
+      <div class="build-head">
+        <h2 style="margin:0">Build 1 · The salt plate</h2>
+        <span class="tag core">The classic</span>
+        <span class="tag">≈ 1 hour</span>
+      </div>
+      <div class="build-cols">
+        <div>
+          <p class="lede">Chladni's 1787 experiment with a speaker instead of a violin bow. This is
+          the build that makes the patterns you have seen in every cymatics video.</p>
+          <ol class="steps">
+            <li><b>Prepare the plate.</b> A thin metal plate 20–30 cm across is ideal — a cheap
+            baking tray, a pizza pan, or a square of 1 mm aluminium from a hardware store. Thinner
+            is better: it flexes more, so it patterns at lower volume.</li>
+            <li><b>Mount the driver.</b> Best option: a <em>bone-conduction / surface transducer</em>
+            stuck to the centre of the plate's underside with its adhesive pad — it shakes the plate
+            directly instead of the air. Budget option: rest the plate centrally on a small
+            speaker's cone with a wine cork or a dab of adhesive putty between them.</li>
+            <li><b>Isolate it.</b> Sit the whole assembly on a folded towel or foam so the table
+            doesn't steal the vibration (and your neighbours don't share the experiment).</li>
+            <li><b>Dust the surface.</b> Sprinkle a thin, even layer of fine table salt across the
+            plate. Less than you think — a heavy pile dampens the plate like a hand on a cymbal.</li>
+            <li><b>Sweep.</b> Start the tone generator around <span class="hz">100 Hz</span> at low
+            volume and sweep upward <em>slowly</em>. When you cross a resonance the plate suddenly
+            sings louder and the salt leaps — stop there, hold the frequency, and let the figure
+            settle.</li>
+            <li><b>Log your hits.</b> Every plate has its own resonances. Write down the
+            frequencies that pattern — they're your plate's personal scale, and they'll be there
+            every time.</li>
+          </ol>
+          <details class="trouble">
+            <summary>Troubleshooting</summary>
+            <p><b>Salt just sits there:</b> more volume, or a thinner plate, or a firmer bond
+            between driver and plate. The plate must shake — put a finger on it, you should feel a
+            strong buzz.</p>
+            <p><b>Salt all runs off one edge:</b> the plate isn't level. Shim the low side.</p>
+            <p><b>Everything blurs and dances but never settles:</b> you're between resonances or
+            too loud. Back the volume off and fine-tune the frequency a few hertz either way —
+            patterns snap in within a very narrow band.</p>
+            <p><b>Pattern is faint:</b> raise the frequency; patterns get bolder and finer as
+            modes climb. Also try sand or semolina — heavier grains draw crisper lines than salt.</p>
+          </details>
+        </div>
+        <aside class="parts">
+          <h4>Parts list</h4>
+          <ul>
+            <li>Thin metal plate or baking tray, 20–30 cm <span class="src">hardware store</span></li>
+            <li>Surface/bone-conduction transducer, 5–10 W <span class="src">electronics shop</span></li>
+            <li>Small amplifier or powered speaker to drive it <span class="src">any</span></li>
+            <li>Fine table salt or semolina <span class="src">kitchen</span></li>
+            <li>Adhesive putty / blu-tack <span class="src">stationery</span></li>
+            <li>Towel or foam pad <span class="src">home</span></li>
+            <li>Tone generator app <span class="src">free</span></li>
+          </ul>
+        </aside>
+      </div>
+    </article>
+
+    <!-- ================= BUILD 2 : WATER SPEAKER ================= -->
+    <article class="build-article" id="water-speaker">
+      <div class="build-head">
+        <h2 style="margin:0">Build 2 · The water speaker</h2>
+        <span class="tag easy">Easiest</span>
+        <span class="tag">≈ 20 min</span>
+      </div>
+      <div class="build-cols">
+        <div>
+          <p class="lede">Hans Jenny's liquid experiments, kitchen edition. Water responds to much
+          lower frequencies than a plate, and the patterns ripple and breathe instead of freezing.</p>
+          <ol class="steps">
+            <li><b>Find a sacrificial speaker.</b> An old woofer or a cheap full-range driver,
+            laid on its back so the cone faces the ceiling.</li>
+            <li><b>Waterproof the cone.</b> Line it with cling film, pressed gently into the
+            cone's shape. (Skip this only if you truly don't care about the speaker.)</li>
+            <li><b>Add water.</b> About a centimetre in the bowl of the cone. A splash of milk or
+            a drop of food colouring makes the surface easier to see.</li>
+            <li><b>Go low.</b> Play sine tones between <span class="hz">20–80 Hz</span>. Low
+            enough and you can watch individual ripples; around 40–60 Hz you'll get standing
+            lattices and starburst rosettes.</li>
+            <li><b>Light it hard.</b> One bright lamp at a low, raking angle. The patterns live in
+            the reflections.</li>
+            <li><b>Film in slow motion.</b> 240 fps on a phone turns the shimmer into visible
+            geometry. Two tones a few hertz apart make the whole pattern slowly rotate and beat.</li>
+          </ol>
+          <details class="trouble">
+            <summary>Troubleshooting</summary>
+            <p><b>Water just trembles:</b> more volume, or less water — a deep pool is heavy and
+            slow to pattern.</p>
+            <p><b>Splashing everywhere:</b> too loud. The best figures appear just below the
+            splash threshold.</p>
+            <p><b>Can't see anything:</b> it's the lighting, not the water. Kill the room lights
+            and use one hard source at a shallow angle.</p>
+          </details>
+        </div>
+        <aside class="parts">
+          <h4>Parts list</h4>
+          <ul>
+            <li>Old woofer or cheap speaker driver <span class="src">salvage</span></li>
+            <li>Amplifier to drive it <span class="src">any</span></li>
+            <li>Cling film <span class="src">kitchen</span></li>
+            <li>Water (+ drop of milk or colouring) <span class="src">tap</span></li>
+            <li>Desk lamp or torch <span class="src">home</span></li>
+            <li>Phone with slow-motion camera <span class="src">pocket</span></li>
+          </ul>
+        </aside>
+      </div>
+    </article>
+
+    <!-- ================= BUILD 3 : VOICE TONOSCOPE ================= -->
+    <article class="build-article" id="tonoscope">
+      <div class="build-head">
+        <h2 style="margin:0">Build 3 · The voice tonoscope</h2>
+        <span class="tag easy">No electronics</span>
+        <span class="tag">≈ 30 min</span>
+      </div>
+      <div class="build-cols">
+        <div>
+          <p class="lede">Jenny's 1967 instrument rebuilt for the price of a balloon: sing into a
+          tube, and your own voice draws the sand. The only cymatics device powered entirely by
+          you.</p>
+          <ol class="steps">
+            <li><b>Make the body.</b> A stiff cardboard tube or a length of 90–110 mm PVC pipe,
+            30–50 cm long. Cut one end square and clean.</li>
+            <li><b>Stretch the membrane.</b> Cut open a balloon (or use a square of latex sheet)
+            and stretch it drum-tight over the squared end. Tape or a strong rubber band holds it.
+            Tighter membrane → clearer figures.</li>
+            <li><b>Add a mouthpiece.</b> Sing straight into the open end, or tape a funnel or a
+            short side-tube in for comfort — Jenny's original bent the tube so the singer could
+            watch the membrane while singing.</li>
+            <li><b>Dust and sing.</b> Membrane horizontal, a pinch of fine sand or salt on top.
+            Sing a steady vowel — <em>ooo</em>, <em>ahh</em>, <em>eee</em> — and hold the pitch
+            dead flat. The sand rearranges live as you sing.</li>
+            <li><b>Experiment.</b> Same pitch, different vowels: different figures (vowels change
+            the overtone recipe). Same vowel, higher pitch: finer figures. A confident singer can
+            hold a pattern steady for as long as their breath lasts.</li>
+          </ol>
+          <details class="trouble">
+            <summary>Troubleshooting</summary>
+            <p><b>Nothing moves:</b> membrane too slack, or the pitch is wandering. Tighten the
+            latex and practise holding one note (a tuner app helps).</p>
+            <p><b>Sand bounces straight off:</b> singing too loud, or membrane over-tight. This
+            instrument likes a strong, steady mezzo-forte — not a shout.</p>
+          </details>
+        </div>
+        <aside class="parts">
+          <h4>Parts list</h4>
+          <ul>
+            <li>Cardboard tube or PVC pipe, 90–110 mm dia. <span class="src">hardware store</span></li>
+            <li>Balloon or latex sheet <span class="src">party shop</span></li>
+            <li>Strong rubber band or tape <span class="src">home</span></li>
+            <li>Fine sand or salt <span class="src">kitchen</span></li>
+            <li>Your voice <span class="src">included</span></li>
+          </ul>
+        </aside>
+      </div>
+    </article>
+
+    <!-- ================= BUILD 4 : STRING STROBE ================= -->
+    <article class="build-article" id="string-strobe">
+      <div class="build-head">
+        <h2 style="margin:0">Build 4 · The guitar-string strobe</h2>
+        <span class="tag easy">Zero parts</span>
+        <span class="tag">≈ 5 min</span>
+      </div>
+      <div class="build-cols">
+        <div>
+          <p class="lede">Not a build so much as a trick — but it makes standing waves visible on
+          an instrument you already own, and it's the fastest demo on this page.</p>
+          <ol class="steps">
+            <li><b>Film the low E.</b> Hold your phone camera close over the strings and pluck the
+            low E (<span class="hz">82 Hz</span>). The camera's rolling shutter samples the string
+            line-by-line and turns the vibration into slow, ropey waves on screen.</li>
+            <li><b>Force a node.</b> Touch the string feather-light at the 12th fret as you pluck:
+            you've pinned a node at the midpoint, the fundamental dies, and the octave harmonic
+            rings with exactly half the wave shape. That touch is cymatics — you sculpted the
+            standing wave with a fingertip.</li>
+            <li><b>Walk the harmonics.</b> Same trick at the 7th fret gives 3× the frequency
+            (an octave and a fifth), the 5th fret gives 4× (two octaves). You are playing the
+            overtone series — the same 1×, 2×, 3×, 4× ladder that gives every instrument its
+            timbre.</li>
+          </ol>
+        </div>
+        <aside class="parts">
+          <h4>Parts list</h4>
+          <ul>
+            <li>Guitar (any) <span class="src">you have one</span></li>
+            <li>Phone camera <span class="src">pocket</span></li>
+            <li>Bright, steady light <span class="src">home</span></li>
+          </ul>
+        </aside>
+      </div>
+    </article>
+
+    <!-- ================= REFERENCE ================= -->
+    <div class="build-article">
+      <h2>Starting frequencies</h2>
+      <p>Every rig is different, but these ranges are where each device wakes up. Sweep slowly —
+      resonances are only a few hertz wide.</p>
+      <div class="freq-table">
+        <table>
+          <thead>
+            <tr><th>Range</th><th>Device</th><th>What to expect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>20–80 Hz</td><td>Water speaker</td><td>Visible ripples, lattices, rotating rosettes; slow-motion territory.</td></tr>
+            <tr><td>80–200 Hz</td><td>Tonoscope · low voice</td><td>Broad, simple figures — rings and crosses with thick nodal lines.</td></tr>
+            <tr><td>200–800 Hz</td><td>Salt plate · sung vowels</td><td>The classic Chladni zone: stars, diamonds, and concentric geometry.</td></tr>
+            <tr><td>800 Hz–2 kHz</td><td>Salt plate, pushed</td><td>Fine, dense, mandala-like figures; needs more volume to drive.</td></tr>
+            <tr><td>2 kHz +</td><td>Small/stiff plates</td><td>Patterns finer than the grains themselves — switch to lycopodium powder or give the mode to a smaller plate.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 style="margin-top:2.6rem">Filming your sessions</h2>
+      <p>A producer's rig deserves producer-grade capture. Kill the room lights and use
+      <strong>one hard source at a raking angle</strong> — patterns are relief maps, and flat light
+      erases them. Lock focus and exposure before the sweep. For water, shoot
+      <strong>240 fps</strong>; for plates, normal speed but film the <em>transition</em> — the
+      moment salt abandons one figure and reorganises into the next is the best footage cymatics
+      has to offer. And record the tone to a separate track: sync the real audio back in the edit
+      and the picture explains the sound by itself.</p>
+    </div>
+
+    <div class="safety">
+      <h3>Protect your ears</h3>
+      <p>Resonance experiments involve sustained loud tones. Keep levels moderate, take breaks, and
+      use earplugs for long sessions — especially during sweeps, because a plate hitting resonance
+      can jump 10–15 dB without warning. Sustained low frequencies feel quieter than they are.
+      Hearing damage is cumulative and permanent; the patterns will wait for you. And keep water
+      well away from mains-powered amplifiers.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><span class="mark">Resonance·Atlas</span> — a Core Focus Productions field guide to sound and cymatics.</p>
+    <p><a href="index.html#lab">Practise first in the Chladni Lab →</a></p>
+  </div>
+</footer>
+
+<script src="assets/chladni.js"></script>
+<script>
+makePlate(document.getElementById('pageHeroPlate'),
+          {m:4, n:6, agitation:0.4, count:2500, trail:true, color:'rgba(234,227,210,0.65)'});
+</script>
+</body>
+</html>
