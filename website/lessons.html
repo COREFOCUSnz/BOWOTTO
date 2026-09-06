@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="The Resonance Atlas video course: ten lessons in sound and cymatics, from what a wave is to running your own visible-sound sessions.">
-<title>Resonance Atlas · Lessons</title>
+<meta name="description" content="Learn with V: a hologram teaches sound and cymatics over ten fun video lessons, from what a wave is to running your own visible-sound sessions.">
+<title>Resonance Atlas · Learn with V</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="assets/style.css">
 </head>
-<body>
+<body class="v-page">
 
 <nav class="nav" aria-label="Site">
   <span class="mark"><a href="index.html" style="color:inherit">Resonance<span class="dot">·</span>Atlas</a></span>
@@ -18,20 +18,29 @@
     <li><a href="index.html#sound">Sound</a></li>
     <li><a href="index.html#cymatics">Cymatics</a></li>
     <li><a href="index.html#lab">The Lab</a></li>
-    <li><a href="lessons.html" aria-current="page" style="color:var(--gold)">Lessons</a></li>
+    <li><a href="lessons.html" aria-current="page" style="color:var(--gold)">Learn with V</a></li>
     <li><a href="build.html">Build</a></li>
     <li><a href="index.html#glossary">Glossary</a></li>
   </ul>
 </nav>
 
-<header class="page-hero">
+<header class="page-hero v-hero">
   <canvas id="pageHeroPlate" aria-hidden="true"></canvas>
   <div class="inner">
-    <p class="tagline" style="font-family:var(--mono);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:0 0 1.2rem">The course · 10 lessons</p>
-    <h1>Ten lessons in visible sound</h1>
-    <p class="lede">A guided path from "what is a wave" to running your own cymatics sessions.
-    Watch in order — each lesson builds on the last — then follow its <em>Explore</em> link into
-    the Atlas to go deeper.</p>
+    <p class="tagline" style="font-family:var(--mono);font-size:.78rem;letter-spacing:.24em;text-transform:uppercase;color:var(--gold);margin:0 0 1.2rem">Learn with V · 10 fun lessons</p>
+    <div class="v-title">
+      <div class="v-avatar" aria-hidden="true"><span>V</span></div>
+      <h1 style="margin:0">Learn with V</h1>
+    </div>
+    <p class="lede" style="margin-top:1rem">Meet <strong>V</strong> — a hologram with a serious
+    passion for vibration. Over ten fun lessons, V takes you from "what is a wave" all the way to
+    running your own cymatics sessions. Watch in order — each lesson builds on the last — then
+    follow its <em>Explore</em> link into the Atlas to go deeper.</p>
+    <div class="v-intro">
+      <p><b>V's one rule:</b> if you can hear it, you can see it. Every lesson ends with something
+      to try with your own ears, eyes, or hands — the <a href="index.html#lab">Chladni Lab</a> and
+      the <a href="build.html">workshop</a> are V's playground as much as yours.</p>
+    </div>
   </div>
 </header>
 
@@ -114,7 +123,7 @@ LESSONS.forEach((L, i)=>{
   card.innerHTML = `
     ${slot}
     <div class="body">
-      <span class="num">Lesson ${n}</span>
+      <span class="num">V · Lesson ${n}</span>
       <h3>${L.title}</h3>
       <p>${L.blurb} <a href="${L.link}">Explore&nbsp;→</a></p>
     </div>`;
