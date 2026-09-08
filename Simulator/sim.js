@@ -873,6 +873,7 @@ window.addEventListener('keydown', e => {
     case 'KeyF': hiQ = !hiQ; resize(); flash(hiQ ? 'QUALITY HIGH' : 'QUALITY LOW', 800); break;
     case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); break;
     case 'KeyH': $('help').classList.toggle('hidden'); break;
+    case 'KeyB': music.on = !music.on; flash(music.on ? 'MUSIC ON' : 'MUSIC OFF', 800); break;
     case 'KeyL': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); flash(trailOn ? 'LIGHT TRAIL ON' : 'LIGHT TRAIL OFF', 800); break;
     case 'KeyY': customYaw += Math.PI / 2; if (customModel) customModel.rotation.y += Math.PI / 2; break;
   }
@@ -941,6 +942,7 @@ const audio = {
       // EV whine
       const ev = C.createOscillator(); ev.type = 'sine'; const ev2 = C.createOscillator(); ev2.type = 'triangle'; const evg = C.createGain(); evg.gain.value = 0; ev.connect(evg); ev2.connect(evg); evg.connect(comp); ev.start(); ev2.start(); this.ev = ev; this.ev2 = ev2; this.evg = evg;
       this.load = 0;
+      music.start(C, comp);
     } catch (e) { console.warn('audio unavailable', e); this.ctx = null; }
   },
   crunch(k) {
@@ -979,6 +981,52 @@ const audio = {
     this.evg.gain.setTargetAtTime((evOn ? 0.03 + 0.05 * thr : 0) * on * clamp(spd / 3, 0, 1), t, 0.05);
     this.ev.frequency.setTargetAtTime(120 + spd * 26, t, 0.05); this.ev2.frequency.setTargetAtTime(240 + spd * 52, t, 0.05);
     if (!m.ev && thr < 0.05 && st.rpm > 4200 && Math.random() < dt * (st.mode === 3 ? 9 : 4) * on) this.pop();
+  },
+};
+
+// ------------------------------------------------------------------ music: downtempo at 100 BPM, generated (placeholder until Corey's own track lands)
+const music = {
+  on: true, bpm: 100, ctx: null, next: 0, step: 0, timer: null,
+  chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]],   // Dm · Bb · F · C (MIDI)
+  f(n) { return 440 * Math.pow(2, (n - 69) / 12); },
+  start(C, out) {
+    if (this.ctx) return; this.ctx = C;
+    const g = C.createGain(); g.gain.value = 0.32; g.connect(out); this.out = g;
+    const dly = C.createDelay(1.0); dly.delayTime.value = 60 / this.bpm * 0.75; const fb = C.createGain(); fb.gain.value = 0.38; const df = C.createBiquadFilter(); df.type = 'lowpass'; df.frequency.value = 2200;
+    dly.connect(df); df.connect(fb); fb.connect(dly); const dw = C.createGain(); dw.gain.value = 0.35; dly.connect(dw); dw.connect(g); this.delay = dly;
+    this.padGain = C.createGain(); this.padGain.gain.value = 0.22; const pf = C.createBiquadFilter(); pf.type = 'lowpass'; pf.frequency.value = 900; pf.Q.value = 0.8; this.padGain.connect(pf); pf.connect(g); this.padFilter = pf;
+    const nb = C.createBuffer(1, C.sampleRate, C.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; this.noise = nb;
+    this.next = C.currentTime + 0.1; this.step = 0;
+    this.timer = setInterval(() => this.schedule(), 40);
+  },
+  osc(type, freq, t0, dur, vol, dest, a = 0.005, r = 0.1, detune = 0) {
+    const C = this.ctx, o = C.createOscillator(), v = C.createGain(); o.type = type; o.frequency.value = freq; o.detune.value = detune;
+    v.gain.setValueAtTime(0.0001, t0); v.gain.exponentialRampToValueAtTime(vol, t0 + a); v.gain.setValueAtTime(vol, t0 + dur); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + r);
+    o.connect(v); v.connect(dest || this.out); o.start(t0); o.stop(t0 + dur + r + 0.05);
+  },
+  hit(t0, cutoff, vol, dur, q = 0.7) {
+    const C = this.ctx, n = C.createBufferSource(); n.buffer = this.noise; const f = C.createBiquadFilter(); f.type = cutoff > 3000 ? 'highpass' : 'bandpass'; f.frequency.value = cutoff; f.Q.value = q;
+    const v = C.createGain(); v.gain.setValueAtTime(vol, t0); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); n.connect(f); f.connect(v); v.connect(this.out); n.start(t0); n.stop(t0 + dur + 0.02);
+  },
+  kick(t0) { const C = this.ctx, o = C.createOscillator(), v = C.createGain(); o.frequency.setValueAtTime(150, t0); o.frequency.exponentialRampToValueAtTime(42, t0 + 0.09); v.gain.setValueAtTime(0.9, t0); v.gain.exponentialRampToValueAtTime(0.001, t0 + 0.34); o.connect(v); v.connect(this.out); o.start(t0); o.stop(t0 + 0.4);
+    this.padGain.gain.cancelScheduledValues(t0); this.padGain.gain.setValueAtTime(0.09, t0); this.padGain.gain.linearRampToValueAtTime(0.22, t0 + 0.28); },
+  schedule() {
+    const C = this.ctx, spb = 60 / this.bpm, s16 = spb / 4;
+    while (this.next < C.currentTime + 0.25) {
+      const st16 = this.step % 64, bar = Math.floor(st16 / 16), beat = st16 % 16, t = this.next + (beat % 2 ? s16 * 0.11 : 0);   // light swing
+      if (this.on && st.sound) {
+        const ch = this.chords[bar];
+        if (beat === 0 || beat === 8 || beat === 11 || (bar === 3 && beat === 14)) this.kick(t);
+        if (beat === 4 || beat === 12) { this.hit(t, 1800, 0.5, 0.18, 0.6); this.osc('triangle', 190, t, 0.02, 0.35, null, 0.002, 0.08); }
+        if (beat % 2 === 0) this.hit(t, 8000, beat % 4 === 2 ? 0.16 : 0.09, 0.05);
+        if ((beat === 7 || beat === 15) && Math.random() < 0.5) this.hit(t + s16 / 2, 9000, 0.1, 0.04);
+        if (beat === 0) { for (const n of ch) { this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, -6); this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, 6); } this.padFilter.frequency.setValueAtTime(700, t); this.padFilter.frequency.linearRampToValueAtTime(1500, t + spb * 2); this.padFilter.frequency.linearRampToValueAtTime(800, t + spb * 4); }
+        if (beat === 0 || beat === 6 || beat === 10) this.osc('sine', this.f(ch[0] - 24), t, beat === 0 ? spb * 1.4 : spb * 0.6, 0.55, null, 0.01, 0.12);
+        if (beat === 13 && bar % 2) this.osc('sine', this.f(ch[0] - 12), t, spb * 0.5, 0.35, null, 0.01, 0.1);
+        if (beat % 4 === 2 || (beat === 15 && bar === 1)) { const n = ch[(Math.floor(st16 / 3) + bar) % 3] + 12; this.osc('triangle', this.f(n), t, 0.08, 0.16, this.delay, 0.004, 0.12); }
+      }
+      this.next += s16; this.step++;
+    }
   },
 };
 
@@ -1068,8 +1116,10 @@ function step(dt) {
       st.d = clamp(st.d, -D_WALL + 0.1, D_WALL - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
     } else if (gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
       // missed the landing: put it back on the road after the gap at reduced speed
-      let land = frB.i; for (const J of JUMPS) if (frB.i >= J.i0 - 2 && frB.i <= J.i1 + 2) land = J.i1 + 4;
-      const keep = Math.abs(st.u) * 0.5; placeOnTrack(land); st.u = keep; st.resets++; st.hits++; flash('RESET', 900); audio.crunch(0.8); st.shake = 1;
+      // back to a standing start 350 m before the kicker so the attempt can be repeated with a full run-up
+      let back = frB.i; for (const J of JUMPS) if (frB.i >= J.i0 - 2 && frB.i <= J.i1 + 2) back = J.i0;
+      back = (back - Math.round(350 / (trackLen / N)) + N) % N;
+      placeOnTrack(back); st.resets++; st.hits++; flash('RESET · RUN IT AGAIN', 1400); audio.crunch(0.8); st.shake = 1;
     }
     st.offroad = false; st.slip = 0;
   } else {
