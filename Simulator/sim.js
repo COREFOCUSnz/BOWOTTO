@@ -399,19 +399,49 @@ const wheels = [];                                                 // {steer: Gr
   }
 }
 let customModel = null, customWheels = null, customYaw = 0;
+// number plates — GTA V1 — fitted flush to the bodywork by raycasting against the current car model
+const PLATE_TEXT = 'GTA V1';
+const plateTex = canvasTex(512, (ctx, s) => {
+  ctx.fillStyle = '#f4f4f0'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#111'; ctx.lineWidth = 14; ctx.strokeStyle = '#111'; ctx.strokeRect(10, s * 0.32, s - 20, s * 0.36);
+  ctx.font = 'bold 118px "Barlow Condensed", "Arial Narrow", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(PLATE_TEXT, s / 2, s * 0.5 + 4);
+  ctx.font = '600 22px Arial'; ctx.fillStyle = '#1f3b8f'; ctx.fillText('NEW ZEALAND', s / 2, s * 0.36 + 6);
+});
+plateTex.wrapS = plateTex.wrapT = THREE.ClampToEdgeWrapping; plateTex.repeat.set(1, 0.36); plateTex.offset.set(0, 0.32);
+const plateMat = new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.55, metalness: 0.1 });
+const plates = new THREE.Group(); bodyGroup.add(plates);
+function fitPlates() {
+  while (plates.children.length) plates.remove(plates.children[0]);
+  const targets = []; (customModel || procBody).traverse(o => { if (o.isMesh) targets.push(o); });
+  car.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const fit = (fromX, dirX, y, w, h) => {
+    const origin = new THREE.Vector3(fromX, y, 0).applyMatrix4(car.matrixWorld);
+    const dir = new THREE.Vector3(dirX, 0, 0).applyQuaternion(car.quaternion);
+    ray.set(origin, dir); const hit = ray.intersectObjects(targets, false)[0];
+    const x = hit ? fromX + dirX * (hit.distance - 0.012) : (dirX > 0 ? -2.45 : 2.46);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), plateMat); m.position.set(x, y, 0); m.rotation.y = dirX > 0 ? -Math.PI / 2 : Math.PI / 2; m.castShadow = false; plates.add(m);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.01, h + 0.02, w + 0.02), blackMat); back.position.set(x + dirX * 0.006, y, 0); plates.add(back);
+  };
+  fit(-8, 1, 0.50, 0.372, 0.134);    // rear plate, NZ size
+  fit(8, -1, 0.30, 0.372, 0.134);    // front plate
+}
+fitPlates();
 function setPaint(i) {
   paintIdx = (i + PAINTS.length) % PAINTS.length;
   paintMat.color.setHex(PAINTS[paintIdx].hex);
   $('paint-name').textContent = PAINTS[paintIdx].name;
   if (customModel) customModel.traverse(o => { if (o.isMesh && o.userData.paint) o.material.color.setHex(PAINTS[paintIdx].hex); });
 }
-function installModel(root) {
+function installModel(root, name) {
   if (customModel) bodyGroup.remove(customModel);
   const wrap = new THREE.Group();
   root.traverse(o => {
     if (o.isMesh) {
       o.castShadow = o.receiveShadow = true;
       const n = ((o.material && o.material.name) || o.name || '').toLowerCase();
+      if (o.material && /light|lamp|led|brake_light|tail_light|headlight_light|turning_light_(right|left)$/.test(n) && !/glass|carbon|inside|holder/.test(n) && o.material.emissive) {
+        o.material = o.material.clone(); if (o.material.emissive.getHex() === 0) o.material.emissive.setHex(/tail|brake/.test(n) ? 0xff2010 : 0xdff2ff); o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity || 1, 2.2);
+      }
       if (/paint|body|carrosserie|carroceria|exterior/.test(n) && o.material) {
         o.material = o.material.clone(); o.userData.paint = true;
         o.material.color.setHex(PAINTS[paintIdx].hex);
@@ -434,10 +464,11 @@ function installModel(root) {
   customModel = wrap; bodyGroup.add(wrap);
   procBody.visible = false;
   wheels.forEach(w => w.steer.visible = false);   // the model brings its own wheels
-  flash('MODEL LOADED', 1800);
+  fitPlates();
+  if (name !== 'embedded') flash('MODEL LOADED', 1800);
 }
 function loadGLBBuffer(buf, name) {
-  try { new THREE.GLTFLoader().parse(buf, '', g => installModel(g.scene), e => { console.error(e); flash('MODEL FAILED', 2000); }); }
+  try { new THREE.GLTFLoader().parse(buf, '', g => installModel(g.scene, name), e => { console.error(e); flash('MODEL FAILED', 2000); }); }
   catch (e) { console.error(e); flash('MODEL FAILED', 2000); }
 }
 window.addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('on'); });
@@ -447,8 +478,12 @@ window.addEventListener('drop', e => {
   const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
   const rd = new FileReader(); rd.onload = () => loadGLBBuffer(rd.result, f.name); rd.readAsArrayBuffer(f);
 });
-// optional: a revuelto.glb sitting next to the page
-fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
+// model baked into the page (build.py --embed), else a revuelto.glb sitting next to the page
+{
+  const emb = document.getElementById('revuelto-glb');
+  if (emb) { try { const b64 = emb.textContent.trim(); const bin = atob(b64); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); loadGLBBuffer(u8.buffer, 'embedded'); } catch (e) { console.error(e); } }
+  else if (location.protocol !== 'file:') fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
+}
 
 // ------------------------------------------------------------------ state
 const st = {

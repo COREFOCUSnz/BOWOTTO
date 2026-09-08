@@ -37,16 +37,20 @@ window.convert = async (b64, ext, front) => {
     if (!mat) continue; const n = (mat.name + ' ' + m.name).toLowerCase();
     if (/paint|body|exterior|carrosserie|carroceria|shell/.test(n) && !/glass|window|interior/.test(n)) { if (!/paint/.test(mat.name.toLowerCase())) mat.name = 'paint_' + (mat.name || 'body'); paint++; if (mat.isMeshStandardMaterial) { mat.metalness = 0.55; mat.roughness = 0.32; } }
   }
-  // wheels by name, then by position: nose = +Z, driver's left = -X in a right-handed Y-up frame
+  // wheels: prefer explicit group nodes (Wheel_FL, wheel_rr, Wheel_BR ...), else classify wheel-ish meshes by position
+  // (nose = +Z, driver's left = -X in a right-handed Y-up frame)
   const groups = { fl: [], fr: [], rl: [], rr: [] };
-  for (const m of meshes) { if (!/wheel|tyre|tire|rim|brake|caliper/.test(m.name.toLowerCase())) continue; const cc = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()); groups[(cc.z > 0 ? 'f' : 'r') + (cc.x < 0 ? 'l' : 'r')].push(m); }
+  const named = [];
+  root.traverse(o => { const m = o.name.match(/^wheel[_ -]?(f|b|r)[_ -]?(l|r)$/i); if (m && !o.isMesh) named.push({ node: o, key: (m[1].toLowerCase() === 'f' ? 'f' : 'r') + m[2].toLowerCase() }); });
+  if (named.length === 4) for (const n of named) groups[n.key].push(n.node);
+  else for (const m of meshes) { const n = m.name.toLowerCase(); if (!/wheel|tyre|tire|rim|brake|caliper|rotor/.test(n) || /steer|light|lamp/.test(n)) continue; const cc = new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()); groups[(cc.z > 0 ? 'f' : 'r') + (cc.x < 0 ? 'l' : 'r')].push(m); }
   let wheelParts = 0;
   for (const key in groups) { const objs = groups[key]; if (!objs.length) continue; const bb = new THREE.Box3(); objs.forEach(o => bb.expandByObject(o));
     const pivot = new THREE.Group(); pivot.name = 'wheel_' + key; pivot.position.copy(bb.getCenter(new THREE.Vector3())); wrap.add(pivot); pivot.updateMatrixWorld(true);
     for (const o of objs) pivot.attach(o); wheelParts += objs.length; }
   const glb = await new Promise((res, rej) => new THREE.GLTFExporter().parse(wrap, res, { binary: true, embedImages: true, onlyVisible: true }));
   const bytes = new Uint8Array(glb); let out = ''; for (let i = 0; i < bytes.length; i += 32768) out += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
-  return { glb: btoa(out), meshes: meshes.length, paint, wheelParts, size: [size.x, size.y, size.z].map(v => +v.toFixed(3)) };
+  return { glb: btoa(out), meshes: meshes.length, paint, wheelParts, namedWheels: named.length, size: [size.x, size.y, size.z].map(v => +v.toFixed(3)) };
 };
 </script></body>`;
 (async () => {
@@ -56,7 +60,7 @@ window.convert = async (b64, ext, front) => {
   await page.goto('file://' + tmp);
   const r = await page.evaluate(([b, e, f]) => window.convert(b, e, f), [fs.readFileSync(input).toString('base64'), ext, opts.front]);
   fs.writeFileSync(output, Buffer.from(r.glb, 'base64'));
-  console.log(`wrote ${output}: ${r.meshes} meshes, ${r.paint} paint materials, ${r.wheelParts} wheel parts, ${r.size.join(' x ')} m`);
+  console.log(`wrote ${output}: ${r.meshes} meshes, ${r.paint} paint materials, ${r.wheelParts} wheel parts (${r.namedWheels} named wheel groups), ${r.size.join(' x ')} m`);
   if (opts.preview) {
     const sim = path.resolve(__dirname, '..', 'dist', 'revuelto.html');
     const p2 = await browser.newPage({ viewport: { width: 1600, height: 900 } });

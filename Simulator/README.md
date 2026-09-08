@@ -28,9 +28,9 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 
 ## Making it look like the real car
 
-The built-in body is a procedural loft with the Revuelto's proportions and
-signature details (Y-lights, hex exhausts, Y-spoke rims), not its real
-surfacing. The path to a photoreal car is a real mesh:
+The sim ships with ALIEEEN's Revuelto model baked in (see Credits). A
+procedural fallback body with the Revuelto's proportions is used when no
+model is present (`build.py --no-model`). To swap in a different mesh:
 
 1. Get a Revuelto model (Sketchfab, CGTrader, TurboSquid, or your own) as
    OBJ / FBX / glTF and put it anywhere on disk (or commit it to the repo
@@ -57,6 +57,13 @@ Blender is a modelling and offline renderer, not a real-time engine. For a
 true photoreal *playable* sim the next step up is Unreal Engine 5 or Unity
 with the same GLB; this repo's physics constants transfer directly.
 
+## Credits
+
+Car model: **"Free Lamborghini Revuelto" by ALIEEEN**, via Sketchfab,
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+See `models/LICENSE.md`. The credit must stay with any copy of the sim that
+includes the model. Three.js is MIT (`vendor/LICENSE.three.js`).
+
 ## Layout
 
 ```
@@ -65,9 +72,11 @@ Simulator/sim.js            world, car, physics, audio, HUD
 Simulator/sim.css           HUD styling
 Simulator/vendor/           Three.js r128 + example passes (MIT)
 Simulator/tools/            convert-model.js (headless model converter)
+Simulator/models/           Revuelto model (source + converted) and its licence
 Simulator/blender/          Blender export + hero-render script
 Simulator/build.py          bundles into dist/revuelto.html (single file)
 Simulator/dist/             built output (committed for convenience)
 ```
 
-Rebuild the single file after editing: `python3 Simulator/build.py`.
+Rebuild the single file after editing: `python3 Simulator/build.py`
+(embeds `models/revuelto.glb`; add `--no-model` for the small procedural build).
