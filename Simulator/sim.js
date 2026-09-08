@@ -100,7 +100,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(env, 0.04).texture;
 }
 
-const sun = new THREE.DirectionalLight(0xa9d4ff, 1.4);
+const sun = new THREE.DirectionalLight(0xa9d4ff, 2.0);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 900;
@@ -109,6 +109,9 @@ sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
 scene.add(sun); scene.add(sun.target);
 scene.add(new THREE.HemisphereLight(0x1e447e, 0x02050c, 0.45));
 const underglow = new THREE.PointLight(0x2ee6ff, 2.2, 9, 2); scene.add(underglow);
+// live reflections: a cube camera at the car feeds the paint, glass and rims
+const cubeRT = new THREE.WebGLCubeRenderTarget(256, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+const cubeCam = new THREE.CubeCamera(0.6, 2500, cubeRT);
 
 // post-processing (bloom)
 let composer = null, bloomPass = null, bloomOn = true, hiQ = true;
@@ -117,7 +120,7 @@ function buildComposer() {
   const rt = isWebGL2 ? new THREE.WebGLMultisampleRenderTarget(w, h, { format: THREE.RGBAFormat }) : undefined;
   composer = new THREE.EffectComposer(renderer, rt);
   composer.addPass(new THREE.RenderPass(scene, camera));
-  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), 0.85, 0.55, 0.62);
+  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), 0.7, 0.5, 0.7);
   composer.addPass(bloomPass);
   composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
 }
@@ -185,29 +188,39 @@ function trackDist(x, z) {
 }
 // terrain: rolling hills that flatten to 0 within 70 m of the track, foothills toward the mountain ring
 function terrainH(x, z) {
-  const d = trackDist(x, z), flat = smoothstep(70, 420, d), r = Math.hypot(x, z + 450);
-  const hills = Math.max(0, fbm(x * 0.0011 + 3.7, z * 0.0011 - 1.2, 5) - 0.42) * 140;
-  return hills * flat;
+  return 0;   // The Grid is a flat plain
 }
-const groundTex = canvasTex(512, (ctx, s) => {
-  ctx.fillStyle = '#03060d'; ctx.fillRect(0, 0, s, s);
-  ctx.strokeStyle = '#1fd6ff'; ctx.lineWidth = 3; ctx.globalAlpha = 0.9;
-  ctx.beginPath(); ctx.moveTo(0, 1.5); ctx.lineTo(s, 1.5); ctx.moveTo(1.5, 0); ctx.lineTo(1.5, s); ctx.stroke();
-  ctx.strokeStyle = '#0a3a55'; ctx.lineWidth = 1; ctx.globalAlpha = 0.45;
-  ctx.beginPath(); ctx.moveTo(0, s / 2); ctx.lineTo(s, s / 2); ctx.moveTo(s / 2, 0); ctx.lineTo(s / 2, s); ctx.stroke();
-}, 400);   // 20 m cells with a 10 m sub-grid
-groundTex.anisotropy = maxAniso;
+const gridMat = new THREE.ShaderMaterial({
+  transparent: true, fog: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2,
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uCar: { value: new THREE.Vector3() }, uTime: { value: 0 } }]),
+  vertexShader: `varying vec3 vW;
+#include <fog_pars_vertex>
+    void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+#include <fog_vertex>
+    }`,
+  fragmentShader: `uniform vec3 uCar; uniform float uTime; varying vec3 vW;
+#include <fog_pars_fragment>
+    float gridLine(vec2 p, float cell, float w){ vec2 q = p / cell; vec2 g = abs(fract(q - 0.5) - 0.5) / (fwidth(q) * w); return 1.0 - min(min(g.x, g.y), 1.0); }
+    void main(){
+      float major = gridLine(vW.xz, 20.0, 1.6), minor = gridLine(vW.xz, 4.0, 1.2);
+      vec3 base = vec3(0.012, 0.02, 0.045);
+      vec3 cyan = vec3(0.18, 0.9, 1.0);
+      float d = distance(vW.xz, uCar.xz);
+      float glow = 2.2 / (1.0 + d * d * 0.09);
+      float pulse = 0.85 + 0.15 * sin(uTime * 1.5 - vW.x * 0.01);
+      vec3 col = base + cyan * (major * 1.35 * pulse + minor * 0.22) + cyan * glow * 0.35;
+      float alpha = mix(0.86, 1.0, max(major, minor * 0.4));
+      gl_FragColor = vec4(col, alpha);
+#include <fog_fragment>
+    }`,
+});
 const ground = (() => {
-  const g = new THREE.PlaneGeometry(8000, 8000, 300, 300); g.rotateX(-Math.PI / 2); g.translate(0, 0, -450);
-  const pos = g.attributes.position, col = new Float32Array(pos.count * 3);
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i), h = terrainH(x, z); pos.setY(i, h);
-    col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = 1;
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: groundTex, emissiveMap: groundTex, emissive: 0xffffff, emissiveIntensity: 0.6, color: 0x0a0f18, roughness: 0.85, metalness: 0.0, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 }));
-  m.receiveShadow = true; scene.add(m); return m;
+  const g = new THREE.PlaneGeometry(8000, 8000, 64, 64); g.rotateX(-Math.PI / 2); g.translate(0, 0, -450);
+  const m = new THREE.Mesh(g, gridMat); m.receiveShadow = false; scene.add(m); return m;
 })();
+// glossy black floor: a planar mirror just under the grid so the car and its light trail reflect in the plain
+const mirror = new THREE.Reflector(new THREE.PlaneGeometry(7000, 7000), { textureWidth: 1024, textureHeight: 1024, color: 0x141c28, clipBias: 0.003 });
+mirror.rotation.x = -Math.PI / 2; mirror.position.set(0, -0.03, -450); scene.add(mirror);
 
 // road ribbon
 const roadTex = canvasTex(1024, (ctx, s) => {
@@ -330,8 +343,8 @@ function instancedColored(geo, mat, items, shadow) {
 
 // ------------------------------------------------------------------ car
 let paintIdx = 0;
-const paintMat = new THREE.MeshPhysicalMaterial({ color: PAINTS[0].hex, metalness: 0.45, roughness: 0.38, clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.6 });
-const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x05080b, metalness: 0.35, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.55 });
+const paintMat = new THREE.MeshPhysicalMaterial({ color: PAINTS[0].hex, metalness: 0.5, roughness: 0.2, clearcoat: 1.0, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.2 });
+const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x05080b, metalness: 0.35, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMap: cubeRT.texture, envMapIntensity: 1.2 });
 const blackMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.65, metalness: 0.2 });
 const carbonMat = new THREE.MeshStandardMaterial({ color: 0x18191c, roughness: 0.35, metalness: 0.5 });
 const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcfd2d6, roughness: 0.25, metalness: 1.0 });
@@ -494,7 +507,7 @@ function setPaint(i) {
   if (customModel) customModel.traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
     if (P.original) { o.material = o.userData.origMat; return; }             // the author's own paint, untouched
-    if (!o.userData.tintMat) { o.userData.tintMat = o.userData.origMat.clone(); o.userData.tintMat.map = null; }
+    if (!o.userData.tintMat) { o.userData.tintMat = o.userData.origMat.clone(); o.userData.tintMat.map = null; o.userData.tintMat.envMap = cubeRT.texture; }
     o.material = o.userData.tintMat; o.material.color.setHex(P.hex);
   });
 }
@@ -506,11 +519,16 @@ function installModel(root, name) {
       o.castShadow = o.receiveShadow = true;
       const n = ((o.material && o.material.name) || o.name || '').toLowerCase();
       if (o.material && /light|lamp|led|brake_light|tail_light|headlight_light|turning_light_(right|left)$/.test(n) && !/glass|carbon|inside|holder/.test(n) && o.material.emissive) {
-        o.material = o.material.clone(); if (o.material.emissive.getHex() === 0) o.material.emissive.setHex(/tail|brake/.test(n) ? 0xff2010 : 0xdff2ff); o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity || 1, 2.2);
+        o.material = o.material.clone(); if (o.material.emissive.getHex() === 0) o.material.emissive.setHex(/tail|brake/.test(n) ? 0xff2010 : 0xdff2ff); o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity || 1, 5.0);
       }
       if (/paint|body|carrosserie|carroceria|exterior/.test(n) && o.material && !/glass|window|interior|light/.test(n)) {
-        o.userData.paint = true; o.userData.origMat = o.material;            // keep the author's paint as delivered
-        if (o.material.isMeshStandardMaterial) o.material.envMapIntensity = 1.0;
+        // the author's colour and finish, rebuilt as clearcoat paint with live reflections
+        const src = o.material, pm = new THREE.MeshPhysicalMaterial({ color: src.color ? src.color.clone() : new THREE.Color(0xff2a03), map: src.map || null, metalness: Math.max(0.5, src.metalness || 0), roughness: Math.min(0.18, src.roughness == null ? 0.1 : src.roughness), clearcoat: 1, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.3, name: src.name });
+        o.material = pm; o.userData.paint = true; o.userData.origMat = pm;
+      } else if (o.material && o.material.isMeshStandardMaterial) {
+        o.material.envMap = cubeRT.texture; o.material.envMapIntensity = /window|glass/.test(n) ? 1.6 : 0.9;
+        if (/rim|caliper|exhaust|metal|chrome/.test(n)) { o.material.metalness = 1.0; o.material.roughness = Math.min(0.3, o.material.roughness); }
+        if (/window|glass/.test(n) && !/head|tail|turning/.test(n)) { o.material.roughness = 0.03; o.material.metalness = 0.3; }
       }
     }
   });
@@ -926,6 +944,8 @@ function frame(now) {
   car.position.set(st.x, terrainH(st.x, st.z), st.z); car.rotation.y = st.theta;
   underglow.position.set(st.x, car.position.y + 0.25, st.z);
   trailUpdate();
+  gridMat.uniforms.uCar.value.copy(car.position); gridMat.uniforms.uTime.value = now / 1000;
+  if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; cubeCam.position.set(st.x, car.position.y + 0.7, st.z); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; }
   bodyGroup.rotation.z = damp(bodyGroup.rotation.z, st.aLong * 0.004, 8, dt);
   bodyGroup.rotation.x = damp(bodyGroup.rotation.x, st.aLat * 0.006, 8, dt);
   updateCamera(dt);
