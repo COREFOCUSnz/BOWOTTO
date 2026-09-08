@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""quantize-glb.py -- shrink a GLB for embedding: positions to int16, normals to int8 (KHR_mesh_quantization).
+"""quantize-glb.py -- shrink a GLB for embedding: positions to int16, normals to int8 (KHR_mesh_quantization),
+images inlined as data URIs (no blob: URLs at load time).
 
     python3 Simulator/tools/quantize-glb.py in.glb out.glb
 
@@ -151,6 +152,14 @@ def main():
     for k in ('extensionsUsed', 'extensionsRequired'):
         if 'KHR_mesh_quantization' not in j[k]:
             j[k].append('KHR_mesh_quantization')
+    # images become data URIs so loaders never need blob: URLs (sandboxed pages often block them)
+    import base64
+    for im in j.get('images', []):
+        if 'bufferView' in im:
+            bv = j['bufferViews'][im['bufferView']]
+            data = bin_[bv['byteOffset']: bv['byteOffset'] + bv['byteLength']] if bv['byteOffset'] + bv['byteLength'] <= len(bin_) else b''
+            im['uri'] = 'data:%s;base64,%s' % (im.get('mimeType', 'image/png'), base64.b64encode(data).decode('ascii'))
+            im.pop('bufferView', None); im.pop('mimeType', None)
     # drop now-unreferenced buffer views by rebuilding the binary compactly
     used = set()
     for a in j['accessors']:

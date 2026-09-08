@@ -578,6 +578,8 @@ function installModel(root, name) {
   if (name !== 'embedded') flash('MODEL LOADED', 1800);
 }
 function loadGLBBuffer(buf, name) {
+  // sandboxed pages refuse blob: URLs; without createImageBitmap the loader uses <img src="data:..."> instead
+  try { window.createImageBitmap = undefined; } catch (e) {}
   try { new THREE.GLTFLoader().parse(buf, '', g => installModel(g.scene, name), e => { console.error(e); flash('MODEL FAILED', 2000); }); }
   catch (e) { console.error(e); flash('MODEL FAILED', 2000); }
 }
