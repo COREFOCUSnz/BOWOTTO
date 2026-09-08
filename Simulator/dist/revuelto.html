@@ -5237,18 +5237,6 @@ function instancedColored(geo, mat, items, shadow) {
   const beacons = [];
   for (let i = 0; i < N; i += 28) { const side = (i / 28) % 2 ? 1 : -1, n = new THREE.Vector3(-T[i].z, 0, T[i].x), p = S[i].clone().addScaledVector(n, side * 22); beacons.push({ x: p.x, z: p.z, y: 0, s: 1, sy: 1 + rnd() * 0.6 }); }
   instanced(new THREE.BoxGeometry(0.35, 9, 0.35).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false }), beacons, false);
-  const towerTex = canvasTex(128, (ctx, s) => { ctx.fillStyle = '#04070f'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#1fd6ff'; for (let y = 6; y < s; y += 16) { ctx.globalAlpha = 0.35 + rnd() * 0.6; ctx.fillRect(0, y, s, 3); } });
-  const towers = [];
-  for (let i = 0; i < 160; i++) {
-    const a = rnd() * Math.PI * 2, r = 1300 + rnd() * 1500, x = Math.cos(a) * r, z = -450 + Math.sin(a) * r;
-    if (trackDist(x, z) < 120) continue;
-    const w = 25 + rnd() * 60, h = 120 + Math.pow(rnd(), 2) * 700;
-    towers.push({ x, z, y: terrainH(x, z) - 5, s: w, sy: h, rot: rnd() * 6.28 });
-  }
-  const tm = new THREE.MeshStandardMaterial({ map: towerTex, emissiveMap: towerTex, emissive: 0xffffff, emissiveIntensity: 1.0, color: 0x223344, roughness: 0.6, metalness: 0.4 });
-  towerTex.wrapS = towerTex.wrapT = THREE.RepeatWrapping; towerTex.repeat.set(1, 1);
-  const im = instanced(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), tm, towers, false);
-  // scale the strip texture per tower height by using the geometry's unit box (uv 0..1 per face): stretch strips via repeat on a tall box looks fine at this distance
 }
 { // armco on the outside of every kerbed corner, posts every ~4 m
   const wallTex = canvasTex(64, (ctx, s) => { ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 7); ctx.fillStyle = '#0a6a90'; ctx.fillRect(0, s - 4, s, 4); });
@@ -5269,18 +5257,6 @@ function instancedColored(geo, mat, items, shadow) {
   const wall = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallTex, emissiveMap: wallTex, emissive: 0xffffff, emissiveIntensity: 1.4, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide })); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
   instanced(new THREE.BoxGeometry(0.12, 1.0, 0.12).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x0a1626, metalness: 0.6, roughness: 0.5 }), posts, true);
 }
-{ // grandstand with a crowd, facing the main straight from the left
-  const idx = 60, n = new THREE.Vector3(-T[idx].z, 0, T[idx].x), base = S[idx].clone().addScaledVector(n, -30), yaw = Math.atan2(-T[idx].z, T[idx].x);
-  const stand = new THREE.Group(); stand.position.copy(base); stand.rotation.y = yaw; scene.add(stand);
-  const conc = new THREE.MeshStandardMaterial({ color: 0x0c1526, roughness: 0.7, metalness: 0.3 });
-  for (let r = 0; r < 8; r++) { const h = 1.0 + r * 0.9, step = new THREE.Mesh(new THREE.BoxGeometry(90, h, 2.2), conc); step.position.set(0, h / 2, -(r * 2.2 + 6)); step.castShadow = true; step.receiveShadow = true; stand.add(step); }
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(92, 0.4, 22), new THREE.MeshStandardMaterial({ color: 0x0a1220, metalness: 0.6, roughness: 0.4, emissive: 0x1fd6ff, emissiveIntensity: 0.08 })); roof.position.set(0, 12, -14); roof.rotation.x = 0.12; roof.castShadow = true; stand.add(roof);
-  for (const sx of [-44, -22, 0, 22, 44]) { const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 12, 0.5), conc); pole.position.set(sx, 6, -22); stand.add(pole); }
-  const crowd = [];
-  for (let r = 0; r < 8; r++) for (let k = 0; k < 110; k++) { if (rnd() < 0.25) continue; crowd.push({ x: -44 + k * 0.8 + rnd() * 0.3, y: 1.0 + r * 0.9, z: -(r * 2.2 + 6) + 0.5, s: 0.9 + rnd() * 0.3, c: [0x9fe8ff, 0x1a3a8a, 0x2ee6ff, 0xdff6ff, 0x0d2a5a, 0x101828, 0x6fc8ff, 0xff8a2a][Math.floor(rnd() * 8)] }); }
-  const people = instancedColored(new THREE.CylinderGeometry(0.2, 0.24, 1.1, 6).translate(0, 0.55, 0), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.08 }), crowd, false);
-  scenery.remove(people); stand.add(people);
-}
 { // start gantry, billboards, pit building
   const dark = new THREE.MeshStandardMaterial({ color: 0x0a1220, roughness: 0.5, metalness: 0.6 });
   const gantry = new THREE.Group();
@@ -5295,9 +5271,6 @@ function instancedColored(geo, mat, items, shadow) {
   const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
   gantry.position.copy(S[0]); gantry.rotation.y = Math.atan2(-T[0].z, T[0].x); scene.add(gantry);
-  const pitTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#070d18'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, s * 0.42, s, 6); ctx.fillRect(0, s * 0.9, s, 4); });
-  const pit = new THREE.Mesh(new THREE.BoxGeometry(60, 6, 12).translate(0, 3, 0), new THREE.MeshStandardMaterial({ map: pitTex, emissiveMap: pitTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.5, metalness: 0.4 }));
-  pit.position.set(S[0].x + 30, 0, S[0].z + 26); pit.castShadow = true; pit.receiveShadow = true; scene.add(pit);
   const words = ['CORE FOCUS PRODUCTIONS', 'REVUELTO', 'THE BOWOTTO', 'THE GRID', 'FORGE · VICE · VULTURE', 'END OF LINE'];
   words.forEach((w, k) => {
     const idx = Math.floor((k + 0.5) / words.length * N);
