@@ -863,7 +863,7 @@ function trailUpdate() {
 const st = {
   s: 0, d: 0, psi: 0, u: 0, w: 0, yaw: 0,             // track coordinates: distance along, offset right, heading vs tangent; body-frame velocity
   x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
-  hits: 0, hitT: 0, boostT: 0, boostCd: 0, glow: 0, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
+  hits: 0, hitT: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -889,13 +889,14 @@ placeOnTrack(20);
 
 // ------------------------------------------------------------------ input
 const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0 };
-const inp = { steer: 0, throttle: 0, brake: 0, hand: false, shiftUp: false, shiftDown: false };
+const inp = { steer: 0, throttle: 0, brake: 0, hand: false, nos: false, shiftUp: false, shiftDown: false };
 function readInput() {
   const k = c => keys[c] ? 1 : 0;
   inp.steer = k('ArrowLeft') + k('KeyA') - k('ArrowRight') - k('KeyD') + touch.left - touch.right;
   inp.throttle = Math.max(k('ArrowUp'), k('KeyW'), touch.gas);
   inp.brake = Math.max(k('ArrowDown'), k('KeyS'), touch.brake);
   inp.hand = !!(keys.Space || touch.hand);
+  inp.nos = !!keys.KeyN;
   const gps = navigator.getGamepads ? navigator.getGamepads() : null;
   const gp = gps && (gps[0] || gps[1] || gps[2] || gps[3]);
   if (gp) {
@@ -904,6 +905,7 @@ function readInput() {
     inp.throttle = Math.max(inp.throttle, bt(7), bt(0));
     inp.brake = Math.max(inp.brake, bt(6), bt(2));
     if (bt(1) > 0.5) inp.hand = true;
+    if (bt(3) > 0.5) inp.nos = true;
     if (bt(5) > 0.5 && !gp._u) { gp._u = true; shiftManual(1); } else if (bt(5) < 0.5) gp._u = false;
     if (bt(4) > 0.5 && !gp._d) { gp._d = true; shiftManual(-1); } else if (bt(4) < 0.5) gp._d = false;
   }
@@ -973,7 +975,7 @@ const audio = {
       const master = C.createGain(); master.gain.value = 0.7; master.connect(C.destination); this.master = master;
       const comp = C.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.18; comp.connect(master);
       const noiseBuf = C.createBuffer(1, C.sampleRate * 2, C.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      const noise = () => { const n = C.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.start(); return n; };
+      const noise = () => { const n = C.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.start(); return n; }; this._noiseBuf = noiseBuf;
       // engine: oscillator bank -> drive -> lowpass -> howl -> gain
       this.oscs = [];
       const mix = C.createGain(); mix.gain.value = 0.5;
@@ -1002,6 +1004,19 @@ const audio = {
       this.load = 0;
       music.start(C, comp);
     } catch (e) { console.warn('audio unavailable', e); this.ctx = null; }
+  },
+  nosStart() {
+    if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime; this.nosStop();
+    const n = C.createBufferSource(); n.buffer = this.oscs ? this._noiseBuf : null; if (!n.buffer) return; n.loop = true;
+    const hp = C.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2800; const g = C.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.05); g.gain.exponentialRampToValueAtTime(0.22, t + 0.5);
+    const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 55; const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 140; const og = C.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.35, t + 0.08);
+    n.connect(hp); hp.connect(g); g.connect(this.master); o.connect(lp); lp.connect(og); og.connect(this.master); n.start(t); o.start(t);
+    this.nosNodes = { n, o, g, og };
+  },
+  nosStop() {
+    if (!this.ctx || !this.nosNodes) return; const C = this.ctx, t = C.currentTime, x = this.nosNodes; this.nosNodes = null;
+    x.g.gain.cancelScheduledValues(t); x.g.gain.setValueAtTime(x.g.gain.value, t); x.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25); x.og.gain.cancelScheduledValues(t); x.og.gain.setValueAtTime(x.og.gain.value, t); x.og.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    x.n.stop(t + 0.3); x.o.stop(t + 0.3);
   },
   boost() {
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
@@ -1124,8 +1139,15 @@ function step(dt) {
   }
   if (m.ev && st.gear !== 0) st.gear = 0;
   // longitudinal forces
-  const Pe = CAR.powerW * CAR.drivelineEff * m.power;
-  const Ftrac = CAR.mass * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1);
+  // nitrous: hold N. ~1500 CV while the tank lasts (5 s), refills slowly when released
+  const wantNos = inp.nos && !m.ev && st.throttle > 0.2 && st.nos > 0.02 && !st.air;
+  if (wantNos && !st.nosOn) audio.nosStart();
+  if (!wantNos && st.nosOn) audio.nosStop();
+  st.nosOn = wantNos;
+  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5); st.glow = Math.max(st.glow || 0, 0.9); st.shake = Math.max(st.shake || 0, 0.12); } else st.nos = Math.min(1, st.nos + dt / 14);
+  const nosMul = st.nosOn ? 1.5 : 1;
+  const Pe = CAR.powerW * CAR.drivelineEff * m.power * nosMul;
+  const Ftrac = CAR.mass * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1) * (st.nosOn ? 1.35 : 1);
   let F = 0;
   if (!st.reverse) {
     F = st.throttle * Math.min(Ftrac, Pe / Math.max(v, 2.5)) * (m.ev ? 1 : torqueFactor(st.rpm));
@@ -1142,6 +1164,7 @@ function step(dt) {
   const fr0 = sampleAt(st.s), slope = fr0.t.y * Math.cos(st.psi) + fr0.b.y * Math.sin(st.psi);   // component of 'up' along the car's forward
   if (st.boostCd > 0) st.boostCd -= dt;
   if (st.boostT > 0) { st.boostT -= dt; F += CAR.mass * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
+  if (st.nosOn) F += CAR.mass * 3.0;                                                 // the shove you feel in the seat
   if (BOOST[fr0.i] && !st.air && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
   let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
@@ -1266,7 +1289,7 @@ function updateCamera(dt) {
   if (st.cam < 2 && v > 60) camera.position.addScaledVector(n, (Math.random() - 0.5) * 0.02 * (v - 60) / 40);
   if (st.shake > 0.01) { camera.position.addScaledVector(r, (Math.random() - 0.5) * 0.25 * st.shake).addScaledVector(n, (Math.random() - 0.5) * 0.15 * st.shake); st.shake *= Math.exp(-dt * 6); }
   camera.lookAt(camLook);
-  const fov = 60 + 24 * clamp(v / 95, 0, 1);
+  const fov = 60 + 24 * clamp(v / 95, 0, 1) + (st.nosOn ? 9 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 
@@ -1324,6 +1347,7 @@ function updateHUD() {
     $('lap-best').textContent = fmtTime(st.lapBest);
     $('vmax').textContent = Math.round(st.vmax) + ' km/h';
     $('hits').textContent = String(st.hits);
+    $('nos-fill').style.width = Math.round(st.nos * 100) + '%'; $('nos').classList.toggle('on', st.nosOn);
     $('status').textContent = st.offroad ? 'OFF TRACK' : ((st.drift || 0) > 0.5 ? 'DRIFT' : (st.slip > 0.35 ? 'SLIDING' : ''));
     $('vignette').style.opacity = String(0.25 + 0.5 * clamp(Math.abs(st.u) / 95, 0, 1));
   }
