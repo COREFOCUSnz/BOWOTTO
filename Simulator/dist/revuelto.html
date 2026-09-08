@@ -88,7 +88,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
     <div id="mode">
       <div id="mode-name">STRADA</div>
       <div id="mode-sub">HYBRID · 886 CV</div>
-      <div id="paint-name">AS DOWNLOADED</div>
+      <div id="paint-name">ARANCIO APODIS</div>
       <div id="status"></div>
     </div>
     <div id="msg"></div>
@@ -5188,7 +5188,7 @@ const MODES = [
 ];
 const PAINTS = [
   { name: 'AS DOWNLOADED', hex: 0xff2a03, original: true },
-  { name: 'VERDE SCANDAL', hex: 0x22b400 }, { name: 'ARANCIO APODIS', hex: 0xff6200 },
+  { name: 'VERDE SCANDAL', hex: 0x22b400 }, { name: 'ARANCIO APODIS', hex: 0xc22e08 },
   { name: 'GIALLO INTI', hex: 0xffd200 },   { name: 'BIANCO SIDERALE', hex: 0xf2f2ec },
   { name: 'NERO HELENE', hex: 0x0a0a0c },   { name: 'BLU URANUS', hex: 0x0a3cff },
   { name: 'ROSSO MARS', hex: 0xd40015 },    { name: 'GRIGIO TELESTO', hex: 0x8b8f94 },
@@ -5230,7 +5230,7 @@ const canvas = $('view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
+renderer.toneMappingExposure = 0.72;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const isWebGL2 = renderer.capabilities.isWebGL2;
@@ -5267,7 +5267,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(env, 0.04).texture;
 }
 
-const sun = new THREE.DirectionalLight(0xa9d4ff, 2.0);
+const sun = new THREE.DirectionalLight(0xa9d4ff, 1.3);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 900;
@@ -5276,9 +5276,25 @@ sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
 scene.add(sun); scene.add(sun.target);
 scene.add(new THREE.HemisphereLight(0x1e447e, 0x02050c, 0.45));
 const underglow = new THREE.PointLight(0x2ee6ff, 2.2, 9, 2); scene.add(underglow);
+// showroom rig that follows the car: cool-white key from front-left-high, cyan rim from behind, warm fill from the right
+const rig = new THREE.Group(); scene.add(rig);
+const keyLight = new THREE.SpotLight(0xf4f8ff, 0.7, 40, 0.7, 0.6, 1.2); keyLight.position.set(9, 9, -7); rig.add(keyLight); rig.add(keyLight.target);
+const rimLight = new THREE.SpotLight(0x5fe8ff, 1.2, 40, 0.8, 0.7, 1.2); rimLight.position.set(-9, 6, 4); rig.add(rimLight); rig.add(rimLight.target);
+const fillLight = new THREE.SpotLight(0xffd9b0, 0.4, 40, 0.9, 0.8, 1.2); fillLight.position.set(3, 4, 9); rig.add(fillLight); rig.add(fillLight.target);
+[keyLight, rimLight, fillLight].forEach(l => { l.target.position.set(0, 0.6, 0); });
 // live reflections: a cube camera at the car feeds the paint, glass and rims
-const cubeRT = new THREE.WebGLCubeRenderTarget(256, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+const cubeRT = new THREE.WebGLCubeRenderTarget(512, { format: THREE.RGBAFormat, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
 const cubeCam = new THREE.CubeCamera(0.6, 2500, cubeRT);
+// studio softbox that only the reflection camera can see (layer 1): a soft warm surround and bright top panels,
+// so the paint gets the smooth studio gradient of a viewer render while the Grid itself stays dark
+const studio = new THREE.Group(); scene.add(studio);
+{
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(28, 28, 18, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x2e2c2a, side: THREE.BackSide, fog: false })); wall.position.y = 6; studio.add(wall);
+  const ceil = new THREE.Mesh(new THREE.CircleGeometry(28, 32), new THREE.MeshBasicMaterial({ color: 0x5c5a57, side: THREE.DoubleSide, fog: false })); ceil.rotation.x = Math.PI / 2; ceil.position.y = 15; studio.add(ceil);
+  for (const [x, z, w, l] of [[0, 0, 5, 16], [-10, 6, 3, 12], [10, -6, 3, 12]]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, l), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, fog: false })); p.rotation.x = Math.PI / 2; p.position.set(x, 13, z); studio.add(p); }
+  studio.traverse(o => o.layers.set(1));
+  cubeCam.children.forEach(c => c.layers.enable(1));
+}
 
 // post-processing (bloom)
 let composer = null, bloomPass = null, bloomOn = true, hiQ = true;
@@ -5287,7 +5303,7 @@ function buildComposer() {
   const rt = isWebGL2 ? new THREE.WebGLMultisampleRenderTarget(w, h, { format: THREE.RGBAFormat }) : undefined;
   composer = new THREE.EffectComposer(renderer, rt);
   composer.addPass(new THREE.RenderPass(scene, camera));
-  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), 0.7, 0.5, 0.7);
+  bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(w, h), 0.6, 0.5, 0.88);
   composer.addPass(bloomPass);
   composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
 }
@@ -5461,6 +5477,13 @@ function instancedColored(geo, mat, items, shadow) {
   for (let i = 0; i < N; i += 28) { const side = (i / 28) % 2 ? 1 : -1, n = new THREE.Vector3(-T[i].z, 0, T[i].x), p = S[i].clone().addScaledVector(n, side * 22); beacons.push({ x: p.x, z: p.z, y: 0, s: 1, sy: 1 + rnd() * 0.6 }); }
   instanced(new THREE.BoxGeometry(0.35, 9, 0.35).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false }), beacons, false);
 }
+{ // overhead light ribbons above both road edges: the "ceiling" that the paint reflects
+  const mk = (off, y, w) => { const pos = []; for (let i = 0; i < N; i++) { const j = (i + 1) % N, ni = new THREE.Vector3(-T[i].z, 0, T[i].x), nj = new THREE.Vector3(-T[j].z, 0, T[j].x);
+      for (const side of [1, -1]) { const a = S[i].clone().addScaledVector(ni, side * off), b = S[j].clone().addScaledVector(nj, side * off);
+        pos.push(a.x - w, y, a.z, a.x + w, y, a.z, b.x + w, y, b.z, a.x - w, y, a.z, b.x + w, y, b.z, b.x - w, y, b.z); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xbfefff, side: THREE.DoubleSide, toneMapped: false, transparent: true, opacity: 0.55, fog: true })); scene.add(m); return m; };
+}
 { // armco on the outside of every kerbed corner, posts every ~4 m
   const wallTex = canvasTex(64, (ctx, s) => { ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 7); ctx.fillStyle = '#0a6a90'; ctx.fillRect(0, s - 4, s, 4); });
   const pos = [], uv = [], posts = [];
@@ -5509,7 +5532,7 @@ function instancedColored(geo, mat, items, shadow) {
 }
 
 // ------------------------------------------------------------------ car
-let paintIdx = 0;
+let paintIdx = 2;
 const paintMat = new THREE.MeshPhysicalMaterial({ color: PAINTS[0].hex, metalness: 0.5, roughness: 0.2, clearcoat: 1.0, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.2 });
 const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x05080b, metalness: 0.35, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMap: cubeRT.texture, envMapIntensity: 1.2 });
 const blackMat = new THREE.MeshStandardMaterial({ color: 0x111113, roughness: 0.65, metalness: 0.2 });
@@ -5674,7 +5697,7 @@ function setPaint(i) {
   if (customModel) customModel.traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
     if (P.original) { o.material = o.userData.origMat; return; }             // the author's own paint, untouched
-    if (!o.userData.tintMat) { o.userData.tintMat = o.userData.origMat.clone(); o.userData.tintMat.map = null; o.userData.tintMat.envMap = cubeRT.texture; }
+    if (!o.userData.tintMat) { o.userData.tintMat = o.userData.origMat.clone(); o.userData.tintMat.map = null; o.userData.tintMat.envMap = cubeRT.texture; o.userData.tintMat.metalness = 0.25; o.userData.tintMat.roughness = 0.34; o.userData.tintMat.envMapIntensity = 0.8; }
     o.material = o.userData.tintMat; o.material.color.setHex(P.hex);
   });
 }
@@ -5854,7 +5877,7 @@ function shiftManual(d) { if (st.auto) { st.auto = false; $('gearlbl').textConte
 function startGame() {
   if (st.started) return; st.started = true;
   $('start').classList.add('hidden');
-  audio.start(); setMode(st.mode); setPaint(0);
+  audio.start(); setMode(st.mode); setPaint(paintIdx);
   flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 
@@ -6036,7 +6059,7 @@ function updateCamera(dt) {
   else if (st.cam === 3) { target = new THREE.Vector3(cx, gy + 0.55, cz).addScaledVector(fwd, 2.7); look = new THREE.Vector3(cx, gy + 0.55, cz).addScaledVector(fwd, 40); }
   else if (st.cam === 4) { const a = st.theta + 0.6 + performance.now() * 0.00012; target = new THREE.Vector3(cx + Math.cos(a) * 7.5, gy + 1.7, cz - Math.sin(a) * 7.5); look = new THREE.Vector3(cx, gy + 0.6, cz); }
   else {
-    const d = st.cam === 0 ? 7.8 : 5.6, h = st.cam === 0 ? 2.4 : 1.7;
+    const d = st.cam === 0 ? 6.6 : 4.8, h = st.cam === 0 ? 1.9 : 1.3;
     target = new THREE.Vector3(cx, gy + h, cz).addScaledVector(dir, -d);
     look = new THREE.Vector3(cx, gy + 0.95, cz).addScaledVector(fwd, 3.5);
   }
@@ -6116,6 +6139,7 @@ function frame(now) {
   if (st.started) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } audio.update(dt); }
   car.position.set(st.x, terrainH(st.x, st.z), st.z); car.rotation.y = st.theta;
   underglow.position.set(st.x, car.position.y + 0.25, st.z);
+  rig.position.copy(car.position); rig.rotation.y = st.theta; studio.position.copy(car.position);
   trailUpdate();
   gridMat.uniforms.uCar.value.copy(car.position); gridMat.uniforms.uTime.value = now / 1000;
   if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; cubeCam.position.set(st.x, car.position.y + 0.7, st.z); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; }
