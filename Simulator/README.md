@@ -12,9 +12,22 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   0–100 km/h 2.7 s, 0–200 km/h 6.9 s, 100–0 km/h in 30 m, v-max 343 km/h.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
-- **Circuit** 5.1 km "Autodromo di Core Focus": a 1 km straight, kerbed
-  corners, gravel verges (off-track costs grip and speed), start gantry,
-  lap timer with best lap persisted in the browser, minimap.
+- **Circuit** 5.7 km on The Grid, in three dimensions: a 1 km straight,
+  a climb through the esses, a dive into an underground tunnel, a full
+  vertical loop on the back straight (rail physics: gravity acts along the
+  slope, so enter too slow and you stall and roll back), rolling hills on
+  the return. Three light tunnels sit on the twistiest stretches, chosen
+  automatically by curvature. Gates, a walled canyon, bridges and floating
+  wireframe solids dress the rest. Lap timer with best lap persisted in the
+  browser, minimap, hit counter.
+- **Boundaries.** Light-walls run both sides all the way round, 2.4 m past
+  the road edge. Hitting one applies a formula: speed retained
+  `= 1 − 0.85·sin(impact angle)` (a glancing touch costs a few km/h, a
+  head-on hit leaves 12 %), lateral velocity bounces with 0.35 restitution,
+  the heading is straightened, and the hit counter, a crunch and a camera
+  shake fire. Physics runs in track coordinates (distance along, offset
+  across, heading against the tangent), which is what makes loops and
+  inversions possible.
 - **Sound** is fully synthesised in Web Audio: a V12 firing-frequency
   oscillator bank (6 fires per rev) through a tanh drive, tracking low-pass,
   an intake band, lift-off exhaust crackle in Sport/Corsa, wind, tyre

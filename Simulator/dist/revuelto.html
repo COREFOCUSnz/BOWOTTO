@@ -77,6 +77,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
         <div><span>LAST</span><b id="lap-last" class="digits">--:--.---</b></div>
         <div><span>BEST</span><b id="lap-best" class="digits">--:--.---</b></div>
         <div><span>V-MAX</span><b id="vmax" class="digits">0</b></div>
+        <div><span>HITS</span><b id="hits" class="digits">0</b></div>
       </div>
       <canvas id="minimap" width="300" height="300"></canvas>
     </div>
@@ -5327,32 +5328,63 @@ function noise2(x, y) {
 }
 function fbm(x, y, oct = 5) { let a = 0.5, f = 1, sum = 0, norm = 0; for (let i = 0; i < oct; i++) { sum += a * noise2(x * f, y * f); norm += a; a *= 0.5; f *= 2.03; } return sum / norm; }
 
-// track centreline
+// track centreline: [x, z, height]. Main straight flat, climb through the esses, dive underground, vertical loop on
+// the back straight, rolling return. The loop is generated: a 27 m circle in the vertical plane, shifted 16 m sideways.
+const LOOP_R = 27, LOOP_E = new THREE.Vector3(-330, 0, -772), LOOP_DIR = new THREE.Vector3(-460, 0, -240).normalize();
+const LOOP_RT = new THREE.Vector3(-LOOP_DIR.z, 0, LOOP_DIR.x);                       // right of the entry direction
+const loopPts = []; for (let k = 0; k <= 8; k++) { const th = k / 8 * Math.PI * 2; loopPts.push([LOOP_E.x + LOOP_DIR.x * LOOP_R * Math.sin(th) + LOOP_RT.x * 16 * (k / 8), LOOP_E.z + LOOP_DIR.z * LOOP_R * Math.sin(th) + LOOP_RT.z * 16 * (k / 8), LOOP_R * (1 - Math.cos(th))]); }
 const CTRL = [
-  [-200, 0], [450, 0], [700, -30], [830, -180], [770, -340], [590, -400], [430, -560], [520, -760],
-  [300, -900], [60, -820], [-110, -640], [-350, -700], [-560, -880], [-820, -770], [-890, -500],
-  [-730, -300], [-880, -120], [-800, 10], [-560, 0],
+  [-200, 0, 0], [450, 0, 0], [720, -40, 3], [880, -230, 12], [800, -450, 20], [600, -520, 16], [470, -700, 6], [560, -900, 2],
+  [380, -1070, -14], [130, -1010, -14], [-40, -830, -2], [-230, -720, 0], ...loopPts, [-690, -960, 0], [-930, -870, 5],
+  [-1010, -620, 9], [-870, -400, 5], [-980, -170, 2], [-830, 20, 0], [-560, 0, 0],
 ];
-const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0], 0, p[1])), true, 'centripetal', 0.5);
-const N = 1400;
-const S = curve.getSpacedPoints(N).slice(0, N);       // closed loop samples
-const T = [], KERB = new Array(N).fill(false), CUM = new Array(N).fill(0);
+const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0], p[2], p[1])), true, 'centripetal', 0.5);
+const N = 1500;
+const S = curve.getSpacedPoints(N).slice(0, N);       // closed loop samples (3D)
+const T = [], RT = [], UP = [], KERB = new Array(N).fill(false), CUM = new Array(N).fill(0), KAPPA = new Float32Array(N), LOOP = new Array(N).fill(false), UNDER = new Array(N).fill(false);
 let trackLen = 0;
+const WORLD_UP = new THREE.Vector3(0, 1, 0), LOOP_C = LOOP_E.clone().add(new THREE.Vector3(0, LOOP_R, 0));
 for (let i = 0; i < N; i++) {
   const a = S[(i + N - 1) % N], b = S[(i + 1) % N];
   T.push(new THREE.Vector3().subVectors(b, a).normalize());
+  LOOP[i] = S[i].distanceTo(LOOP_C) < LOOP_R + 7 || S[i].clone().sub(LOOP_C).setY(0).length() < LOOP_R + 7 && S[i].y > 3;
+  UNDER[i] = S[i].y < -1.5;
+}
+for (let i = 0; i < N; i++) {
+  // road frame: right = T x up, except through the loop where right stays the loop plane normal so the road can invert
+  const r = LOOP[i] ? LOOP_RT.clone() : new THREE.Vector3().crossVectors(T[i], WORLD_UP).normalize();
+  const u = new THREE.Vector3().crossVectors(r, T[i]).normalize();
+  RT.push(r); UP.push(u);
 }
 for (let i = 0; i < N; i++) { CUM[i] = trackLen; trackLen += S[i].distanceTo(S[(i + 1) % N]); }
-{ // kerbs where the curvature is tight
-  const curv = [];
-  for (let i = 0; i < N; i++) {
-    const a = T[i], b = T[(i + 3) % N];
-    const ang = Math.atan2(a.x * b.z - a.z * b.x, a.dot(b));
-    const len = CUM[(i + 3) % N] - CUM[i]; curv.push(Math.abs(ang) / (len > 0 ? len : trackLen - CUM[i] + CUM[(i + 3) % N]));
-  }
-  for (let i = 0; i < N; i++) if (curv[i] > 1 / 190) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
+for (let i = 0; i < N; i++) {   // signed in-plane curvature (positive = turning left), from two samples ahead
+  const j = (i + 2) % N, cr = new THREE.Vector3().crossVectors(T[i], T[j]);
+  const ang = Math.atan2(cr.dot(UP[i]), T[i].dot(T[j])), ds = S[i].distanceTo(S[(i + 1) % N]) + S[(i + 1) % N].distanceTo(S[j]);
+  KAPPA[i] = ang / Math.max(ds, 0.1);
 }
+{ let sm = new Float32Array(N); for (let i = 0; i < N; i++) { let acc = 0; for (let k = -2; k <= 2; k++) acc += KAPPA[(i + k + N) % N]; sm[i] = acc / 5; } KAPPA.set(sm); }
+for (let i = 0; i < N; i++) if (Math.abs(KAPPA[i]) > 1 / 190 && !LOOP[i]) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
 const trackDistSq = (x, z) => { let best = 1e18, bi = 0; for (let i = 0; i < N; i++) { const dx = S[i].x - x, dz = S[i].z - z, d = dx * dx + dz * dz; if (d < best) { best = d; bi = i; } } return { d2: best, i: bi }; };
+const basisQuat = (t, n) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(t, n, new THREE.Vector3().crossVectors(t, n)));
+const frameAt = i => ({ p: S[i], t: T[i], b: RT[i], n: UP[i], yaw: Math.atan2(-T[i].z, T[i].x), quat: basisQuat(T[i], UP[i]) });
+// interpolated frame at distance s along the track
+const _sa = { p: new THREE.Vector3(), t: new THREE.Vector3(), b: new THREE.Vector3(), n: new THREE.Vector3(), i: 0, f: 0 };
+function sampleAt(s) {
+  s = ((s % trackLen) + trackLen) % trackLen;
+  const fi = s / trackLen * N, i = Math.floor(fi) % N, j = (i + 1) % N, f = fi - Math.floor(fi);
+  _sa.p.lerpVectors(S[i], S[j], f); _sa.t.lerpVectors(T[i], T[j], f).normalize(); _sa.b.lerpVectors(RT[i], RT[j], f);
+  _sa.b.addScaledVector(_sa.t, -_sa.t.dot(_sa.b)).normalize(); _sa.n.crossVectors(_sa.b, _sa.t).normalize(); _sa.i = i; _sa.f = f; return _sa;
+}
+const D_WALL = ROAD_HALF + 2.4;   // boundary walls both sides, all the way round
+// mask of underground corridors (the grid floor and mirror are cut away there)
+const maskTex = canvasTex(512, (ctx, sz) => {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, sz, sz); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const px = v => (v.x + 2300) / 4600 * sz, pz = v => (v.z + 2750) / 4600 * sz;
+  ctx.beginPath(); let pen = false;
+  for (let i = 0; i < N; i++) { const j = (i + 1) % N; if (UNDER[i] && UNDER[j]) { if (!pen) { ctx.moveTo(px(S[i]), pz(S[i])); pen = true; } ctx.lineTo(px(S[j]), pz(S[j])); } else pen = false; }
+  ctx.stroke();
+});
+maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping; maskTex.encoding = THREE.LinearEncoding;
 
 // distance-to-track field on a 50 m grid (terrain flattening, prop placement)
 const DF = { x0: -2300, z0: -2750, cell: 50, n: 92, v: null };
@@ -5375,16 +5407,17 @@ function terrainH(x, z) {
 }
 const gridMat = new THREE.ShaderMaterial({
   transparent: true, fog: true, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2,
-  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uCar: { value: new THREE.Vector3() }, uTime: { value: 0 } }]),
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uCar: { value: new THREE.Vector3() }, uTime: { value: 0 }, uMask: { value: null } }]),
   vertexShader: `varying vec3 vW;
 #include <fog_pars_vertex>
     void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
 #include <fog_vertex>
     }`,
-  fragmentShader: `uniform vec3 uCar; uniform float uTime; varying vec3 vW;
+  fragmentShader: `uniform vec3 uCar; uniform float uTime; uniform sampler2D uMask; varying vec3 vW;
 #include <fog_pars_fragment>
     float gridLine(vec2 p, float cell, float w){ vec2 q = p / cell; vec2 g = abs(fract(q - 0.5) - 0.5) / (fwidth(q) * w); return 1.0 - min(min(g.x, g.y), 1.0); }
     void main(){
+      if (texture2D(uMask, (vW.xz + vec2(2300.0, 2750.0)) / 4600.0).r > 0.5) discard;
       float major = gridLine(vW.xz, 20.0, 1.6), minor = gridLine(vW.xz, 4.0, 1.2);
       vec3 base = vec3(0.012, 0.02, 0.045);
       vec3 cyan = vec3(0.18, 0.9, 1.0);
@@ -5404,6 +5437,11 @@ const ground = (() => {
 // glossy black floor: a planar mirror just under the grid so the car and its light trail reflect in the plain
 const mirror = new THREE.Reflector(new THREE.PlaneGeometry(7000, 7000, 96, 96), { textureWidth: 1024, textureHeight: 1024, color: 0x141c28, clipBias: 0.003 });   // subdivided: one giant quad z-fights the road at grazing angles
 mirror.rotation.x = -Math.PI / 2; mirror.position.set(0, -0.08, -450); scene.add(mirror);
+gridMat.uniforms.uMask.value = maskTex;
+{ const mm = mirror.material; mm.uniforms.uMask = { value: maskTex };
+  mm.vertexShader = mm.vertexShader.replace('void main() {', 'varying vec3 vWp;\nvoid main() {\n vWp = (modelMatrix * vec4(position, 1.0)).xyz;');
+  mm.fragmentShader = mm.fragmentShader.replace('void main() {', 'uniform sampler2D uMask; varying vec3 vWp;\nvoid main() {\n if (texture2D(uMask, (vWp.xz + vec2(2300.0, 2750.0)) / 4600.0).r > 0.5) discard;');
+  mm.needsUpdate = true; }
 
 // road ribbon
 const roadTex = canvasTex(1024, (ctx, s) => {
@@ -5431,13 +5469,12 @@ function ribbon(inner, outer, texScaleV, yOff, filter, tex, color, glow) {
   for (let i = 0; i < N; i++) {
     if (filter && !filter(i)) continue;
     const j = (i + 1) % N;
-    const ni = new THREE.Vector3(-T[i].z, 0, T[i].x), nj = new THREE.Vector3(-T[j].z, 0, T[j].x);
     const v0 = CUM[i] / texScaleV, v1 = (CUM[i] + S[i].distanceTo(S[j])) / texScaleV;
     for (const side of (inner === -outer ? [1] : [1, -1])) {
-      const a = S[i].clone().addScaledVector(ni, side * inner), b = S[i].clone().addScaledVector(ni, side * outer);
-      const c = S[j].clone().addScaledVector(nj, side * outer), d = S[j].clone().addScaledVector(nj, side * inner);
+      const P = (k, off) => S[k].clone().addScaledVector(RT[k], side * off).addScaledVector(UP[k], yOff);
+      const a = P(i, inner), b = P(i, outer), c = P(j, outer), d = P(j, inner);
       const ua = side > 0 ? 0 : 1, ub = side > 0 ? 1 : 0;
-      pos.push(a.x, yOff, a.z, b.x, yOff, b.z, c.x, yOff, c.z, a.x, yOff, a.z, c.x, yOff, c.z, d.x, yOff, d.z);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z);
       uv.push(ua, v0, ub, v0, ub, v1, ua, v0, ub, v1, ua, v1);
     }
   }
@@ -5451,14 +5488,14 @@ function ribbon(inner, outer, texScaleV, yOff, filter, tex, color, glow) {
 }
 const roadMesh = ribbon(-ROAD_HALF, ROAD_HALF, 12, 0.04, null, roadTex, 0xffffff, roadGlow);
 ribbon(ROAD_HALF, ROAD_HALF + 1.1, 2, 0.07, i => KERB[i], kerbTex, 0xffffff, kerbTex);
-ribbon(ROAD_HALF + 1.1, ROAD_HALF + 3.5, 12, 0.03, null, null, 0x0b1220); // dark verge
+ribbon(ROAD_HALF + 1.1, D_WALL, 12, 0.03, null, null, 0x0b1220); // dark verge out to the wall
 
 // scenery -------------------------------------------------------------
 const scenery = new THREE.Group(); scene.add(scenery);
 function instanced(geo, mat, items, shadow) {
   const im = new THREE.InstancedMesh(geo, mat, items.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3();
-  items.forEach((it, k) => { e.set(0, it.rot || 0, 0); q.setFromEuler(e); s3.set(it.s || 1, it.sy || it.s || 1, it.s || 1); p3.set(it.x, it.y || 0, it.z); m4.compose(p3, q, s3); im.setMatrixAt(k, m4); });
+  items.forEach((it, k) => { if (it.quat) q.copy(it.quat); else { e.set(0, it.rot || 0, 0); q.setFromEuler(e); } s3.set(it.s || 1, it.sy || it.s || 1, it.s || 1); p3.set(it.x, it.y || 0, it.z); m4.compose(p3, q, s3); im.setMatrixAt(k, m4); });
   im.castShadow = !!shadow; im.receiveShadow = false; scenery.add(im); return im;
 }
 const farFromTrack = (x, z, min) => trackDist(x, z) > min;
@@ -5472,70 +5509,85 @@ function instancedColored(geo, mat, items, shadow) {
   items.forEach((it, k) => { if (it.c != null) { c.setHex(it.c); im.setColorAt(k, c); } });
   if (im.instanceColor) im.instanceColor.needsUpdate = true; return im;
 }
-{ // light beacons along the circuit and a ring of dark data towers with lit strips on the horizon
+{ // light beacons along the circuit (not underground)
   const beacons = [];
-  for (let i = 0; i < N; i += 28) { const side = (i / 28) % 2 ? 1 : -1, n = new THREE.Vector3(-T[i].z, 0, T[i].x), p = S[i].clone().addScaledVector(n, side * 22); beacons.push({ x: p.x, z: p.z, y: 0, s: 1, sy: 1 + rnd() * 0.6 }); }
+  for (let i = 0; i < N; i += 28) { if (UNDER[i] || LOOP[i]) continue; const side = (i / 28) % 2 ? 1 : -1, p = S[i].clone().addScaledVector(RT[i], side * 22); beacons.push({ x: p.x, y: p.y, z: p.z, s: 1, sy: 1 + rnd() * 0.6 }); }
   instanced(new THREE.BoxGeometry(0.35, 9, 0.35).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false }), beacons, false);
 }
-{ // overhead light ribbons above both road edges: the "ceiling" that the paint reflects
-  const mk = (off, y, w) => { const pos = []; for (let i = 0; i < N; i++) { const j = (i + 1) % N, ni = new THREE.Vector3(-T[i].z, 0, T[i].x), nj = new THREE.Vector3(-T[j].z, 0, T[j].x);
-      for (const side of [1, -1]) { const a = S[i].clone().addScaledVector(ni, side * off), b = S[j].clone().addScaledVector(nj, side * off);
-        pos.push(a.x - w, y, a.z, a.x + w, y, a.z, b.x + w, y, b.z, a.x - w, y, a.z, b.x + w, y, b.z, b.x - w, y, b.z); } }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xbfefff, side: THREE.DoubleSide, toneMapped: false, transparent: true, opacity: 0.55, fog: true })); scene.add(m); return m; };
-}
 // ---------------------------------------------------------------- track architecture: tunnels, gates, canyon, bridges, floating grid solids
-const frameAt = i => ({ p: S[i], yaw: Math.atan2(-T[i].z, T[i].x), n: new THREE.Vector3(-T[i].z, 0, T[i].x) });
 const inRanges = (i, ranges) => ranges.some(([a, b]) => i >= a && i <= b);
-const TUNNELS = [[330, 430], [700, 830], [1040, 1150]];
-const CANYON = [[520, 690]];
+// tunnels go where the track bends most: three non-overlapping 150-sample windows of highest turning, off the main straight
+const TUNNELS = (() => {
+  const turn = new Float32Array(N); for (let i = 0; i < N; i++) turn[i] = Math.abs(KAPPA[i]);
+  const LEN = 150, cand = [], out = [];
+  let u0 = -1, u1 = -1; for (let i = 0; i < N; i++) if (UNDER[i]) { if (u0 < 0) u0 = i; u1 = i; }
+  if (u0 >= 0) out.push([Math.max(0, u0 - 8), Math.min(N - 1, u1 + 8)]);
+  for (let i = 230; i < N - 230 - LEN; i += 5) { if (out.some(([a, b]) => i < b + 60 && i + LEN > a - 60)) continue; let bad = false, sum = 0; for (let k = 0; k < LEN; k++) { if (LOOP[i + k] || UNDER[i + k]) bad = true; sum += turn[i + k]; } if (!bad) cand.push([sum, i]); }
+  cand.sort((x, y) => y[0] - x[0]);
+  for (const [, i] of cand) { if (out.every(([a, b]) => i > b + 60 || i + LEN < a - 60)) out.push([i, i + LEN]); if (out.length === 3) break; }
+  return out.sort((x, y) => x[0] - y[0]);
+})();
+const CANYON = [[N - 250, N - 60]];   // approach to the main straight
 const neonMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
 const neonWhite = new THREE.MeshBasicMaterial({ color: 0xdff8ff, toneMapped: false });
 const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.55, metalness: 0.4, side: THREE.DoubleSide });
-{ // tunnels: arched shell with three glowing seams, light rings every ~11 m, bright portal rings at both ends
-  const seamTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#070b14'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; for (const u of [0.08, 0.5, 0.92]) ctx.fillRect(u * s - 2, 0, 4, s); ctx.fillStyle = '#0d3a55'; for (const u of [0.29, 0.71]) ctx.fillRect(u * s - 1, 0, 2, s); });
-  const arc = [], SEG = 14, W = 9.5, H = 6.5;
-  for (let k = 0; k <= SEG; k++) { const t = k / SEG, a = Math.PI * (1 - t); arc.push([Math.cos(a) * W, Math.max(0, Math.sin(a) * H) + (k === 0 || k === SEG ? 0 : 0)]); }   // half-ellipse from left floor to right floor
+{ // tunnels: rounded-rectangle shell (superellipse) with two continuous shoulder light bands and a white ceiling strip,
+  // slim raked fins every ~9 m, thick white portal at each mouth, one soft light in the middle of each
+  const seamTex = canvasTex(512, (ctx, s) => {
+    ctx.fillStyle = '#04070e'; ctx.fillRect(0, 0, s, s);
+    ctx.strokeStyle = '#0c1a2c'; ctx.lineWidth = 2; for (let x = 0; x < s; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); } for (let y = 0; y < s; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke(); }
+    ctx.fillStyle = '#2ee6ff'; for (const u of [0.2, 0.8]) ctx.fillRect(u * s - 4, 0, 8, s);
+    ctx.fillStyle = '#eafcff'; ctx.fillRect(0.5 * s - 2, 0, 4, s);
+  });
+  const SEG = 22, W = 9.6, H = 6.4, E = 2 / 3.6;
+  const arc = [];
+  for (let k = 0; k <= SEG; k++) { const a = Math.PI * (1 - k / SEG), c = Math.cos(a), si = Math.sin(a); arc.push([W * Math.sign(c) * Math.pow(Math.abs(c), E), H * Math.pow(Math.max(0, si), E)]); }
   const pos = [], uv = [];
   for (const [i0, i1] of TUNNELS) for (let i = i0; i < i1; i++) {
-    const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 10, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 10;
+    const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 12;
     for (let k = 0; k < SEG; k++) {
-      const p = (f, q) => new THREE.Vector3(f.p.x + f.n.x * q[0], q[1], f.p.z + f.n.z * q[0]);
+      const p = (f, q) => f.p.clone().addScaledVector(f.b, q[0]).addScaledVector(f.n, q[1]);
       const a = p(A, arc[k]), b = p(A, arc[k + 1]), c = p(B, arc[k + 1]), d = p(B, arc[k]);
       pos.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z);
       const u0 = k / SEG, u1 = (k + 1) / SEG; uv.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
     }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
-  const tunnel = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: seamTex, emissiveMap: seamTex, emissive: 0xffffff, emissiveIntensity: 1.5, color: 0x8899aa, roughness: 0.5, metalness: 0.3, side: THREE.DoubleSide })); tunnel.receiveShadow = true; scene.add(tunnel);
-  // rings
-  const ringPath = new THREE.CatmullRomCurve3(arc.map(q => new THREE.Vector3(q[0], q[1] + 0.15, 0)));
-  const ringGeo = new THREE.TubeGeometry(ringPath, 40, 0.12, 6, false), portalGeo = new THREE.TubeGeometry(ringPath, 40, 0.3, 8, false);
-  const rings = [], portals = [];
-  for (const [i0, i1] of TUNNELS) { for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); rings.push({ x: f.p.x, z: f.p.z, rot: f.yaw + Math.PI / 2 }); } for (const i of [i0, i1]) { const f = frameAt(i); portals.push({ x: f.p.x, z: f.p.z, rot: f.yaw + Math.PI / 2 }); } }
-  instanced(ringGeo, neonMat, rings, false); instanced(portalGeo, neonWhite, portals, false);
+  const tunnel = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: seamTex, emissiveMap: seamTex, emissive: 0xffffff, emissiveIntensity: 1.6, color: 0x7f8fa6, roughness: 0.35, metalness: 0.5, side: THREE.DoubleSide })); tunnel.receiveShadow = true; scene.add(tunnel);
+  const path = new THREE.CatmullRomCurve3(arc.map(q => new THREE.Vector3(0, q[1] + 0.12, q[0])));   // fins live in the (right, up) plane; instances carry the full road frame
+  const finGeo = new THREE.TubeGeometry(path, 48, 0.09, 6, false), portalGeo = new THREE.TubeGeometry(path, 48, 0.35, 8, false);
+  finGeo.applyMatrix4(new THREE.Matrix4().set(1, 0.32, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));   // rake: lean the fin forward with height
+  const fins = [], portals = [];
+  for (const [i0, i1] of TUNNELS) {
+    for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+    for (const i of [i0, i1]) { const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+    const m = frameAt(Math.floor((i0 + i1) / 2)), l = new THREE.PointLight(0x9fe8ff, 1.2, 160, 1.6); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l);
+  }
+  instanced(finGeo, neonMat, fins, false); instanced(portalGeo, neonWhite, portals, false);
 }
-{ // gate frames over the road between the tunnels, alternating cyan / white, some doubled
-  const post = new THREE.BoxGeometry(0.6, 11, 0.6).translate(0, 5.5, 0), beam = new THREE.BoxGeometry(0.6, 0.6, 24).translate(0, 11, 0);
-  const frame = mergeGeos([post.clone().translate(0, 0, -12), post.clone().translate(0, 0, 12), beam]);
+{ // gates between the tunnels: slim frames whose posts lean inward, alternating cyan / white, some taller
+  const lean = 0.16, post = new THREE.BoxGeometry(0.45, 12, 0.45).translate(0, 6, 0);
+  const left = post.clone().rotateX(-lean).translate(0, 0, -13), right = post.clone().rotateX(lean).translate(0, 0, 13);
+  const beam = new THREE.BoxGeometry(0.45, 0.45, 22.4).translate(0, 11.9, 0);
+  const frame = mergeGeos([left, right, beam]);
   const gates = [];
-  for (let i = 40; i < N; i += 36) { if (inRanges(i, TUNNELS) || inRanges(i, CANYON)) continue; const f = frameAt(i); gates.push({ x: f.p.x, z: f.p.z, rot: f.yaw, c: (i / 36) % 3 === 0 ? 0xdff8ff : 0x2ee6ff, s: 1, sy: 1 + ((i / 36) % 2) * 0.5 }); }
+  for (let i = 40; i < N; i += 34) { if (inRanges(i, TUNNELS.map(([a, b]) => [a - 12, b + 12])) || inRanges(i, CANYON) || LOOP[i]) continue; const f = frameAt(i); gates.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat, c: (i / 34) % 3 === 0 ? 0xdff8ff : 0x2ee6ff, s: 1, sy: 1 + ((i / 34) % 2) * 0.4 }); }
   instancedColored(frame, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), gates, false);
 }
-{ // canyon along the back straight: tall dark walls with vertical light seams and a lit top edge
+{ // canyon on the approach to the main straight: tall dark walls with vertical light seams and a lit top edge
   const wallTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#060a12'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 5); for (let x = 0; x < s; x += 64) { ctx.globalAlpha = 0.9; ctx.fillRect(x + 30, 0, 3, s); } });
   const pos = [], uv = [];
   for (const [i0, i1] of CANYON) for (let i = i0; i < i1; i++) for (const side of [1, -1]) {
     const A = frameAt(i), B = frameAt(i + 1), off = ROAD_HALF + 12, h = 14;
-    const a = new THREE.Vector3(A.p.x + A.n.x * side * off, 0, A.p.z + A.n.z * side * off), b = new THREE.Vector3(B.p.x + B.n.x * side * off, 0, B.p.z + B.n.z * side * off);
+    const a = A.p.clone().addScaledVector(A.b, side * off), b = B.p.clone().addScaledVector(B.b, side * off), a2 = a.clone().addScaledVector(A.n, h), b2 = b.clone().addScaledVector(B.n, h);
     const v0 = CUM[i] / 8, v1 = (CUM[i] + 3.6) / 8;
-    pos.push(a.x, 0, a.z, b.x, 0, b.z, b.x, h, b.z, a.x, 0, a.z, b.x, h, b.z, a.x, h, a.z);
+    pos.push(a.x, a.y, a.z, b.x, b.y, b.z, b2.x, b2.y, b2.z, a.x, a.y, a.z, b2.x, b2.y, b2.z, a2.x, a2.y, a2.z);
     uv.push(v0, 1, v1, 1, v1, 0, v0, 1, v1, 0, v0, 0);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
   const wall = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallTex, emissiveMap: wallTex, emissive: 0xffffff, emissiveIntensity: 1.4, color: 0x8899aa, roughness: 0.6, metalness: 0.3, side: THREE.DoubleSide })); scene.add(wall);
   // bridges across the canyon
-  const bridges = []; for (let i = CANYON[0][0] + 20; i < CANYON[0][1] - 10; i += 40) { const f = frameAt(i); bridges.push({ x: f.p.x, z: f.p.z, rot: f.yaw }); }
+  const bridges = []; for (let i = CANYON[0][0] + 20; i < CANYON[0][1] - 10; i += 40) { const f = frameAt(i); bridges.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
   instanced(new THREE.BoxGeometry(3, 1.2, 40).translate(0, 9, 0), shellMat, bridges, true);
   instanced(new THREE.BoxGeometry(0.3, 0.1, 40).translate(0, 8.35, 0), neonMat, bridges, false);
 }
@@ -5549,24 +5601,24 @@ const solids = new THREE.Group(); scene.add(solids);
     m.scale.setScalar(size); m.position.set(x, 60 + rnd() * 220, z); m.userData.spin = (rnd() - 0.5) * 0.15; m.rotation.set(rnd() * 6, rnd() * 6, 0); solids.add(m);
   }
 }
-{ // armco on the outside of every kerbed corner, posts every ~4 m
-  const wallTex = canvasTex(64, (ctx, s) => { ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 7); ctx.fillStyle = '#0a6a90'; ctx.fillRect(0, s - 4, s, 4); });
+{ // boundary light-walls both sides all the way round (the physics wall sits at D_WALL), posts every ~4 m
+  const wallTex = canvasTex(64, (ctx, sz) => { ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, sz, sz); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, sz, 7); ctx.fillStyle = '#0a6a90'; ctx.fillRect(0, sz - 4, sz, 4); });
   const pos = [], uv = [], posts = [];
-  const outside = i => { const a = T[i], b = T[(i + 6) % N]; return (a.x * b.z - a.z * b.x) < 0 ? 1 : -1; };
   let acc = 0;
   for (let i = 0; i < N; i++) {
-    if (!KERB[i]) continue;
-    const side = outside(i), j = (i + 1) % N, off = ROAD_HALF + 5.5;
-    const ni = new THREE.Vector3(-T[i].z, 0, T[i].x), nj = new THREE.Vector3(-T[j].z, 0, T[j].x);
-    const a = S[i].clone().addScaledVector(ni, side * off), b = S[j].clone().addScaledVector(nj, side * off);
-    const y0 = 0.35, y1 = 0.95, f = side > 0 ? [a, b] : [b, a];
-    pos.push(f[0].x, y0, f[0].z, f[1].x, y0, f[1].z, f[1].x, y1, f[1].z, f[0].x, y0, f[0].z, f[1].x, y1, f[1].z, f[0].x, y1, f[0].z);
-    uv.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
-    acc += S[i].distanceTo(S[j]); if (acc > 4) { acc = 0; posts.push({ x: a.x, z: a.z, rot: Math.atan2(-T[i].z, T[i].x) }); }
+    const j = (i + 1) % N, A = frameAt(i), B = frameAt(j);
+    for (const side of [1, -1]) {
+      const a = A.p.clone().addScaledVector(A.b, side * D_WALL), b = B.p.clone().addScaledVector(B.b, side * D_WALL);
+      const a0 = a.clone().addScaledVector(A.n, 0.25), a1 = a.clone().addScaledVector(A.n, 0.95), b0 = b.clone().addScaledVector(B.n, 0.25), b1 = b.clone().addScaledVector(B.n, 0.95);
+      pos.push(a0.x, a0.y, a0.z, b0.x, b0.y, b0.z, b1.x, b1.y, b1.z, a0.x, a0.y, a0.z, b1.x, b1.y, b1.z, a1.x, a1.y, a1.z);
+      uv.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+      if (side > 0) { acc += S[i].distanceTo(S[j]); }
+      if (acc > 4 && side < 0) { acc = 0; for (const sd of [1, -1]) { const q = A.p.clone().addScaledVector(A.b, sd * D_WALL); posts.push({ x: q.x, y: q.y, z: q.z, quat: A.quat }); } }
+    }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
-  const wall = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallTex, emissiveMap: wallTex, emissive: 0xffffff, emissiveIntensity: 1.4, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide })); wall.castShadow = true; wall.receiveShadow = true; scene.add(wall);
-  instanced(new THREE.BoxGeometry(0.12, 1.0, 0.12).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x0a1626, metalness: 0.6, roughness: 0.5 }), posts, true);
+  const wall = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallTex, emissiveMap: wallTex, emissive: 0xffffff, emissiveIntensity: 1.3, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })); wall.receiveShadow = true; scene.add(wall);
+  instanced(new THREE.BoxGeometry(0.12, 1.0, 0.12).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x0a1626, metalness: 0.6, roughness: 0.5 }), posts, false);
 }
 { // start gantry, billboards, pit building
   const dark = new THREE.MeshStandardMaterial({ color: 0x0a1220, roughness: 0.5, metalness: 0.6 });
@@ -5581,18 +5633,17 @@ const solids = new THREE.Group(); scene.add(solids);
   lineTex.repeat.set(1, 12);
   const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
-  gantry.position.copy(S[0]); gantry.rotation.y = Math.atan2(-T[0].z, T[0].x); scene.add(gantry);
+  gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); scene.add(gantry);
   const words = ['CORE FOCUS PRODUCTIONS', 'REVUELTO', 'THE BOWOTTO', 'THE GRID', 'FORGE · VICE · VULTURE', 'END OF LINE'];
   words.forEach((w, k) => {
     const idx = Math.floor((k + 0.5) / words.length * N);
     const tex = canvasTex(512, (ctx, s) => { ctx.fillStyle = '#05090f'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#2ee6ff'; ctx.lineWidth = 6; ctx.strokeRect(6, s * 0.36, s - 12, s * 0.28); ctx.fillStyle = k % 2 ? '#ff8a2a' : '#5ff0ff'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(w, s / 2, s / 2); });
     tex.repeat.set(1, 0.3); tex.offset.set(0, 0.35);
     const bb = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.3), new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.1, roughness: 0.6 }));
-    const n = new THREE.Vector3(-T[idx].z, 0, T[idx].x);
     const side = k % 2 ? 1 : -1;
-    bb.position.copy(S[idx]).addScaledVector(n, side * 16); bb.position.y = 4;
-    bb.rotation.y = Math.atan2(-T[idx].z, T[idx].x) + (side > 0 ? Math.PI : 0); bb.castShadow = true; scene.add(bb);
-    const p = new THREE.Mesh(post, dark); p.position.copy(bb.position); p.position.y = 0; p.scale.set(1, 0.4, 1); scene.add(p);
+    bb.position.copy(S[idx]).addScaledVector(RT[idx], side * 16).addScaledVector(UP[idx], 4);
+    bb.quaternion.copy(frameAt(idx).quat); if (side > 0) bb.rotateY(Math.PI); bb.castShadow = true; scene.add(bb);
+    const p = new THREE.Mesh(post, dark); p.position.copy(bb.position).addScaledVector(UP[idx], -4); p.quaternion.copy(frameAt(idx).quat); p.scale.set(1, 0.4, 1); scene.add(p);
   });
 }
 
@@ -5843,17 +5894,16 @@ trailMesh.frustumCulled = false; scene.add(trailMesh);
 const trailColor = new THREE.Color(0x2ee6ff);
 function trailReset() { trail.count = 0; trail.head = 0; trailGeo.setDrawRange(0, 0); }
 function trailUpdate() {
-  const fx = Math.cos(st.theta), fz = -Math.sin(st.theta);
-  const x = st.x - fx * 2.3, z = st.z - fz * 2.3;
+  const q = st.pos.clone().addScaledVector(st.fwd, -2.3), x = q.x, z = q.z;
   const gap = Math.hypot(x - trail.lastX, z - trail.lastZ);
   if (gap > 25) { trailReset(); trail.lastX = x; trail.lastZ = z; }              // teleport / reset: start a fresh ribbon
   else if (Math.abs(st.u) > 1.5 && gap > 0.7) {
-    trail.pts[trail.head] = { x, z, y: terrainH(x, z) }; trail.head = (trail.head + 1) % TRAIL_N; trail.count = Math.min(trail.count + 1, TRAIL_N); trail.lastX = x; trail.lastZ = z;
+    trail.pts[trail.head] = { x, z, y: q.y, ux: st.up.x, uy: st.up.y, uz: st.up.z }; trail.head = (trail.head + 1) % TRAIL_N; trail.count = Math.min(trail.count + 1, TRAIL_N); trail.lastX = x; trail.lastZ = z;
   }
   const P = trailGeo.attributes.position.array, C = trailGeo.attributes.color.array;
   for (let k = 0; k < trail.count; k++) {
     const p = trail.pts[(trail.head - trail.count + k + TRAIL_N) % TRAIL_N], f = Math.pow(k / Math.max(1, trail.count - 1), 1.6);
-    const o = k * 6; P[o] = p.x; P[o + 1] = p.y + 0.30; P[o + 2] = p.z; P[o + 3] = p.x; P[o + 4] = p.y + 1.05; P[o + 5] = p.z;
+    const o = k * 6; P[o] = p.x + p.ux * 0.3; P[o + 1] = p.y + p.uy * 0.3; P[o + 2] = p.z + p.uz * 0.3; P[o + 3] = p.x + p.ux * 1.05; P[o + 4] = p.y + p.uy * 1.05; P[o + 5] = p.z + p.uz * 1.05;
     const b = 0.04 + 0.96 * f; C[o] = C[o + 3] = trailColor.r * b; C[o + 1] = C[o + 4] = trailColor.g * b; C[o + 2] = C[o + 5] = trailColor.b * b;
   }
   trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
@@ -5862,7 +5912,9 @@ function trailUpdate() {
 
 // ------------------------------------------------------------------ state
 const st = {
-  x: 0, z: 0, theta: 0, u: 0, w: 0, yaw: 0,           // pose + body-frame velocity
+  s: 0, d: 0, psi: 0, u: 0, w: 0, yaw: 0,             // track coordinates: distance along, offset right, heading vs tangent; body-frame velocity
+  x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
+  hits: 0, hitT: 0,
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -5871,10 +5923,18 @@ const st = {
 };
 try { const b = localStorage.getItem('revuelto.best'); if (b) st.lapBest = +b; } catch (e) {}
 function placeOnTrack(idx) {
-  st.x = S[idx].x; st.z = S[idx].z; st.theta = Math.atan2(-T[idx].z, T[idx].x);
+  st.s = CUM[idx]; st.d = 0; st.psi = 0; syncPose(); st.lastP = idx / N;   // no phantom lap when resetting near the line
   st.u = st.w = st.yaw = 0; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.lapStart = null; st.halfSeen = false;
   if (typeof trailReset === 'function') trailReset();
   st.snapCam = true;
+}
+// world pose from track coordinates
+function syncPose() {
+  const fr = sampleAt(st.s), cp = Math.cos(st.psi), sp = Math.sin(st.psi);
+  st.pos.copy(fr.p).addScaledVector(fr.b, st.d);
+  st.fwd.copy(fr.t).multiplyScalar(cp).addScaledVector(fr.b, sp).normalize();
+  st.up.copy(fr.n); st.right.crossVectors(st.fwd, st.up);
+  st.x = st.pos.x; st.y = st.pos.y; st.z = st.pos.z; st.theta = Math.atan2(-st.fwd.z, st.fwd.x); st.trackIdx = fr.i;
 }
 placeOnTrack(20);
 
@@ -5986,6 +6046,10 @@ const audio = {
       this.load = 0;
     } catch (e) { console.warn('audio unavailable', e); this.ctx = null; }
   },
+  crunch(k) {
+    if (!this.ctx || !st.sound) return; const t = this.ctx.currentTime;
+    this.cg.gain.cancelScheduledValues(t); this.cg.gain.setValueAtTime(0.3 + 0.9 * k, t); this.cg.gain.exponentialRampToValueAtTime(0.001, t + 0.18 + 0.25 * k);
+  },
   shift() {
     if (!this.ctx || !st.sound) return; const t = this.ctx.currentTime;
     this.cg.gain.cancelScheduledValues(t); this.cg.gain.setValueAtTime(0.35, t); this.cg.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
@@ -6064,7 +6128,8 @@ function step(dt) {
   const Fd = CAR.dragK * st.u * v;
   const Fr = Math.sign(st.u) * (CAR.rolling + (st.offroad ? 1100 + 18 * v : 0));
   const Feb = (!st.reverse && !m.ev && st.throttle < 0.05) ? Math.sign(st.u) * 1800 * (st.rpm / CAR.redline) : 0;
-  let du = (F - Fd - Fr - Feb) / CAR.mass * dt;
+  const fr0 = sampleAt(st.s), slope = fr0.t.y * Math.cos(st.psi) + fr0.b.y * Math.sin(st.psi);   // component of 'up' along the car's forward
+  let du = (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
   const bDecel = Fb / CAR.mass * dt;
   if (v > 0) { if (Math.abs(st.u) <= bDecel) st.u = 0; else st.u -= Math.sign(st.u) * bDecel; }
@@ -6086,15 +6151,26 @@ function step(dt) {
   if (v < 0.8) st.w *= Math.max(0, 1 - dt * 6);
   st.slip = damp(st.slip, Math.min(1, Math.abs(st.w) / 5 + Math.abs(slipAng) * 1.2), 12, dt);
   st.aLong = damp(st.aLong, (st.u - u0) / dt, 6, dt);
-  // integrate pose
-  st.theta += st.yaw * dt;
-  const c = Math.cos(st.theta), s = Math.sin(st.theta);
-  st.x += (st.u * c + st.w * s) * dt;
-  st.z += (-st.u * s + st.w * c) * dt;
+  // integrate in track coordinates: s along, d right, psi heading relative to the tangent
+  const kap = KAPPA[fr0.i], cp = Math.cos(st.psi), sp = Math.sin(st.psi);
+  const sDot = (st.u * cp - st.w * sp) / Math.max(0.3, 1 + kap * st.d), dDot = st.u * sp + st.w * cp;
+  st.psi += (-st.yaw + kap * sDot) * dt;   // psi > 0 = heading right of the tangent; yaw > 0 = turning left; a left-turning track (kap > 0) leaves the car heading right of it
+  st.psi = Math.atan2(Math.sin(st.psi), Math.cos(st.psi));
+  st.s = ((st.s + sDot * dt) % trackLen + trackLen) % trackLen;
+  st.d += dDot * dt;
+  // boundary walls: speed retained = 1 - 0.85·sin(impact angle); lateral bounce with 0.35 restitution; the wall straightens the car
+  if (st.hitT > 0) st.hitT -= dt;
+  if (Math.abs(st.d) > D_WALL) {
+    const sideW = Math.sign(st.d), vn = Math.abs(dDot), phi = Math.atan2(vn, Math.abs(st.u) + 0.1);
+    const retain = clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);
+    if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); audio.crunch(k); if (k > 0.25) flash('WALL', 500); st.shake = Math.max(st.shake || 0, k); }
+    st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
+    st.d = sideW * (D_WALL - 0.05);
+  }
+  syncPose();
   // track relation
-  const tr = trackDistSq(st.x, st.z); st.trackIdx = tr.i;
-  st.offroad = Math.sqrt(tr.d2) > ROAD_HALF + 0.8;
-  const p = tr.i / N;
+  st.offroad = Math.abs(st.d) > ROAD_HALF + 0.8;
+  const p = st.trackIdx / N;
   if (p > 0.45 && p < 0.55) st.halfSeen = true;
   if (st.lastP > 0.92 && p < 0.08 && st.u > 2) {
     const now = performance.now();
@@ -6117,24 +6193,22 @@ function step(dt) {
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3(), fwd = new THREE.Vector3(), velDir = new THREE.Vector3();
 let camInit = false;
 function updateCamera(dt) {
-  fwd.set(Math.cos(st.theta), 0, -Math.sin(st.theta));
-  const v = Math.abs(st.u), cx = st.x, cz = st.z, gy = terrainH(cx, cz);
-  const c = Math.cos(st.theta), s = Math.sin(st.theta);
-  velDir.set(st.u * c + st.w * s, 0, -st.u * s + st.w * c);
-  const dir = (v > 4 ? tmpV.copy(fwd).multiplyScalar(0.65).addScaledVector(velDir.normalize(), 0.35 * Math.sign(st.u)) : tmpV.copy(fwd)).normalize();
+  const v = Math.abs(st.u), f = st.fwd, n = st.up, r = st.right, pos = st.pos;
   let target, look;
-  if (st.cam === 2) { target = new THREE.Vector3(cx, gy + 1.08, cz).addScaledVector(fwd, -0.9); look = new THREE.Vector3(cx, gy + 0.9, cz).addScaledVector(fwd, 40); }
-  else if (st.cam === 3) { target = new THREE.Vector3(cx, gy + 0.55, cz).addScaledVector(fwd, 2.7); look = new THREE.Vector3(cx, gy + 0.55, cz).addScaledVector(fwd, 40); }
-  else if (st.cam === 4) { const a = st.theta + 0.6 + performance.now() * 0.00012; target = new THREE.Vector3(cx + Math.cos(a) * 7.5, gy + 1.7, cz - Math.sin(a) * 7.5); look = new THREE.Vector3(cx, gy + 0.6, cz); }
+  if (st.cam === 2) { target = pos.clone().addScaledVector(n, 1.08).addScaledVector(f, -0.9); look = pos.clone().addScaledVector(n, 0.9).addScaledVector(f, 40); }
+  else if (st.cam === 3) { target = pos.clone().addScaledVector(n, 0.55).addScaledVector(f, 2.7); look = pos.clone().addScaledVector(n, 0.55).addScaledVector(f, 40); }
+  else if (st.cam === 4) { const a = 0.6 + performance.now() * 0.00012; target = pos.clone().addScaledVector(f, Math.cos(a) * 7.5).addScaledVector(r, -Math.sin(a) * 7.5).addScaledVector(n, 1.7); look = pos.clone().addScaledVector(n, 0.6); }
   else {
     const d = st.cam === 0 ? 6.6 : 4.8, h = st.cam === 0 ? 1.9 : 1.3;
-    target = new THREE.Vector3(cx, gy + h, cz).addScaledVector(dir, -d);
-    look = new THREE.Vector3(cx, gy + 0.95, cz).addScaledVector(fwd, 3.5);
+    target = pos.clone().addScaledVector(n, h).addScaledVector(f, -d);
+    look = pos.clone().addScaledVector(n, 0.95).addScaledVector(f, 3.5);
   }
   if (!camInit || st.snapCam || (st.cam >= 2 && st.cam !== 4)) { camPos.copy(target); camLook.copy(look); camInit = true; st.snapCam = false; }
   else { camPos.lerp(target, 1 - Math.exp(-dt * 6.5)); camLook.lerp(look, 1 - Math.exp(-dt * 9)); }
+  camera.up.lerp(n, 1 - Math.exp(-dt * 8)).normalize();
   camera.position.copy(camPos);
-  if (st.cam < 2 && v > 60) { camera.position.y += (Math.random() - 0.5) * 0.02 * (v - 60) / 40; }
+  if (st.cam < 2 && v > 60) camera.position.addScaledVector(n, (Math.random() - 0.5) * 0.02 * (v - 60) / 40);
+  if (st.shake > 0.01) { camera.position.addScaledVector(r, (Math.random() - 0.5) * 0.25 * st.shake).addScaledVector(n, (Math.random() - 0.5) * 0.15 * st.shake); st.shake *= Math.exp(-dt * 6); }
   camera.lookAt(camLook);
   const fov = 60 + 24 * clamp(v / 95, 0, 1);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
@@ -6193,6 +6267,7 @@ function updateHUD() {
     $('lap-last').textContent = fmtTime(st.lapLast);
     $('lap-best').textContent = fmtTime(st.lapBest);
     $('vmax').textContent = Math.round(st.vmax) + ' km/h';
+    $('hits').textContent = String(st.hits);
     $('status').textContent = st.offroad ? 'OFF TRACK' : (st.slip > 0.35 ? 'SLIDING' : '');
     $('vignette').style.opacity = String(0.25 + 0.5 * clamp(Math.abs(st.u) / 95, 0, 1));
   }
@@ -6205,13 +6280,13 @@ function frame(now) {
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   readInput();
   if (st.started) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } audio.update(dt); }
-  car.position.set(st.x, terrainH(st.x, st.z), st.z); car.rotation.y = st.theta;
-  underglow.position.set(st.x, car.position.y + 0.25, st.z);
-  rig.position.copy(car.position); rig.rotation.y = st.theta; studio.position.copy(car.position);
+  car.position.copy(st.pos); car.quaternion.copy(basisQuat(st.fwd, st.up));
+  underglow.position.copy(st.pos).addScaledVector(st.up, 0.25);
+  rig.position.copy(car.position); rig.quaternion.copy(car.quaternion); studio.position.copy(car.position);
   trailUpdate();
   gridMat.uniforms.uCar.value.copy(car.position); gridMat.uniforms.uTime.value = now / 1000;
   for (const m of solids.children) { m.rotation.y += m.userData.spin * dt; m.rotation.x += m.userData.spin * 0.4 * dt; }
-  if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; cubeCam.position.set(st.x, car.position.y + 0.7, st.z); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; }
+  if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; }
   bodyGroup.rotation.z = damp(bodyGroup.rotation.z, st.aLong * 0.004, 8, dt);
   bodyGroup.rotation.x = damp(bodyGroup.rotation.x, st.aLat * 0.006, 8, dt);
   updateCamera(dt);
@@ -6222,7 +6297,7 @@ function frame(now) {
 }
 resize();
 requestAnimationFrame(frame);
-window.__sim = { st, inp, trailUpdate, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { st, inp, trailUpdate, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>
