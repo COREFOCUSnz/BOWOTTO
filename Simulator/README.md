@@ -63,9 +63,10 @@ with the same GLB; this repo's physics constants transfer directly.
 
 ## Credits
 
-Car model: **"Free - High Quality Lamborghini Revuelto"** via Sketchfab
-(author and licence line in `models/LICENSE.md`). The credit must stay with
-any copy of the sim that includes the model. Three.js is MIT
+Car model: **"Lamborghini Revuelto" by DRIVER-FIRE** (https://skfb.ly/pM6pA),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+See `models/LICENSE.md`. The credit must stay with any copy of the sim that
+includes the model. Three.js is MIT
 (`vendor/LICENSE.three.js`).
 
 ## Layout
