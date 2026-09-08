@@ -14,10 +14,10 @@ const CAR = {
   wheelR: [0.34, 0.36], track: 0.84, axle: 1.39,
 };
 const MODES = [
-  { name: 'CITTÀ',  sub: 'EV · 180 CV',        power: 0.18, grip: 1.30, stab: 1.0, ev: true,  color: '#4cc9f0' },
-  { name: 'STRADA', sub: 'HYBRID · 886 CV',    power: 0.85, grip: 1.30, stab: 1.0, ev: false, color: '#f4f1ea' },
-  { name: 'SPORT',  sub: 'HYBRID · 907 CV',    power: 0.92, grip: 1.20, stab: 0.55, ev: false, color: '#ff8c1a' },
-  { name: 'CORSA',  sub: 'HYBRID · 1015 CV',   power: 1.00, grip: 1.40, stab: 0.8, ev: false, color: '#ff2a2a' },
+  { name: 'CITTÀ',  sub: 'EV · 180 CV',        power: 0.18, grip: 1.55, stab: 1.0, ev: true,  color: '#4cc9f0' },
+  { name: 'STRADA', sub: 'HYBRID · 886 CV',    power: 0.85, grip: 1.60, stab: 1.0, ev: false, color: '#f4f1ea' },
+  { name: 'SPORT',  sub: 'HYBRID · 907 CV',    power: 0.92, grip: 1.50, stab: 0.55, ev: false, color: '#ff8c1a' },
+  { name: 'CORSA',  sub: 'HYBRID · 1015 CV',   power: 1.00, grip: 1.75, stab: 0.8, ev: false, color: '#ff2a2a' },
 ];
 const PAINTS = [
   { name: 'AS DOWNLOADED', hex: 0xff2a03, original: true },
@@ -397,15 +397,6 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   }
   instanced(finGeo, neonMat, fins, false); instanced(portalGeo, neonWhite, portals, false);
 }
-{ // gates between the tunnels: slim frames whose posts lean inward, alternating cyan / white, some taller
-  const lean = 0.16, post = new THREE.BoxGeometry(0.45, 12, 0.45).translate(0, 6, 0);
-  const left = post.clone().rotateX(-lean).translate(0, 0, -13), right = post.clone().rotateX(lean).translate(0, 0, 13);
-  const beam = new THREE.BoxGeometry(0.45, 0.45, 22.4).translate(0, 11.9, 0);
-  const frame = mergeGeos([left, right, beam]);
-  const gates = [];
-  for (let i = 40; i < N; i += 34) { if (inRanges(i, TUNNELS.map(([a, b]) => [a - 12, b + 12])) || inRanges(i, CANYON) || LOOP[i]) continue; const f = frameAt(i); gates.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat, c: (i / 34) % 3 === 0 ? 0xdff8ff : 0x2ee6ff, s: 1, sy: 1 + ((i / 34) % 2) * 0.4 }); }
-  instancedColored(frame, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), gates, false);
-}
 { // canyon on the approach to the main straight: tall dark walls with vertical light seams and a lit top edge
   const wallTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#060a12'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 5); for (let x = 0; x < s; x += 64) { ctx.globalAlpha = 0.9; ctx.fillRect(x + 30, 0, 3, s); } });
   const pos = [], uv = [];
@@ -422,16 +413,6 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   const bridges = []; for (let i = CANYON[0][0] + 20; i < CANYON[0][1] - 10; i += 40) { const f = frameAt(i); bridges.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
   instanced(new THREE.BoxGeometry(3, 1.2, 40).translate(0, 9, 0), shellMat, bridges, true);
   instanced(new THREE.BoxGeometry(0.3, 0.1, 40).translate(0, 8.35, 0), neonMat, bridges, false);
-}
-const solids = new THREE.Group(); scene.add(solids);
-{ // giant slow-turning wireframe solids floating over the plain
-  const geos = [new THREE.IcosahedronGeometry(1, 0), new THREE.OctahedronGeometry(1, 0), new THREE.BoxGeometry(1, 1, 1), new THREE.DodecahedronGeometry(1, 0)];
-  for (let k = 0; k < 14; k++) {
-    const a = k / 14 * Math.PI * 2 + rnd() * 0.3, r = 350 + rnd() * 900, x = Math.cos(a) * r, z = -450 + Math.sin(a) * r;
-    if (trackDist(x, z) < 90) continue;
-    const size = 40 + rnd() * 110, m = new THREE.LineSegments(new THREE.EdgesGeometry(geos[k % geos.length]), new THREE.LineBasicMaterial({ color: k % 3 ? 0x2ee6ff : 0xdff8ff, transparent: true, opacity: 0.8 }));
-    m.scale.setScalar(size); m.position.set(x, 60 + rnd() * 220, z); m.userData.spin = (rnd() - 0.5) * 0.15; m.rotation.set(rnd() * 6, rnd() * 6, 0); solids.add(m);
-  }
 }
 { // boundary light-walls both sides all the way round (the physics wall sits at D_WALL), posts every ~4 m
   const wallTex = canvasTex(64, (ctx, sz) => { ctx.fillStyle = '#06101c'; ctx.fillRect(0, 0, sz, sz); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, sz, 7); ctx.fillStyle = '#0a6a90'; ctx.fillRect(0, sz - 4, sz, 4); });
@@ -466,20 +447,67 @@ const solids = new THREE.Group(); scene.add(solids);
   const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
   gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); scene.add(gantry);
-  const words = ['CORE FOCUS PRODUCTIONS', 'REVUELTO', 'THE BOWOTTO', 'THE GRID', 'FORGE · VICE · VULTURE', 'END OF LINE'];
-  words.forEach((w, k) => {
-    const idx = Math.floor((k + 0.5) / words.length * N);
-    const tex = canvasTex(512, (ctx, s) => { ctx.fillStyle = '#05090f'; ctx.fillRect(0, 0, s, s); ctx.strokeStyle = '#2ee6ff'; ctx.lineWidth = 6; ctx.strokeRect(6, s * 0.36, s - 12, s * 0.28); ctx.fillStyle = k % 2 ? '#ff8a2a' : '#5ff0ff'; ctx.font = 'bold 52px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(w, s / 2, s / 2); });
-    tex.repeat.set(1, 0.3); tex.offset.set(0, 0.35);
-    const bb = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.3), new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 1.1, roughness: 0.6 }));
-    const side = k % 2 ? 1 : -1;
-    bb.position.copy(S[idx]).addScaledVector(RT[idx], side * 16).addScaledVector(UP[idx], 4);
-    bb.quaternion.copy(frameAt(idx).quat); if (side > 0) bb.rotateY(Math.PI); bb.castShadow = true; scene.add(bb);
-    const p = new THREE.Mesh(post, dark); p.position.copy(bb.position).addScaledVector(UP[idx], -4); p.quaternion.copy(frameAt(idx).quat); p.scale.set(1, 0.4, 1); scene.add(p);
-  });
+}
+// ---------------------------------------------------------------- signage: large animated screens on slim pylons, facing oncoming traffic
+const signs = [];
+{
+  const SIGNS = [
+    { idx: 75, side: -1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'THE FORGE · VICE · VULTURE · BOWOTTO'], accent: '#2ee6ff' },
+    { idx: 165, side: 1, w: 26, h: 9.5, lines: ['CTX2', 'COMING SOON'], accent: '#ff8a2a', blink: 1 },
+    { idx: 1005, side: -1, w: 32, h: 9.5, lines: ['ORION BTST PLUG-IN PACK', 'COMING SOON'], accent: '#9fe8ff', blink: 1 },
+    { idx: 1470, side: 1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'REVUELTO · THE GRID'], accent: '#2ee6ff' },
+    { idx: 120, side: 1, w: 20, h: 10.3, poster: true, lines: ['COREZ'], accent: '#dff8ff' },
+  ];
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, metalness: 0.7, roughness: 0.35 });
+  const edgeMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
+  const posterImg = document.getElementById('revuelto-poster');
+  for (const d of SIGNS) {
+    const f = frameAt(d.idx), g = new THREE.Group();
+    g.position.copy(S[d.idx]).addScaledVector(RT[d.idx], d.side * 17).addScaledVector(UP[d.idx], 5 + d.h / 2);
+    g.quaternion.copy(f.quat); g.rotateY(Math.PI + d.side * 0.35);       // face back down the track, angled toward the road
+    const cw = 2048, ch = Math.round(2048 * d.h / d.w);
+    const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; const ctx = cv.getContext('2d');
+    const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = maxAniso;
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(d.w, d.h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+    screen.position.z = 0; screen.rotation.y = Math.PI / 2; g.add(screen);   // plane faces +x of the group; group's +x is the road direction
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(0.4, d.h + 0.6, d.w + 0.6), frameMat); bezel.position.x = -0.25; g.add(bezel);
+    for (const sy of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.08, d.w + 0.6), edgeMat); e.position.set(0.02, sy * (d.h / 2 + 0.26), 0); g.add(e); }
+    const pylon = new THREE.Mesh(new THREE.BoxGeometry(0.8, 5 + d.h / 2, 1.2), frameMat); pylon.position.set(-0.3, -(d.h / 2) - (5 + d.h / 2) / 2 + 0.2, 0); g.add(pylon);
+    scene.add(g);
+    let img = null;
+    if (d.poster && posterImg && posterImg.getAttribute('src')) { img = new Image(); img.src = posterImg.getAttribute('src'); }
+    signs.push({ d, cv, ctx, tex, img, group: g });
+  }
+  const fit = (ctx, text, maxW, px, weight, family) => { let size = px; do { ctx.font = `${weight} ${size}px ${family}`; if (ctx.measureText(text).width <= maxW) break; size -= 4; } while (size > 20); return size; };
+  function drawSign(sg, t) {
+    const { d, cv, ctx } = sg, W = cv.width, H = cv.height;
+    ctx.fillStyle = '#030710'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(46,230,255,0.25)'; ctx.lineWidth = 2; for (let x = 0; x < W; x += 128) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    if (d.poster) {
+      if (sg.img && sg.img.complete && sg.img.naturalWidth) { const r = Math.min(W / sg.img.naturalWidth, H / sg.img.naturalHeight), iw = sg.img.naturalWidth * r, ih = sg.img.naturalHeight * r; ctx.drawImage(sg.img, (W - iw) / 2, (H - ih) / 2, iw, ih); }
+      else { ctx.fillStyle = d.accent; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fit(ctx, d.lines[0], W * 0.8, 260, '700', 'Orbitron, Bahnschrift, Arial'); ctx.fillText(d.lines[0], W / 2, H * 0.45); ctx.font = '600 70px "Barlow Condensed", Arial Narrow, Arial'; ctx.fillStyle = 'rgba(223,248,255,0.7)'; ctx.fillText('COMING SOON', W / 2, H * 0.62); }
+    } else {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const pulse = 0.75 + 0.25 * Math.sin(t * 2.2);
+      ctx.shadowColor = d.accent; ctx.shadowBlur = 40 * pulse;
+      ctx.fillStyle = '#eafcff'; fit(ctx, d.lines[0], W * 0.9, 300, '700', 'Orbitron, Bahnschrift, Arial'); ctx.fillText(d.lines[0], W / 2, H * 0.4);
+      const show = !d.blink || Math.floor(t * 1.6) % 2 === 0;
+      if (show && d.lines[1]) { ctx.fillStyle = d.accent; fit(ctx, d.lines[1], W * 0.85, 150, '600', '"Barlow Condensed", Orbitron, Arial Narrow, Arial'); ctx.fillText(d.lines[1], W / 2, H * 0.76); }
+      ctx.shadowBlur = 0;
+      const sx = ((t * 0.35) % 1.4 - 0.2) * W;   // light sweep
+      const gr = ctx.createLinearGradient(sx - 200, 0, sx + 200, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.18)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gr; ctx.fillRect(sx - 200, 0, 400, H);
+    }
+    ctx.fillStyle = d.accent; ctx.fillRect(0, 0, W, 6); ctx.fillRect(0, H - 6, W, 6);
+    sg.tex.needsUpdate = true;
+  }
+  signs.forEach(sg => drawSign(sg, 0));
+  if (document.fonts && document.fonts.load) Promise.all([document.fonts.load('700 100px Orbitron'), document.fonts.load('600 100px "Barlow Condensed"')]).then(() => signs.forEach(sg => drawSign(sg, 0))).catch(() => {});
+  let signTick = 0;
+  window.__signAnimate = now => { if (now - signTick < 90) return; signTick = now; const t = now / 1000; signs.forEach(sg => drawSign(sg, t)); };
 }
 
-// ------------------------------------------------------------------ car
+// ------------------------------------------------------------------ car// ------------------------------------------------------------------ car
 let paintIdx = 2;
 const paintMat = new THREE.MeshPhysicalMaterial({ color: PAINTS[0].hex, metalness: 0.5, roughness: 0.2, clearcoat: 1.0, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.2 });
 const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x05080b, metalness: 0.35, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, envMap: cubeRT.texture, envMapIntensity: 1.2 });
@@ -723,9 +751,11 @@ trailGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(TRAIL_
 { const idx = []; for (let i = 0; i < TRAIL_N - 1; i++) { const k = i * 2; idx.push(k, k + 1, k + 3, k, k + 3, k + 2); } trailGeo.setIndex(idx); }
 const trailMesh = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false }));
 trailMesh.frustumCulled = false; scene.add(trailMesh);
+let trailOn = false; trailMesh.visible = false;
 const trailColor = new THREE.Color(0x2ee6ff);
 function trailReset() { trail.count = 0; trail.head = 0; trailGeo.setDrawRange(0, 0); }
 function trailUpdate() {
+  if (!trailOn) return;
   const q = st.pos.clone().addScaledVector(st.fwd, -2.3), x = q.x, z = q.z;
   const gap = Math.hypot(x - trail.lastX, z - trail.lastZ);
   if (gap > 25) { trailReset(); trail.lastX = x; trail.lastZ = z; }              // teleport / reset: start a fresh ribbon
@@ -809,6 +839,7 @@ window.addEventListener('keydown', e => {
     case 'KeyF': hiQ = !hiQ; resize(); flash(hiQ ? 'QUALITY HIGH' : 'QUALITY LOW', 800); break;
     case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); break;
     case 'KeyH': $('help').classList.toggle('hidden'); break;
+    case 'KeyL': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); flash(trailOn ? 'LIGHT TRAIL ON' : 'LIGHT TRAIL OFF', 800); break;
     case 'KeyY': customYaw += Math.PI / 2; if (customModel) customModel.rotation.y += Math.PI / 2; break;
   }
   if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault();
@@ -923,7 +954,7 @@ const rpmForGear = (u, g) => Math.abs(u) * 3.6 / CAR.gearTopKmh[g] * CAR.redline
 function step(dt) {
   const m = MODES[st.mode];
   // input shaping
-  const rate = Math.abs(inp.steer) > Math.abs(st.steer) ? 3.4 : 7.0;
+  const rate = Math.abs(inp.steer) > Math.abs(st.steer) ? 5.5 : 9.0;   // quicker steering response
   st.steer += clamp(inp.steer - st.steer, -rate * dt, rate * dt);
   st.throttle += clamp(inp.throttle - st.throttle, -10 * dt, 7 * dt);
   st.brake = inp.brake; st.hand = inp.hand;
@@ -968,16 +999,16 @@ function step(dt) {
   if (v < 0.05 && Math.abs(F) < 1) st.u = 0;
   // lateral / yaw
   let mu = m.grip * (st.offroad ? 0.42 : 1); if (st.hand) mu *= 0.45;
-  const dmax = Math.min(0.62, Math.atan(CAR.wheelbase * 1.35 * mu * G / Math.max(st.u * st.u, 1)));
+  const dmax = Math.min(0.70, Math.atan(CAR.wheelbase * 2.3 * mu * G / Math.max(st.u * st.u, 1)));   // more lock at speed: sharper turn-in, the tyres decide when it slides
   st.delta = st.steer * dmax;
   let wTarget = st.u / CAR.wheelbase * Math.tan(st.delta);
   const slipAng = Math.atan2(st.w, Math.abs(st.u) + 0.5);
   wTarget *= 1 / (1 + Math.abs(slipAng) * (1.2 + 1.6 * m.stab));
   if (st.hand && v > 3) wTarget *= 1.8;
-  st.yaw = damp(st.yaw, wTarget, 1 / 0.09, dt);
+  st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
   const uPrev = st.u, wPrev = st.w;
   st.w += st.yaw * uPrev * dt; st.u -= st.yaw * wPrev * dt;
-  const k = 9 + 7 * m.stab;
+  const k = 11 + 8 * m.stab;
   st.aLat = clamp(st.w * k, -mu * G, mu * G);
   st.w -= st.aLat * dt;
   if (v < 0.8) st.w *= Math.max(0, 1 - dt * 6);
@@ -1117,7 +1148,7 @@ function frame(now) {
   rig.position.copy(car.position); rig.quaternion.copy(car.quaternion); studio.position.copy(car.position);
   trailUpdate();
   gridMat.uniforms.uCar.value.copy(car.position); gridMat.uniforms.uTime.value = now / 1000;
-  for (const m of solids.children) { m.rotation.y += m.userData.spin * dt; m.rotation.x += m.userData.spin * 0.4 * dt; }
+  if (window.__signAnimate) window.__signAnimate(now);
   if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; }
   bodyGroup.rotation.z = damp(bodyGroup.rotation.z, st.aLong * 0.004, 8, dt);
   bodyGroup.rotation.x = damp(bodyGroup.rotation.x, st.aLat * 0.006, 8, dt);
