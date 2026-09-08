@@ -248,6 +248,7 @@ function sampleAt(s) {
   _sa.b.addScaledVector(_sa.t, -_sa.t.dot(_sa.b)).normalize(); _sa.n.crossVectors(_sa.b, _sa.t).normalize(); _sa.i = i; _sa.f = f; return _sa;
 }
 const D_WALL = ROAD_HALF + 2.4;   // boundary walls both sides, all the way round
+const D_HIT = D_WALL - 1.2;       // the car's centre stops here: half a car width short of the wall face
 const MASK_X0 = -3400, MASK_Z0 = -3700, MASK_W = 6800;   // world window covered by the underground mask and distance field
 // mask of underground corridors (the grid floor and mirror are cut away there)
 const maskTex = canvasTex(512, (ctx, sz) => {
@@ -993,6 +994,7 @@ const audio = {
       const wb = C.createBiquadFilter(); wb.type = 'lowpass'; wb.frequency.value = 300; const wg = C.createGain(); wg.gain.value = 0; noise().connect(wb); wb.connect(wg); wg.connect(comp); this.wg = wg; this.wb = wb;
       // tyres
       const tb = C.createBiquadFilter(); tb.type = 'bandpass'; tb.frequency.value = 1500; tb.Q.value = 5; const tg = C.createGain(); tg.gain.value = 0; noise().connect(tb); tb.connect(tg); tg.connect(comp); this.tg = tg; this.tb = tb;
+      const ho = C.createOscillator(); ho.type = 'sawtooth'; ho.frequency.value = 240; const hf = C.createBiquadFilter(); hf.type = 'bandpass'; hf.frequency.value = 1100; hf.Q.value = 6; const hg = C.createGain(); hg.gain.value = 0; ho.connect(hf); hf.connect(hg); hg.connect(comp); ho.start(); this.ho = ho; this.hg = hg; this.hf = hf;
       // gravel
       const gb = C.createBiquadFilter(); gb.type = 'bandpass'; gb.frequency.value = 2600; gb.Q.value = 0.6; const gg = C.createGain(); gg.gain.value = 0; noise().connect(gb); gb.connect(gg); gg.connect(comp); this.gg = gg;
       // EV whine
@@ -1003,9 +1005,8 @@ const audio = {
   },
   boost() {
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
-    const o = C.createOscillator(), f = C.createBiquadFilter(), g = C.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(1400, t + 0.35); f.type = 'lowpass'; f.frequency.setValueAtTime(600, t); f.frequency.exponentialRampToValueAtTime(5000, t + 0.3); f.Q.value = 4;
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); o.connect(f); f.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.6);
-    this.cg.gain.cancelScheduledValues(t); this.cg.gain.setValueAtTime(0.4, t); this.cg.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    // two bright bings, a fifth apart
+    [[1318.5, 0], [1975.5, 0.13]].forEach(([freq, dt0]) => { const t0 = t + dt0; for (const [mult, vol] of [[1, 0.45], [2.76, 0.12], [5.4, 0.05]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32 / Math.sqrt(mult)); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 0.4); } });
   },
   crunch(k) {
     if (!this.ctx || !st.sound) return; const t = this.ctx.currentTime;
@@ -1036,8 +1037,11 @@ const audio = {
     const spd = Math.abs(st.u);
     this.wg.gain.setTargetAtTime(Math.pow(clamp(spd / 100, 0, 1), 1.6) * 0.55 * on, t, 0.05);
     this.wb.frequency.setTargetAtTime(200 + spd * 14, t, 0.05);
-    this.tg.gain.setTargetAtTime((st.offroad ? 0 : clamp((st.slip - 0.12) * 1.4, 0, 1) * 0.35 * clamp(spd / 8, 0, 1)) * on, t, 0.04);
+    const sq = st.offroad ? 0 : clamp((st.slip - 0.1) * 1.6, 0, 1) * clamp(spd / 8, 0, 1);
+    this.tg.gain.setTargetAtTime(sq * 0.55 * on, t, 0.04);
     this.tb.frequency.setTargetAtTime(1200 + 800 * st.slip, t, 0.05);
+    this.hg.gain.setTargetAtTime(sq * (st.drift || 0) * 0.28 * on, t, 0.05);
+    this.ho.frequency.setTargetAtTime(200 + 160 * st.slip + spd * 1.5, t, 0.08); this.hf.frequency.setTargetAtTime(900 + 900 * st.slip, t, 0.08);
     this.gg.gain.setTargetAtTime((st.offroad ? clamp(spd / 20, 0, 1) * 0.3 : 0) * on, t, 0.05);
     const evOn = m.ev || (spd > 0.5 && x < 0.15);
     this.evg.gain.setTargetAtTime((evOn ? 0.03 + 0.05 * thr : 0) * on * clamp(spd / 3, 0, 1), t, 0.05);
@@ -1138,7 +1142,7 @@ function step(dt) {
   const fr0 = sampleAt(st.s), slope = fr0.t.y * Math.cos(st.psi) + fr0.b.y * Math.sin(st.psi);   // component of 'up' along the car's forward
   if (st.boostCd > 0) st.boostCd -= dt;
   if (st.boostT > 0) { st.boostT -= dt; F += CAR.mass * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
-  if (BOOST[fr0.i] && !st.air && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); flash('BOOST', 500); }
+  if (BOOST[fr0.i] && !st.air && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
   let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
   const bDecel = st.air ? 0 : Fb / CAR.mass * dt;
@@ -1150,12 +1154,18 @@ function step(dt) {
   st.delta = st.steer * dmax;
   let wTarget = st.u / CAR.wheelbase * Math.tan(st.delta);
   const slipAng = Math.atan2(st.w, Math.abs(st.u) + 0.5);
-  wTarget *= 1 / (1 + Math.abs(slipAng) * (1.2 + 1.6 * m.stab));
-  if (st.hand && v > 3) wTarget *= 1.8;
+  // drifting: the handbrake, or power-oversteer in Sport / Corsa (hard throttle + steering at 30–150 km/h), or an
+  // already-sliding car — the rear loses grip, the car rotates more, and the slide is held rather than snapped back
+  const powerOver = !m.ev && m.stab < 0.9 && st.throttle > 0.7 && Math.abs(st.steer) > 0.45 && v > 8 && v < 42;
+  const drifting = (st.hand && v > 3) || powerOver || (Math.abs(slipAng) > 0.22 && v > 8);
+  st.drift = damp(st.drift || 0, drifting ? 1 : 0, drifting ? 10 : 3, dt);
+  wTarget *= 1 / (1 + Math.abs(slipAng) * (1.2 + 1.6 * m.stab) * (1 - 0.6 * st.drift));
+  if (st.hand && v > 3) wTarget *= 2.2; else if (powerOver) wTarget *= 1.45;
+  if (drifting) mu *= 1 - 0.3 * st.drift;
   st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
   const uPrev = st.u, wPrev = st.w;
   st.w += st.yaw * uPrev * dt; st.u -= st.yaw * wPrev * dt;
-  const k = 11 + 8 * m.stab;
+  const k = (11 + 8 * m.stab) * (1 - 0.55 * st.drift);
   st.aLat = clamp(st.w * k, -mu * G, mu * G);
   st.w -= st.aLat * dt;
   if (v < 0.8) st.w *= Math.max(0, 1 - dt * 6);
@@ -1180,7 +1190,7 @@ function step(dt) {
       // touchdown: keep the along-road speed, drop the rest
       const cpB = Math.cos(st.psi), spB = Math.sin(st.psi), fwdB = frB.t.clone().multiplyScalar(cpB).addScaledVector(frB.b, spB);
       st.u = st.vel.dot(fwdB); st.w = st.vel.dot(new THREE.Vector3().crossVectors(fwdB, frB.n)) * 0.5; st.air = false;
-      st.d = clamp(st.d, -D_WALL + 0.1, D_WALL - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
+      st.d = clamp(st.d, -D_HIT + 0.1, D_HIT - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
     } else if (gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
       // missed the landing: put it back on the road after the gap at reduced speed
       // back to a standing start 350 m before the kicker so the attempt can be repeated with a full run-up
@@ -1205,12 +1215,12 @@ function step(dt) {
   }
   // boundary walls: speed retained = 1 - 0.85·sin(impact angle); lateral bounce with 0.35 restitution; the wall straightens the car
   if (st.hitT > 0) st.hitT -= dt;
-  if (Math.abs(st.d) > D_WALL) {
+  if (Math.abs(st.d) > D_HIT) {
     const sideW = Math.sign(st.d), vn = Math.abs(dDot), phi = Math.atan2(vn, Math.abs(st.u) + 0.1);
     const retain = clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);
     if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); audio.crunch(k); if (k > 0.25) flash('WALL', 500); st.shake = Math.max(st.shake || 0, k); }
     st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
-    st.d = sideW * (D_WALL - 0.05);
+    st.d = sideW * (D_HIT - 0.02);
   }
   }
   if (!st.air) syncPose();
@@ -1314,7 +1324,7 @@ function updateHUD() {
     $('lap-best').textContent = fmtTime(st.lapBest);
     $('vmax').textContent = Math.round(st.vmax) + ' km/h';
     $('hits').textContent = String(st.hits);
-    $('status').textContent = st.offroad ? 'OFF TRACK' : (st.slip > 0.35 ? 'SLIDING' : '');
+    $('status').textContent = st.offroad ? 'OFF TRACK' : ((st.drift || 0) > 0.5 ? 'DRIFT' : (st.slip > 0.35 ? 'SLIDING' : ''));
     $('vignette').style.opacity = String(0.25 + 0.5 * clamp(Math.abs(st.u) / 95, 0, 1));
   }
 }
