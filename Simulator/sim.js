@@ -521,7 +521,7 @@ function installModel(root, name) {
       if (o.material && /light|lamp|led|brake_light|tail_light|headlight_light|turning_light_(right|left)$/.test(n) && !/glass|carbon|inside|holder/.test(n) && o.material.emissive) {
         o.material = o.material.clone(); if (o.material.emissive.getHex() === 0) o.material.emissive.setHex(/tail|brake/.test(n) ? 0xff2010 : 0xdff2ff); o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity || 1, 5.0);
       }
-      if (/paint|body|carrosserie|carroceria|exterior/.test(n) && o.material && !/glass|window|interior|light/.test(n)) {
+      if (/paint|body|carrosserie|carroceria|exterior/.test(n) && o.material && !/glass|window|interior|light|black|nero|trim|carbon/.test(n)) {
         // the author's colour and finish, rebuilt as clearcoat paint with live reflections
         const src = o.material, pm = new THREE.MeshPhysicalMaterial({ color: src.color ? src.color.clone() : new THREE.Color(0xff2a03), map: src.map || null, metalness: Math.max(0.5, src.metalness || 0), roughness: Math.min(0.18, src.roughness == null ? 0.1 : src.roughness), clearcoat: 1, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.3, name: src.name });
         o.material = pm; o.userData.paint = true; o.userData.origMat = pm;
@@ -533,14 +533,18 @@ function installModel(root, name) {
     }
   });
   wrap.add(root);
-  const box = new THREE.Box3().setFromObject(wrap);
-  const size = box.getSize(new THREE.Vector3());
-  const long = Math.max(size.x, size.z);
-  const sc = CAR.length / long; root.scale.setScalar(sc);
-  box.setFromObject(wrap);
-  const c = box.getCenter(new THREE.Vector3());
-  root.position.set(-c.x, -box.min.y, -c.z);
-  wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + customYaw;
+  let prescaled = !!root.userData.prescaled; root.traverse(o => { if (o.userData && o.userData.prescaled) prescaled = true; });
+  if (prescaled) { wrap.rotation.y = Math.PI / 2 + customYaw; }        // converter output: nose on +Z, real size, on the ground
+  else {
+    const box = new THREE.Box3().setFromObject(wrap);
+    const size = box.getSize(new THREE.Vector3());
+    const long = Math.max(size.x, size.z);
+    const sc = CAR.length / long; root.scale.setScalar(sc);
+    box.setFromObject(wrap);
+    const c = box.getCenter(new THREE.Vector3());
+    root.position.set(-c.x, -box.min.y, -c.z);
+    wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + customYaw;
+  }
   customWheels = [];
   root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
   if (!customWheels.length) customWheels = null;
@@ -564,7 +568,9 @@ window.addEventListener('drop', e => {
 // model baked into the page (build.py --embed), else a revuelto.glb sitting next to the page
 {
   const emb = document.getElementById('revuelto-glb');
-  if (emb) { try { const b64 = emb.textContent.trim(); const bin = atob(b64); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); loadGLBBuffer(u8.buffer, 'embedded'); } catch (e) { console.error(e); } }
+  if (emb) { try { const b64 = emb.textContent.trim(); const bin = atob(b64); let u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    if (!(u8[0] === 0x67 && u8[1] === 0x6c && u8[2] === 0x54 && u8[3] === 0x46) && window.fflate) u8 = fflate.unzlibSync(u8);   // deflated by build.py
+    loadGLBBuffer(u8.buffer, 'embedded'); } catch (e) { console.error(e); } }
   else if (location.protocol !== 'file:') fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
 }
 

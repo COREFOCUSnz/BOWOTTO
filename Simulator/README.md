@@ -28,7 +28,7 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 
 ## Making it look like the real car
 
-The sim ships with ALIEEEN's Revuelto model baked in (see Credits). A
+The sim ships with a 505k-triangle Revuelto model baked in (see Credits). A
 procedural fallback body with the Revuelto's proportions is used when no
 model is present (`build.py --no-model`). To swap in a different mesh:
 
@@ -39,8 +39,12 @@ model is present (`build.py --no-model`). To swap in a different mesh:
    glTF exporter inside headless Chromium:
 
    ```
-   node Simulator/tools/convert-model.js model.fbx Simulator/revuelto.glb --front=+Z --preview shot.png
+   node Simulator/tools/convert-model.js model.fbx out.glb --front=+Z --weld --jpeg --max-texture=2048 --preview shot.png
+   python3 Simulator/tools/quantize-glb.py out.glb Simulator/models/revuelto.glb
    ```
+
+   The quantizer halves the file (16-bit positions, 8-bit normals) so a
+   large model still fits the single-file build, which deflates it again.
 
    It scales the car to 4.947 m, rests it on the ground, points the nose the
    right way (`--front` names the axis the source model's nose faces), tags
@@ -59,10 +63,10 @@ with the same GLB; this repo's physics constants transfer directly.
 
 ## Credits
 
-Car model: **"Free Lamborghini Revuelto" by ALIEEEN**, via Sketchfab,
-licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-See `models/LICENSE.md`. The credit must stay with any copy of the sim that
-includes the model. Three.js is MIT (`vendor/LICENSE.three.js`).
+Car model: **"Free - High Quality Lamborghini Revuelto"** via Sketchfab
+(author and licence line in `models/LICENSE.md`). The credit must stay with
+any copy of the sim that includes the model. Three.js is MIT
+(`vendor/LICENSE.three.js`).
 
 ## Layout
 
