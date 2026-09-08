@@ -12,14 +12,17 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   0–100 km/h 2.7 s, 0–200 km/h 6.9 s, 100–0 km/h in 30 m, v-max 343 km/h.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
-- **Circuit** 5.7 km on The Grid, in three dimensions: a 1 km straight,
-  a climb through the esses, a dive into an underground tunnel, a full
-  vertical loop on the back straight (rail physics: gravity acts along the
-  slope, so enter too slow and you stall and roll back), rolling hills on
-  the return. Three light tunnels sit on the twistiest stretches, chosen
-  automatically by curvature. Gates, a walled canyon, bridges and floating
-  wireframe solids dress the rest. Lap timer with best lap persisted in the
-  browser, minimap, hit counter.
+- **Circuit** 15.8 km on The Grid, in three dimensions: a 1.2 km main
+  straight, a climb through turn one to a kicker jump with a real gap (about
+  170 km/h to clear it), a steep dive to an underground hairpin, a 1.7 km
+  back straight carrying a 28 m loop and a back-to-back double loop, a climb
+  to a 300 m corkscrew that rolls the road through 360°, a second and longer
+  jump, two overpasses crossing above the main straight, a chicane run under
+  a tunnel, a 36 m loop and the canyon home. Rail physics: gravity acts along
+  the slope, so loops need speed. Jumps are ballistic: land it and drive on,
+  fall short and you're reset onto the landing at half speed with a hit
+  counted. Tunnels are placed automatically on the twistiest stretches.
+  Lap timer with best lap persisted in the browser, minimap, hit counter.
 - **Boundaries.** Light-walls run both sides all the way round, 2.4 m past
   the road edge. Hitting one applies a formula: speed retained
   `= 1 − 0.85·sin(impact angle)` (a glancing touch costs a few km/h, a

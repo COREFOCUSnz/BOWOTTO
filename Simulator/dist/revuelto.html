@@ -5328,31 +5328,57 @@ function noise2(x, y) {
 }
 function fbm(x, y, oct = 5) { let a = 0.5, f = 1, sum = 0, norm = 0; for (let i = 0; i < oct; i++) { sum += a * noise2(x * f, y * f); norm += a; a *= 0.5; f *= 2.03; } return sum / norm; }
 
-// track centreline: [x, z, height]. Main straight flat, climb through the esses, dive underground, vertical loop on
-// the back straight, rolling return. The loop is generated: a 27 m circle in the vertical plane, shifted 16 m sideways.
-const LOOP_R = 27, LOOP_E = new THREE.Vector3(-330, 0, -772), LOOP_DIR = new THREE.Vector3(-460, 0, -240).normalize();
-const LOOP_RT = new THREE.Vector3(-LOOP_DIR.z, 0, LOOP_DIR.x);                       // right of the entry direction
-const loopPts = []; for (let k = 0; k <= 8; k++) { const th = k / 8 * Math.PI * 2; loopPts.push([LOOP_E.x + LOOP_DIR.x * LOOP_R * Math.sin(th) + LOOP_RT.x * 16 * (k / 8), LOOP_E.z + LOOP_DIR.z * LOOP_R * Math.sin(th) + LOOP_RT.z * 16 * (k / 8), LOOP_R * (1 - Math.cos(th))]); }
+// track centreline: [x, z, height]. ~13 km: 1.2 km main straight, jump at the crest of turn one, steep dive to an
+// underground hairpin, 1.7 km back straight carrying a loop and a double loop, climb to a 360° corkscrew, a second
+// jump, two overpasses across the main straight, a chicane run, a big loop, and the canyon home.
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const LOOPS = [
+  { E: new THREE.Vector3(200, 0, -2000), dir: new THREE.Vector3(-1, 0, 0), R: 28, shift: 16 },
+  { E: new THREE.Vector3(-350, 0, -2016), dir: new THREE.Vector3(-1, 0, 0), R: 24, shift: 14 },
+  { E: new THREE.Vector3(-350, 0, -2030), dir: new THREE.Vector3(-1, 0, 0), R: 24, shift: 14 },
+  { E: new THREE.Vector3(100, 0, -350), dir: new THREE.Vector3(-1, 0, 0), R: 36, shift: 18 },
+];
+for (const L of LOOPS) { L.rt = new THREE.Vector3().crossVectors(L.dir, WORLD_UP).normalize(); L.C = L.E.clone().add(new THREE.Vector3(0, L.R, 0)); }
+const loopPts = L => { const out = []; for (let k = 1; k <= 8; k++) { const th = k / 8 * Math.PI * 2; out.push([L.E.x + L.dir.x * L.R * Math.sin(th) + L.rt.x * L.shift * (k / 8), L.E.z + L.dir.z * L.R * Math.sin(th) + L.rt.z * L.shift * (k / 8), L.R * (1 - Math.cos(th))]); } return out; };
+const JUMPS = [   // [kicker top, landing]: no road between, the car flies
+  { from: new THREE.Vector3(1330, 34, -860), to: new THREE.Vector3(1200, 10, -1000) },
+  { from: new THREE.Vector3(-1100, 32, -450), to: new THREE.Vector3(-930, 8, -300) },
+];
+const ROLLS = [ { from: new THREE.Vector3(-1500, 24, -1350), to: new THREE.Vector3(-1500, 24, -1050) } ];   // corkscrew: road rolls 360° between these
 const CTRL = [
-  [-200, 0, 0], [450, 0, 0], [720, -40, 3], [880, -230, 12], [800, -450, 20], [600, -520, 16], [470, -700, 6], [560, -900, 2],
-  [380, -1070, -14], [130, -1010, -14], [-40, -830, -2], [-230, -720, 0], ...loopPts, [-690, -960, 0], [-930, -870, 5],
-  [-1010, -620, 9], [-870, -400, 5], [-980, -170, 2], [-830, 20, 0], [-560, 0, 0],
+  [-300, 0, 0], [900, 0, 0], [1250, -110, 5], [1480, -380, 16], [1450, -680, 26], [1330, -860, 34],   // main straight, turn one climbing to the kicker
+  [1200, -1000, 10], [1050, -1150, 4], [830, -1240, -10], [640, -1190, -20], [480, -1060, -21], [380, -1200, -21], [480, -1380, -17], [700, -1500, -8], [950, -1570, 2],   // landing, dive, underground hairpin, climb
+  [1150, -1700, 4], [1050, -1900, 6], [800, -2000, 0], [200, -2000, 0], ...loopPts(LOOPS[0]),           // back straight, loop
+  [-350, -2016, 0], ...loopPts(LOOPS[1]), ...loopPts(LOOPS[2]), [-900, -2044, 0],                          // double loop
+  [-1200, -2000, 8], [-1450, -1750, 20], [-1500, -1450, 24], [-1500, -1350, 24], [-1500, -1200, 24], [-1500, -1050, 24], [-1480, -900, 22],   // climb, corkscrew
+  [-1300, -650, 26], [-1100, -450, 32], [-930, -300, 8], [-700, -150, 2],                                  // second jump
+  [-500, 0, 22], [-350, 150, 24], [-100, 250, 20], [200, 250, 12], [500, 150, 20], [650, 0, 24], [800, -150, 18],   // overpasses across the main straight
+  [900, -300, 12], [750, -420, 8], [600, -300, 6], [450, -450, 4], [300, -350, 2], [100, -350, 0], ...loopPts(LOOPS[3]),   // chicanes, big loop
+  [-400, -380, 0], [-700, -300, 4], [-1000, -150, 2], [-1300, -80, 0], [-1400, -10, 0], [-1250, 0, 0],   // home
 ];
 const curve = new THREE.CatmullRomCurve3(CTRL.map(p => new THREE.Vector3(p[0], p[2], p[1])), true, 'centripetal', 0.5);
-const N = 1500;
+const N = 3400;
 const S = curve.getSpacedPoints(N).slice(0, N);       // closed loop samples (3D)
-const T = [], RT = [], UP = [], KERB = new Array(N).fill(false), CUM = new Array(N).fill(0), KAPPA = new Float32Array(N), LOOP = new Array(N).fill(false), UNDER = new Array(N).fill(false);
+{ // the spline overshoots a few metres below the plain next to level sections; only the designed dive (near x 380..830, z -1500..-1000) may go under
+  for (const q of S) if (q.y < 0 && !(q.x > 300 && q.x < 900 && q.z > -1600 && q.z < -950)) q.y = 0.02;
+}
+const T = [], RT = [], UP = [], KERB = new Array(N).fill(false), CUM = new Array(N).fill(0), KAPPA = new Float32Array(N);
+const LOOP = new Array(N).fill(-1), UNDER = new Array(N).fill(false), JUMP = new Array(N).fill(false), ROLL = new Float32Array(N).fill(-1);
 let trackLen = 0;
-const WORLD_UP = new THREE.Vector3(0, 1, 0), LOOP_C = LOOP_E.clone().add(new THREE.Vector3(0, LOOP_R, 0));
+const nearest = v => { let bi = 0, bd = 1e18; for (let i = 0; i < N; i++) { const d = S[i].distanceToSquared(v); if (d < bd) { bd = d; bi = i; } } return bi; };
 for (let i = 0; i < N; i++) {
   const a = S[(i + N - 1) % N], b = S[(i + 1) % N];
   T.push(new THREE.Vector3().subVectors(b, a).normalize());
-  LOOP[i] = S[i].distanceTo(LOOP_C) < LOOP_R + 7 || S[i].clone().sub(LOOP_C).setY(0).length() < LOOP_R + 7 && S[i].y > 3;
+  LOOPS.forEach((L, k) => { if (S[i].distanceTo(L.C) < L.R + 7) LOOP[i] = k; });
   UNDER[i] = S[i].y < -1.5;
 }
+for (const J of JUMPS) { const a = nearest(J.from) - 6, b = nearest(J.to); J.i0 = a; J.i1 = b; for (let i = a; i <= b; i++) JUMP[i] = true; }
+for (const Rl of ROLLS) { const a = nearest(Rl.from), b = nearest(Rl.to); Rl.i0 = a; Rl.i1 = b; for (let i = a; i <= b; i++) ROLL[i] = (i - a) / (b - a); }
 for (let i = 0; i < N; i++) {
-  // road frame: right = T x up, except through the loop where right stays the loop plane normal so the road can invert
-  const r = LOOP[i] ? LOOP_RT.clone() : new THREE.Vector3().crossVectors(T[i], WORLD_UP).normalize();
+  // road frame: right = T x up; through a loop right stays the loop plane normal so the road can invert; a corkscrew rolls it round T
+  let r;
+  if (LOOP[i] >= 0) r = LOOPS[LOOP[i]].rt.clone();
+  else { r = new THREE.Vector3().crossVectors(T[i], WORLD_UP).normalize(); if (ROLL[i] >= 0) { const ang = ROLL[i] * Math.PI * 2, e = 0.5 - 0.5 * Math.cos(ang); const dn = new THREE.Vector3().crossVectors(T[i], r); r = r.multiplyScalar(Math.cos(ang)).addScaledVector(dn, Math.sin(ang)).normalize(); } }
   const u = new THREE.Vector3().crossVectors(r, T[i]).normalize();
   RT.push(r); UP.push(u);
 }
@@ -5363,7 +5389,8 @@ for (let i = 0; i < N; i++) {   // signed in-plane curvature (positive = turning
   KAPPA[i] = ang / Math.max(ds, 0.1);
 }
 { let sm = new Float32Array(N); for (let i = 0; i < N; i++) { let acc = 0; for (let k = -2; k <= 2; k++) acc += KAPPA[(i + k + N) % N]; sm[i] = acc / 5; } KAPPA.set(sm); }
-for (let i = 0; i < N; i++) if (Math.abs(KAPPA[i]) > 1 / 190 && !LOOP[i]) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
+for (let i = 0; i < N; i++) if (Math.abs(KAPPA[i]) > 1 / 190 && LOOP[i] < 0 && ROLL[i] < 0) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
+const SPECIAL = i => LOOP[i] >= 0 || ROLL[i] >= 0 || JUMP[i];
 const trackDistSq = (x, z) => { let best = 1e18, bi = 0; for (let i = 0; i < N; i++) { const dx = S[i].x - x, dz = S[i].z - z, d = dx * dx + dz * dz; if (d < best) { best = d; bi = i; } } return { d2: best, i: bi }; };
 const basisQuat = (t, n) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(t, n, new THREE.Vector3().crossVectors(t, n)));
 const frameAt = i => ({ p: S[i], t: T[i], b: RT[i], n: UP[i], yaw: Math.atan2(-T[i].z, T[i].x), quat: basisQuat(T[i], UP[i]) });
@@ -5376,10 +5403,11 @@ function sampleAt(s) {
   _sa.b.addScaledVector(_sa.t, -_sa.t.dot(_sa.b)).normalize(); _sa.n.crossVectors(_sa.b, _sa.t).normalize(); _sa.i = i; _sa.f = f; return _sa;
 }
 const D_WALL = ROAD_HALF + 2.4;   // boundary walls both sides, all the way round
+const MASK_X0 = -3400, MASK_Z0 = -3700, MASK_W = 6800;   // world window covered by the underground mask and distance field
 // mask of underground corridors (the grid floor and mirror are cut away there)
 const maskTex = canvasTex(512, (ctx, sz) => {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, sz, sz); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const px = v => (v.x + 2300) / 4600 * sz, pz = v => (v.z + 2750) / 4600 * sz;
+  const px = v => (v.x - MASK_X0) / MASK_W * sz, pz = v => (v.z - MASK_Z0) / MASK_W * sz;
   ctx.beginPath(); let pen = false;
   for (let i = 0; i < N; i++) { const j = (i + 1) % N; if (UNDER[i] && UNDER[j]) { if (!pen) { ctx.moveTo(px(S[i]), pz(S[i])); pen = true; } ctx.lineTo(px(S[j]), pz(S[j])); } else pen = false; }
   ctx.stroke();
@@ -5387,7 +5415,7 @@ const maskTex = canvasTex(512, (ctx, sz) => {
 maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping; maskTex.encoding = THREE.LinearEncoding;
 
 // distance-to-track field on a 50 m grid (terrain flattening, prop placement)
-const DF = { x0: -2300, z0: -2750, cell: 50, n: 92, v: null };
+const DF = { x0: -3400, z0: -3700, cell: 60, n: 114, v: null };
 {
   DF.v = new Float32Array(DF.n * DF.n);
   for (let j = 0; j < DF.n; j++) for (let i = 0; i < DF.n; i++) {
@@ -5417,7 +5445,7 @@ const gridMat = new THREE.ShaderMaterial({
 #include <fog_pars_fragment>
     float gridLine(vec2 p, float cell, float w){ vec2 q = p / cell; vec2 g = abs(fract(q - 0.5) - 0.5) / (fwidth(q) * w); return 1.0 - min(min(g.x, g.y), 1.0); }
     void main(){
-      if (texture2D(uMask, (vW.xz + vec2(2300.0, 2750.0)) / 4600.0).r > 0.5) discard;
+      if (texture2D(uMask, (vW.xz + vec2(3400.0, 3700.0)) / 6800.0).r > 0.5) discard;
       float major = gridLine(vW.xz, 20.0, 1.6), minor = gridLine(vW.xz, 4.0, 1.2);
       vec3 base = vec3(0.012, 0.02, 0.045);
       vec3 cyan = vec3(0.18, 0.9, 1.0);
@@ -5440,7 +5468,7 @@ mirror.rotation.x = -Math.PI / 2; mirror.position.set(0, -0.08, -450); scene.add
 gridMat.uniforms.uMask.value = maskTex;
 { const mm = mirror.material; mm.uniforms.uMask = { value: maskTex };
   mm.vertexShader = mm.vertexShader.replace('void main() {', 'varying vec3 vWp;\nvoid main() {\n vWp = (modelMatrix * vec4(position, 1.0)).xyz;');
-  mm.fragmentShader = mm.fragmentShader.replace('void main() {', 'uniform sampler2D uMask; varying vec3 vWp;\nvoid main() {\n if (texture2D(uMask, (vWp.xz + vec2(2300.0, 2750.0)) / 4600.0).r > 0.5) discard;');
+  mm.fragmentShader = mm.fragmentShader.replace('void main() {', 'uniform sampler2D uMask; varying vec3 vWp;\nvoid main() {\n if (texture2D(uMask, (vWp.xz + vec2(3400.0, 3700.0)) / 6800.0).r > 0.5) discard;');
   mm.needsUpdate = true; }
 
 // road ribbon
@@ -5467,7 +5495,7 @@ const kerbTex = canvasTex(64, (ctx, s) => { ctx.fillStyle = '#06101c'; ctx.fillR
 function ribbon(inner, outer, texScaleV, yOff, filter, tex, color, glow) {
   const pos = [], uv = [];
   for (let i = 0; i < N; i++) {
-    if (filter && !filter(i)) continue;
+    if (JUMP[i] || (filter && !filter(i))) continue;
     const j = (i + 1) % N;
     const v0 = CUM[i] / texScaleV, v1 = (CUM[i] + S[i].distanceTo(S[j])) / texScaleV;
     for (const side of (inner === -outer ? [1] : [1, -1])) {
@@ -5511,7 +5539,7 @@ function instancedColored(geo, mat, items, shadow) {
 }
 { // light beacons along the circuit (not underground)
   const beacons = [];
-  for (let i = 0; i < N; i += 28) { if (UNDER[i] || LOOP[i]) continue; const side = (i / 28) % 2 ? 1 : -1, p = S[i].clone().addScaledVector(RT[i], side * 22); beacons.push({ x: p.x, y: p.y, z: p.z, s: 1, sy: 1 + rnd() * 0.6 }); }
+  for (let i = 0; i < N; i += 28) { if (UNDER[i] || SPECIAL(i)) continue; const side = (i / 28) % 2 ? 1 : -1, p = S[i].clone().addScaledVector(RT[i], side * 22); beacons.push({ x: p.x, y: p.y, z: p.z, s: 1, sy: 1 + rnd() * 0.6 }); }
   instanced(new THREE.BoxGeometry(0.35, 9, 0.35).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false }), beacons, false);
 }
 // ---------------------------------------------------------------- track architecture: tunnels, gates, canyon, bridges, floating grid solids
@@ -5520,14 +5548,13 @@ const inRanges = (i, ranges) => ranges.some(([a, b]) => i >= a && i <= b);
 const TUNNELS = (() => {
   const turn = new Float32Array(N); for (let i = 0; i < N; i++) turn[i] = Math.abs(KAPPA[i]);
   const LEN = 150, cand = [], out = [];
-  let u0 = -1, u1 = -1; for (let i = 0; i < N; i++) if (UNDER[i]) { if (u0 < 0) u0 = i; u1 = i; }
-  if (u0 >= 0) out.push([Math.max(0, u0 - 8), Math.min(N - 1, u1 + 8)]);
-  for (let i = 230; i < N - 230 - LEN; i += 5) { if (out.some(([a, b]) => i < b + 60 && i + LEN > a - 60)) continue; let bad = false, sum = 0; for (let k = 0; k < LEN; k++) { if (LOOP[i + k] || UNDER[i + k]) bad = true; sum += turn[i + k]; } if (!bad) cand.push([sum, i]); }
+  { let best = [0, -1], cur = -1; for (let i = 0; i <= N; i++) { if (i < N && UNDER[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { if (i - cur > best[1] - best[0]) best = [cur, i - 1]; cur = -1; } } if (best[1] > 0) out.push([Math.max(0, best[0] - 8), Math.min(N - 1, best[1] + 8)]); }   // longest underground run only
+  for (let i = 230; i < N - 230 - LEN; i += 5) { if (out.some(([a, b]) => i < b + 60 && i + LEN > a - 60)) continue; let bad = false, sum = 0; for (let k = 0; k < LEN; k++) { if (SPECIAL(i + k) || UNDER[i + k]) bad = true; sum += turn[i + k]; } if (!bad) cand.push([sum, i]); }
   cand.sort((x, y) => y[0] - x[0]);
   for (const [, i] of cand) { if (out.every(([a, b]) => i > b + 60 || i + LEN < a - 60)) out.push([i, i + LEN]); if (out.length === 3) break; }
   return out.sort((x, y) => x[0] - y[0]);
 })();
-const CANYON = [[N - 250, N - 60]];   // approach to the main straight
+const CANYON = [[N - 240, N - 40]];   // home straight
 const neonMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
 const neonWhite = new THREE.MeshBasicMaterial({ color: 0xdff8ff, toneMapped: false });
 const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.55, metalness: 0.4, side: THREE.DoubleSide });
@@ -5565,6 +5592,12 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   }
   instanced(finGeo, neonMat, fins, false); instanced(portalGeo, neonWhite, portals, false);
 }
+{ // jump lips: white bars across the road at take-off and landing, plus chevrons on the run-up
+  const bars = [], chev = [];
+  for (const J of JUMPS) { for (const i of [J.i0 - 1, J.i1 + 1]) { const f = frameAt(i); bars.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); } for (let k = 4; k < 40; k += 6) { const f = frameAt(J.i0 - k); chev.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); } }
+  instanced(new THREE.BoxGeometry(0.5, 0.3, ROAD_HALF * 2 + 1).translate(0, 0.15, 0), neonWhite, bars, false);
+  instanced(new THREE.BoxGeometry(0.4, 0.06, 6).translate(0, 0.06, 0), neonMat, chev, false);
+}
 { // canyon on the approach to the main straight: tall dark walls with vertical light seams and a lit top edge
   const wallTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#060a12'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 5); for (let x = 0; x < s; x += 64) { ctx.globalAlpha = 0.9; ctx.fillRect(x + 30, 0, 3, s); } });
   const pos = [], uv = [];
@@ -5587,6 +5620,7 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   const pos = [], uv = [], posts = [];
   let acc = 0;
   for (let i = 0; i < N; i++) {
+    if (JUMP[i]) continue;
     const j = (i + 1) % N, A = frameAt(i), B = frameAt(j);
     for (const side of [1, -1]) {
       const a = A.p.clone().addScaledVector(A.b, side * D_WALL), b = B.p.clone().addScaledVector(B.b, side * D_WALL);
@@ -5620,11 +5654,11 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
 const signs = [];
 {
   const SIGNS = [
-    { idx: 75, side: -1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'THE FORGE · VICE · VULTURE · BOWOTTO'], accent: '#2ee6ff' },
-    { idx: 165, side: 1, w: 26, h: 9.5, lines: ['CTX2', 'COMING SOON'], accent: '#ff8a2a', blink: 1 },
-    { idx: 1005, side: -1, w: 32, h: 9.5, lines: ['ORION BTST PLUG-IN PACK', 'COMING SOON'], accent: '#9fe8ff', blink: 1 },
-    { idx: 1470, side: 1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'REVUELTO · THE GRID'], accent: '#2ee6ff' },
-    { idx: 120, side: 1, w: 20, h: 10.3, poster: true, lines: ['COREZ'], accent: '#dff8ff' },
+    { idx: Math.floor(N * 0.028), side: -1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'THE FORGE · VICE · VULTURE · BOWOTTO'], accent: '#2ee6ff' },
+    { idx: Math.floor(N * 0.06), side: 1, w: 26, h: 9.5, lines: ['CTX2', 'COMING SOON'], accent: '#ff8a2a', blink: 1 },
+    { idx: Math.floor(N * 0.41), side: -1, w: 32, h: 9.5, lines: ['ORION BTST PLUG-IN PACK', 'COMING SOON'], accent: '#9fe8ff', blink: 1 },
+    { idx: Math.floor(N * 0.985), side: 1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'REVUELTO · THE GRID'], accent: '#2ee6ff' },
+    { idx: Math.floor(N * 0.044), side: 1, w: 20, h: 10.3, poster: true, lines: ['COREZ'], accent: '#dff8ff' },
   ];
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, metalness: 0.7, roughness: 0.35 });
   const edgeMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
@@ -5944,7 +5978,7 @@ function trailUpdate() {
 const st = {
   s: 0, d: 0, psi: 0, u: 0, w: 0, yaw: 0,             // track coordinates: distance along, offset right, heading vs tangent; body-frame velocity
   x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
-  hits: 0, hitT: 0,
+  hits: 0, hitT: 0, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -5954,7 +5988,7 @@ const st = {
 try { const b = localStorage.getItem('revuelto.best'); if (b) st.lapBest = +b; } catch (e) {}
 function placeOnTrack(idx) {
   st.s = CUM[idx]; st.d = 0; st.psi = 0; syncPose(); st.lastP = idx / N;   // no phantom lap when resetting near the line
-  st.u = st.w = st.yaw = 0; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.lapStart = null; st.halfSeen = false;
+  st.u = st.w = st.yaw = 0; st.air = false; st.airT = 0; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.lapStart = null; st.halfSeen = false;
   if (typeof trailReset === 'function') trailReset();
   st.snapCam = true;
 }
@@ -6160,9 +6194,9 @@ function step(dt) {
   const Fr = Math.sign(st.u) * (CAR.rolling + (st.offroad ? 1100 + 18 * v : 0));
   const Feb = (!st.reverse && !m.ev && st.throttle < 0.05) ? Math.sign(st.u) * 1800 * (st.rpm / CAR.redline) : 0;
   const fr0 = sampleAt(st.s), slope = fr0.t.y * Math.cos(st.psi) + fr0.b.y * Math.sin(st.psi);   // component of 'up' along the car's forward
-  let du = (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
+  let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
-  const bDecel = Fb / CAR.mass * dt;
+  const bDecel = st.air ? 0 : Fb / CAR.mass * dt;
   if (v > 0) { if (Math.abs(st.u) <= bDecel) st.u = 0; else st.u -= Math.sign(st.u) * bDecel; }
   if (v < 0.05 && Math.abs(F) < 1) st.u = 0;
   // lateral / yaw
@@ -6184,11 +6218,42 @@ function step(dt) {
   st.aLong = damp(st.aLong, (st.u - u0) / dt, 6, dt);
   // integrate in track coordinates: s along, d right, psi heading relative to the tangent
   const kap = KAPPA[fr0.i], cp = Math.cos(st.psi), sp = Math.sin(st.psi);
+  if (st.air) {
+    // ballistic flight: world velocity, gravity, light air control; land when back over road at road height
+    st.airT += dt; st.vel.y -= G * dt;
+    st.pos.addScaledVector(st.vel, dt);
+    const hv = st.vel.clone(); hv.y = 0;
+    const frA = sampleAt(st.s); st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
+    st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
+    const frB = sampleAt(st.s), roadY = frB.p.y + frB.b.y * st.d, over = !JUMP[frB.i];
+    st.fwd.lerp(st.vel.clone().normalize(), 1 - Math.exp(-dt * 3)).normalize(); st.up.copy(WORLD_UP); st.right.crossVectors(st.fwd, st.up); st.up.crossVectors(st.right, st.fwd).normalize();
+    st.x = st.pos.x; st.y = st.pos.y; st.z = st.pos.z; st.theta = Math.atan2(-st.fwd.z, st.fwd.x); st.trackIdx = frB.i;
+    const gone = st.pos.y < roadY - 30 || st.airT > 9 || Math.abs(st.d) > D_WALL + 40;
+    if (over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0) {
+      // touchdown: keep the along-road speed, drop the rest
+      const cpB = Math.cos(st.psi), spB = Math.sin(st.psi), fwdB = frB.t.clone().multiplyScalar(cpB).addScaledVector(frB.b, spB);
+      st.u = st.vel.dot(fwdB); st.w = st.vel.dot(new THREE.Vector3().crossVectors(fwdB, frB.n)) * 0.5; st.air = false;
+      st.d = clamp(st.d, -D_WALL + 0.1, D_WALL - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
+    } else if (gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
+      // missed the landing: put it back on the road after the gap at reduced speed
+      let land = frB.i; for (const J of JUMPS) if (frB.i >= J.i0 - 2 && frB.i <= J.i1 + 2) land = J.i1 + 4;
+      const keep = Math.abs(st.u) * 0.5; placeOnTrack(land); st.u = keep; st.resets++; st.hits++; flash('RESET', 900); audio.crunch(0.8); st.shake = 1;
+    }
+    st.offroad = false; st.slip = 0;
+  } else {
   const sDot = (st.u * cp - st.w * sp) / Math.max(0.3, 1 + kap * st.d), dDot = st.u * sp + st.w * cp;
   st.psi += (-st.yaw + kap * sDot) * dt;   // psi > 0 = heading right of the tangent; yaw > 0 = turning left; a left-turning track (kap > 0) leaves the car heading right of it
   st.psi = Math.atan2(Math.sin(st.psi), Math.cos(st.psi));
   st.s = ((st.s + sDot * dt) % trackLen + trackLen) % trackLen;
   st.d += dDot * dt;
+  // take-off: leaving the road at a gap. The kicker lip gives at least a 12° launch so the arc is real
+  if (JUMP[sampleAt(st.s).i] && st.u > 3) {
+    const fr1 = sampleAt(st.s), f1 = fr1.t.clone().multiplyScalar(cp).addScaledVector(fr1.b, sp);
+    const pitch = Math.max(Math.asin(clamp(f1.y, -1, 1)), 0.21), hor = f1.clone().setY(0).normalize();
+    st.vel.copy(hor).multiplyScalar(st.u * Math.cos(pitch)); st.vel.y = st.u * Math.sin(pitch);
+    st.vel.addScaledVector(new THREE.Vector3().crossVectors(f1, fr1.n), st.w);
+    syncPose(); st.air = true; st.airT = 0; flash('AIR', 600);
+  }
   // boundary walls: speed retained = 1 - 0.85·sin(impact angle); lateral bounce with 0.35 restitution; the wall straightens the car
   if (st.hitT > 0) st.hitT -= dt;
   if (Math.abs(st.d) > D_WALL) {
@@ -6198,9 +6263,10 @@ function step(dt) {
     st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
     st.d = sideW * (D_WALL - 0.05);
   }
-  syncPose();
+  }
+  if (!st.air) syncPose();
   // track relation
-  st.offroad = Math.abs(st.d) > ROAD_HALF + 0.8;
+  if (!st.air) st.offroad = Math.abs(st.d) > ROAD_HALF + 0.8;
   const p = st.trackIdx / N;
   if (p > 0.45 && p < 0.55) st.halfSeen = true;
   if (st.lastP > 0.92 && p < 0.08 && st.u > 2) {
@@ -6328,7 +6394,7 @@ function frame(now) {
 }
 resize();
 requestAnimationFrame(frame);
-window.__sim = { st, inp, trailUpdate, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { st, inp, trailUpdate, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>
