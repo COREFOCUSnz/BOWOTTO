@@ -121,7 +121,7 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
 
-## Six worlds
+## Seven worlds
 
 Picked on the start screen (the page rebuilds itself for the choice, which
 is remembered). Each is a Catmull-Rom loop of control points with its own
@@ -148,6 +148,12 @@ walls and dressing.
 - **TIMBERLINE** (forest, 12.1 km): a dusk sky, 11 000 pines, a summit
   start at 270 m, a long winding descent through hairpins and esses down to
   the valley, then a 1.6 km climb straight back up. Made for the handbrake.
+- **DEEP BLUE** (under the sea, 12.4 km): the whole circuit runs inside a
+  glass tube on the sea floor, ribs every 14 m and cyan lamps inside, legs
+  down to the sand, a loop and a corkscrew inside the tube and a jump through
+  open water between two tube ends. Dark rock, coral, seaweed, a shoal of 260
+  fish on lazy circles round the tube, bubbles rising past the car, and the
+  surface shimmering 200 m above. Deep blue fog.
 - **WHITEOUT** (alpine, 11.3 km): overcast, snowing around the car, snowy
   pines, a ski lift crossing the mountain, red poles at the five jumps.
 

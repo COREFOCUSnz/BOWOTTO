@@ -149,7 +149,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #tracksel button:hover{background:rgba(255,255,255,.1)}
 #tracksel button.on{border-color:var(--amber);background:rgba(46,230,255,.16);box-shadow:0 0 18px rgba(46,230,255,.25)}
 #tracksel button::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
-#tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}
+#tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}#tracksel button.ocean::before{background:#4fe3ff}
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
 #loading.hidden{display:none}
 @media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
@@ -5461,6 +5461,18 @@ const TRACKS = {
       [-1400, -400, 138], [-1200, -150, 120], [-900, 50, 128], [-600, 200, 140],
       [-420, 240, 122], [-200, 180, 110], [-100, 40, 102], [-300, 0, 100],
     ].slice(0, -1).concat([[-500, -30, 100], [-800, -20, 100], [-1100, 0, 100], [-1250, 0, 100]]) },
+  ocean: { name: 'DEEP BLUE', sub: 'UNDER THE SEA · GLASS TUBES', theme: 'ocean', km: 12.4,
+    loops: [{ E: V3(300, 30, -1000), dir: V3(-1, 0, 0), R: 26, shift: 14 }],
+    jumps: [{ from: V3(300, 46, -2350), to: V3(115, 30, -2304) }],
+    rolls: [{ from: V3(-1400, 40, -1700), to: V3(-1400, 40, -1450) }],
+    pads: [],
+    ctrl: lp => [
+      [-300, 0, 20], [900, 0, 20], [1250, -150, 28], [1450, -450, 40], [1350, -800, 52], [1000, -950, 60], [650, -1000, 44], ...lp(0),
+      [-100, -1000, 30], [-400, -1150, 22], [-500, -1450, 14], [-300, -1750, 10], [100, -1900, 12], [500, -1950, 24], [900, -1850, 40], [1200, -2050, 52], [1100, -2350, 60], [700, -2450, 58], [300, -2350, 46],
+      [115, -2304, 30], [-150, -2250, 22], [-500, -2300, 16], [-900, -2200, 20], [-1200, -1950, 30],
+      [-1400, -1800, 40], [-1400, -1700, 40], [-1400, -1575, 40], [-1400, -1450, 40], [-1400, -1350, 40],
+      [-1300, -1100, 34], [-1450, -850, 26], [-1300, -600, 18], [-1400, -350, 14], [-1200, -100, 16], [-1000, 0, 20],
+    ] },
 };
 const TRACK_ID = (() => { try { const t = localStorage.getItem('revuelto.track'); if (t && TRACKS[t]) return t; } catch (e) {} return 'grid'; })();
 const TRACK = TRACKS[TRACK_ID], THEME = TRACK.theme, DAY = THEME === 'desert' || THEME === 'sonic', OUTDOOR = !(THEME === 'tron' || THEME === 'matrix');
@@ -5478,6 +5490,7 @@ const THEMES = {
   desert: { bg: 0x8fb8e8, fog: [0xdcc6a6, 900, 7000], neon: 0xffb347, line: '#f4f1ea', line2: '#ffd34d', sun: [0xfff0d0, 1.35], hemi: [0x9fc8ff, 0x8a5a3a, 0.5], exposure: 0.8, verge: 0x9a7a52 },
   sonic:  { bg: 0x62b8ff, fog: [0xbfe4ff, 1100, 7500], neon: 0xffd54d, line: '#f4f1ea', line2: '#ffd54d', sun: [0xffffff, 1.3], hemi: [0x8fd0ff, 0x3f8a2a, 0.5], exposure: 0.82, verge: 0x8a6a3a },
   woods:  { bg: 0x2b1a3a, fog: [0x3a2440, 220, 2800], neon: 0xff8a3a, line: '#f4f1ea', line2: '#ffd34d', sun: [0xffa060, 1.1], hemi: [0x5a3a6a, 0x101a0c, 0.55], exposure: 0.85, verge: 0x3a2a1a },
+  ocean:  { bg: 0x03203a, fog: [0x03213a, 110, 1250], neon: 0x4fe3ff, line: '#8ff4ff', line2: '#4fe3ff', sun: [0x8fc8ff, 0.6], hemi: [0x1e5a90, 0x04131f, 0.75], exposure: 0.8, verge: 0x0e2733 },
   snow:   { bg: 0xdfe6ee, fog: [0xe4eaf0, 160, 2200], neon: 0xff3b3b, line: '#f4f1ea', line2: '#3b7bff', sun: [0xe8eeff, 0.9], hemi: [0xdde8f5, 0xbfc8d0, 0.7], exposure: 0.78, verge: 0xdfe6ee },
 };
 const TH = THEMES[THEME];
@@ -5521,7 +5534,7 @@ const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 9000);
 scene.background = new THREE.Color(TH.bg);
 const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - (DAY ? 48 : THEME === 'woods' ? 12 : THEME === 'snow' ? 30 : 55)), THREE.MathUtils.degToRad(35));
 {
-  const domeCols = { tron: [0x01020a, 0x0a2a55], matrix: [0x000000, 0x03200a], woods: [0x140a26, 0xff6a2a], snow: [0xb8c4d0, 0xf0f4f8], desert: [0x2a66c0, 0xe2caa8], sonic: [0x1f78e6, 0xbfe6ff] }[THEME];
+  const domeCols = { tron: [0x01020a, 0x0a2a55], matrix: [0x000000, 0x03200a], woods: [0x140a26, 0xff6a2a], snow: [0xb8c4d0, 0xf0f4f8], desert: [0x2a66c0, 0xe2caa8], sonic: [0x1f78e6, 0xbfe6ff], ocean: [0x0a4a86, 0x03182c] }[THEME];
   if (DAY) { const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(140, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false, toneMapped: false })); sunDisc.position.copy(sunDir).multiplyScalar(7800); sunDisc.position.y -= 200; scene.add(sunDisc); }
   if (false) {
     const sky = new THREE.Sky(); sky.scale.setScalar(400000); scene.add(sky);
@@ -5530,7 +5543,7 @@ const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.deg
   } else {
     const dome = new THREE.Mesh(new THREE.SphereGeometry(8500, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color(domeCols[0]) }, horizon: { value: new THREE.Color(domeCols[1]) }, pw: { value: THEME === 'snow' ? 3.0 : THEME === 'woods' ? 5.0 : DAY ? 4.0 : 9.0 } },
+      uniforms: { top: { value: new THREE.Color(domeCols[0]) }, horizon: { value: new THREE.Color(domeCols[1]) }, pw: { value: THEME === 'snow' ? 3.0 : THEME === 'woods' ? 5.0 : DAY ? 4.0 : THEME === 'ocean' ? 2.2 : 9.0 } },
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform float pw; varying vec3 vP; void main(){ float h = normalize(vP).y; float g = pow(1.0 - clamp(h, 0.0, 1.0), pw); gl_FragColor = vec4(mix(top, horizon, g * 0.9), 1.0); }',
     }));
@@ -5576,7 +5589,7 @@ const glowTex = canvasTex(256, (ctx, sz) => { const g = ctx.createRadialGradient
 const glowDisc = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 5), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x2ee6ff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
 glowDisc.rotation.x = -Math.PI / 2; glowDisc.position.y = 0.06; glowDisc.renderOrder = 2;
 const GLOW_BLUE = new THREE.Color(0x2ee6ff), GLOW_PURPLE = new THREE.Color(0xa64dff), glowCol = new THREE.Color();
-const GLOW_K = DAY ? 0.28 : OUTDOOR ? 0.5 : 1;   // the LED underglow reads in the dark, less so in daylight
+const GLOW_K = DAY ? 0.28 : THEME === 'ocean' ? 0.4 : OUTDOOR ? 0.5 : 1;   // the LED underglow reads in the dark, less so in daylight
 // showroom rig that follows the car: cool-white key from front-left-high, cyan rim from behind, warm fill from the right
 const rig = new THREE.Group(); scene.add(rig);
 const keyLight = new THREE.SpotLight(0xf4f8ff, 0.7, 40, 0.7, 0.6, 1.2); keyLight.position.set(9, 9, -7); rig.add(keyLight); rig.add(keyLight.target);
@@ -5739,7 +5752,7 @@ function nearField(x, z) {
   const bl = (A) => lerp(lerp(A[k], A[k + 1], u), lerp(A[k + NEAR.n], A[k + NEAR.n + 1], u), v);
   return { d: bl(NEAR.d), y: bl(NEAR.y), cave: bl(NEAR.cave) };
 }
-const TERRAIN = { desert: { amp: 260, base: 20, cliff: 26, freq: 0.00075 }, sonic: { amp: 60, base: 8, cliff: 0, freq: 0.0011 }, woods: { amp: 300, base: 90, cliff: 14, freq: 0.0007 }, snow: { amp: 240, base: 100, cliff: 10, freq: 0.0008 } }[THEME];
+const TERRAIN = { desert: { amp: 260, base: 20, cliff: 26, freq: 0.00075 }, sonic: { amp: 60, base: 8, cliff: 0, freq: 0.0011 }, woods: { amp: 300, base: 90, cliff: 14, freq: 0.0007 }, snow: { amp: 240, base: 100, cliff: 10, freq: 0.0008 }, ocean: { amp: 70, base: -22, cliff: 0, freq: 0.0012 } }[THEME];
 function rawH(x, z) {
   const T = TERRAIN, n = fbm(x * T.freq + 3.1, z * T.freq + 7.7, 5), r = 1 - Math.abs(fbm(x * T.freq * 2.1 + 11, z * T.freq * 2.1 + 5, 3) * 2 - 1);   // rolling + ridges
   return T.base + T.amp * ((n - 0.42) * 1.5 + r * 0.55);
@@ -5747,6 +5760,7 @@ function rawH(x, z) {
 function terrainH(x, z) {
   if (!OUTDOOR) return 0;
   const f = nearField(x, z), T = TERRAIN, raw = rawH(x, z);
+  if (THEME === 'ocean') return f.d < 50 ? Math.min(raw, f.y - 5 - (50 - f.d) * 0.16) : raw;   // the sea floor dips under the tube, never through it
   if (f.d > 220) return raw;
   const open = smoothstep(14, 70, f.d);                                                            // 0 on the road, 1 out in the hills
   let h = lerp(f.y - 0.6, raw, open);
@@ -5816,6 +5830,9 @@ function terrainColor(h, slope, d, x, z, out) {
     if (h > 330) out.lerp(new THREE.Color(0.5, 0.48, 0.46), smoothstep(330, 380, h));            // bare rock up top
     if (slope > 0.62) out.lerp(new THREE.Color(0.32, 0.28, 0.24), 0.6);
     if (d < 16) out.setRGB(0.28, 0.2, 0.12);
+  } else if (THEME === 'ocean') {
+    out.setRGB(0.2 + 0.1 * n, 0.32 + 0.12 * n, 0.4 + 0.1 * n);                                   // sand under blue water
+    if (slope > 0.5) out.lerp(new THREE.Color(0.08, 0.14, 0.2), 0.7);                            // dark rock
   } else {
     out.setRGB(0.93 + 0.05 * n, 0.95 + 0.04 * n, 0.98);                                          // snow
     if (slope > 0.7) out.lerp(new THREE.Color(0.35, 0.36, 0.4), 0.7);                            // rock through the snow
@@ -5924,7 +5941,8 @@ if (!OUTDOOR) { // light beacons along the circuit (not underground)
 // ---------------------------------------------------------------- track architecture: tunnels, gates, canyon, bridges, floating grid solids
 const inRanges = (i, ranges) => ranges.some(([a, b]) => i >= a && i <= b);
 // tunnels go where the track bends most: three non-overlapping 150-sample windows of highest turning, off the main straight
-const TUNNELS = OUTDOOR ? (() => { const out = []; let cur = -1; for (let i = 0; i <= N; i++) { if (i < N && CAVE[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { out.push([cur, i - 1]); cur = -1; } } return out; })() : (() => {
+const TUBE = THEME === 'ocean';
+const TUNNELS = TUBE ? (() => { const out = []; let cur = -1; for (let i = 0; i <= N; i++) { if (i < N && !JUMP[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { out.push([cur, i - 1]); cur = -1; } } return out; })() : OUTDOOR ? (() => { const out = []; let cur = -1; for (let i = 0; i <= N; i++) { if (i < N && CAVE[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { out.push([cur, i - 1]); cur = -1; } } return out; })() : (() => {
   const turn = new Float32Array(N); for (let i = 0; i < N; i++) turn[i] = Math.abs(KAPPA[i]);
   const LEN = 150, cand = [], out = [];
   { let best = [0, -1], cur = -1; for (let i = 0; i <= N; i++) { if (i < N && UNDER[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { if (i - cur > best[1] - best[0]) best = [cur, i - 1]; cur = -1; } } if (best[1] > 0) out.push([Math.max(0, best[0] - 8), Math.min(N - 1, best[1] + 8)]); }   // longest underground run only
@@ -5947,9 +5965,10 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   });
   // caves: rock, lit by warm lamps
   const rockTex = canvasTex(512, (ctx, sz) => { const base = THEME === 'snow' ? [150, 155, 165] : THEME === 'woods' ? [80, 70, 60] : [150, 90, 55]; ctx.fillStyle = `rgb(${base.join(',')})`; ctx.fillRect(0, 0, sz, sz); noiseFill(ctx, sz, 120, 90, 14000); ctx.globalAlpha = 0.35; for (let y = 0; y < sz; y += 24 + Math.random() * 30) { ctx.fillStyle = Math.random() < 0.5 ? '#3a2418' : '#a06a40'; ctx.fillRect(0, y, sz, 3 + Math.random() * 6); } ctx.globalAlpha = 1; });
-  const shellMatT = OUTDOOR ? new THREE.MeshStandardMaterial({ map: rockTex, color: 0xffffff, roughness: 0.95, metalness: 0, side: THREE.DoubleSide })
+  const shellMatT = TUBE ? new THREE.MeshPhysicalMaterial({ color: 0x9fe6ff, transparent: true, opacity: 0.11, roughness: 0.04, metalness: 0.05, clearcoat: 1, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 0.6 })
+    : OUTDOOR ? new THREE.MeshStandardMaterial({ map: rockTex, color: 0xffffff, roughness: 0.95, metalness: 0, side: THREE.DoubleSide })
     : new THREE.MeshStandardMaterial({ map: seamTex, emissiveMap: seamTex, emissive: 0xffffff, emissiveIntensity: 1.6, color: 0x7f8fa6, roughness: 0.35, metalness: 0.5, side: THREE.DoubleSide });
-  const SEG = 22, W = OUTDOOR ? 11 : 9.6, H = OUTDOOR ? 7.5 : 6.4, E = OUTDOOR ? 2 / 2.2 : 2 / 3.6;
+  const SEG = 22, W = TUBE ? 10.4 : OUTDOOR ? 11 : 9.6, H = TUBE ? 7.2 : OUTDOOR ? 7.5 : 6.4, E = TUBE ? 1 : OUTDOOR ? 2 / 2.2 : 2 / 3.6;
   const arc = [];
   for (let k = 0; k <= SEG; k++) { const a = Math.PI * (1 - k / SEG), c = Math.cos(a), si = Math.sin(a); arc.push([W * Math.sign(c) * Math.pow(Math.abs(c), E), H * Math.pow(Math.max(0, si), E)]); }
   const pos = [], uv = [];
@@ -5963,7 +5982,7 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
     }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
-  const tunnel = new THREE.Mesh(g, shellMatT); tunnel.receiveShadow = true; scene.add(tunnel);
+  const tunnel = new THREE.Mesh(g, shellMatT); tunnel.receiveShadow = !TUBE; if (TUBE) tunnel.renderOrder = 5; scene.add(tunnel);
   const path = new THREE.CatmullRomCurve3(arc.map(q => new THREE.Vector3(0, q[1] + 0.12, q[0])));   // fins live in the (right, up) plane; instances carry the full road frame
   const finGeo = new THREE.TubeGeometry(path, 48, 0.09, 6, false), portalGeo = new THREE.TubeGeometry(path, 48, 0.35, 8, false);
   finGeo.applyMatrix4(new THREE.Matrix4().set(1, 0.32, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));   // rake: lean the fin forward with height
@@ -5971,10 +5990,12 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   for (const [i0, i1] of TUNNELS) {
     for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
     for (const i of [i0, i1]) { const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
-    if (OUTDOOR) { for (let i = i0 + 25; i < i1 - 10; i += 50) { const m = frameAt(i), l = new THREE.PointLight(0xffb070, 1.4, 90, 1.5); l.position.copy(m.p).addScaledVector(m.n, 5); scene.add(l); } }
+    if (TUBE) { for (let i = i0 + 100; i < i1 - 50; i += 230) { const m = frameAt(i), l = new THREE.PointLight(0x7fe8ff, 1.1, 120, 1.4); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); } }
+    else if (OUTDOOR) { for (let i = i0 + 25; i < i1 - 10; i += 50) { const m = frameAt(i), l = new THREE.PointLight(0xffb070, 1.4, 90, 1.5); l.position.copy(m.p).addScaledVector(m.n, 5); scene.add(l); } }
     else { const m = frameAt(Math.floor((i0 + i1) / 2)), l = new THREE.PointLight(0x9fe8ff, 1.2, 160, 1.6); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); }
   }
   if (!OUTDOOR) { instanced(finGeo, neonMat, fins, false); instanced(portalGeo, neonWhite, portals, false); }
+  if (TUBE) { const ribs = []; for (const [i0, i1] of TUNNELS) for (let i = i0; i < i1; i += 3) { const f = frameAt(i); ribs.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); } instanced(new THREE.TubeGeometry(path, 48, 0.16, 6, false), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, emissive: 0x2ea8ff, emissiveIntensity: 0.9, metalness: 0.8, roughness: 0.3 }), ribs, false); instanced(portalGeo, neonWhite, portals, false); }
 }
 { // jump lips: white bars across the road at take-off and landing
   const bars = [];
@@ -6125,6 +6146,30 @@ const rainMat = THEME === 'matrix' ? new THREE.ShaderMaterial({
       const poles = []; for (const J of JUMPS) for (const i of [J.i0 - 30, J.i0 - 15, J.i1 + 8, J.i1 + 20]) for (const sd of [1, -1]) { const f = frameAt((i + N) % N), q = f.p.clone().addScaledVector(f.b, sd * (ROAD_HALF + 1.6)); poles.push({ x: q.x, y: q.y, z: q.z }); }
       instanced(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 6).translate(0, 1.2, 0), new THREE.MeshStandardMaterial({ color: 0xff3b3b, roughness: 0.5 }), poles, false);
     }
+  }
+  if (THEME === 'ocean') {
+    // legs under the tube, rocks, coral, seaweed, a shoal of fish on lazy circles, bubbles round the car, the surface far above
+    const legs = []; for (let i = 6; i < N; i += 9) { if (JUMP[i]) continue; const f = frameAt(i), floor = terrainH(f.p.x, f.p.z), h = f.p.y - 7.0 - floor; if (h < 1) continue; legs.push({ x: f.p.x, y: floor, z: f.p.z, s: 1, sy: h }); }
+    instanced(new THREE.CylinderGeometry(0.5, 0.7, 1, 8).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x24404e, roughness: 0.6, metalness: 0.5 }), legs, false);
+    const rocks = scatter(900, 12, 900, 500, (h, slope) => true); rocks.forEach(it => { it.s = 2 + rnd() * rnd() * 16; it.sy = it.s * (0.5 + rnd() * 0.5); it.rot = rnd() * 6.28; it.c = rnd() < 0.5 ? 0x14303c : 0x1e4250; });
+    instancedColored(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }), rocks, false);
+    const coral = scatter(1400, 10, 260, 200, (h, slope) => slope < 0.6); coral.forEach(it => { it.s = 0.8 + rnd() * 2.2; it.rot = rnd() * 6.28; const t = rnd(); it.c = t < 0.3 ? 0xff5a8a : t < 0.55 ? 0xff9a3a : t < 0.8 ? 0xb45aff : 0x3affc8; });
+    instancedColored(new THREE.IcosahedronGeometry(1, 1).translate(0, 0.8, 0), new THREE.MeshStandardMaterial({ roughness: 0.8, emissive: 0x111111, flatShading: true }), coral, false);
+    const weed = scatter(2600, 9, 220, 200, (h, slope) => slope < 0.5); weed.forEach(it => { it.s = 0.6 + rnd() * 0.8; it.sy = 4 + rnd() * 9; it.rot = rnd() * 6.28; });
+    instanced(new THREE.ConeGeometry(0.35, 1, 5).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x1f7a4a, roughness: 0.9, side: THREE.DoubleSide }), weed, false);
+    // fish: instanced, each on its own circle near the tube
+    const nFish = 260, fishGeo = new THREE.ConeGeometry(0.28, 1.1, 5).rotateX(Math.PI / 2), fishMat = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.4, flatShading: true });
+    const fish = new THREE.InstancedMesh(fishGeo, fishMat, nFish); const fc = new THREE.Color(); const school = [];
+    for (let k = 0; k < nFish; k++) { const i = Math.floor(rnd() * N), f = frameAt(i), side = rnd() < 0.5 ? -1 : 1, c = f.p.clone().addScaledVector(f.b, side * (14 + rnd() * 30)).addScaledVector(WORLD_UP, (rnd() - 0.3) * 20); school.push({ c, r: 4 + rnd() * 18, w: (0.25 + rnd() * 0.5) * (rnd() < 0.5 ? -1 : 1), ph: rnd() * 6.28, sc: 0.7 + rnd() * 1.6 }); fc.setHSL(rnd() < 0.6 ? 0.55 + rnd() * 0.12 : rnd() * 0.15, 0.8, 0.55); fish.setColorAt(k, fc); }
+    fish.instanceColor.needsUpdate = true; scene.add(fish);
+    const fm = new THREE.Matrix4(), fq = new THREE.Quaternion(), fp = new THREE.Vector3(), fs = new THREE.Vector3(), fl = new THREE.Vector3();
+    window.__fishAnimate = now => { const t = now / 1000; for (let k = 0; k < nFish; k++) { const F = school[k], a = F.ph + t * F.w; fp.set(F.c.x + Math.cos(a) * F.r, F.c.y + Math.sin(t * 0.7 + F.ph) * 1.5, F.c.z + Math.sin(a) * F.r); fl.set(-Math.sin(a) * F.w, 0, Math.cos(a) * F.w).normalize(); fq.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fl); fs.setScalar(F.sc); fm.compose(fp, fq, fs); fish.setMatrixAt(k, fm); } fish.instanceMatrix.needsUpdate = true; };
+    // bubbles rising round the car
+    const n2 = 1400, arr = new Float32Array(n2 * 3); for (let k = 0; k < n2; k++) { arr[k * 3] = (rnd() - 0.5) * 120; arr[k * 3 + 1] = (rnd() - 0.5) * 80; arr[k * 3 + 2] = (rnd() - 0.5) * 120; }
+    const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    snowfall.pts = new THREE.Points(bg, new THREE.PointsMaterial({ color: 0xbfefff, size: 0.28, sizeAttenuation: true, transparent: true, opacity: 0.7, depthWrite: false, fog: true })); snowfall.up = true; scene.add(snowfall.pts);
+    // the surface, seen from below
+    const surf = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000, 1, 1), new THREE.MeshBasicMaterial({ color: 0x6fd0ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide, fog: true })); surf.rotation.x = Math.PI / 2; surf.position.set(0, 230, -600); scene.add(surf);
   }
   if (THEME === 'desert') {
     // boulders and mesas of sandstone, more of them near the cliffs
@@ -7753,7 +7798,8 @@ function frame(now) {
   if (rainMat) rainMat.uniforms.uTime.value = now / 1000;
   if (window.__ringsAnimate) window.__ringsAnimate(now);
   if (superFin) { superFin.scale.y = damp(superFin.scale.y, st.super ? 1 : 0.001, 4, dt); superFin.visible = superFin.scale.y > 0.01; }
-  if (snowfall.pts) { const P = snowfall.pts.geometry.attributes.position, A = P.array, cx = camera.position.x, cy = camera.position.y, cz = camera.position.z; for (let k = 0; k < A.length; k += 3) { A[k + 1] -= 5.5 * dt; A[k] += 1.2 * dt; let dx = A[k] - cx, dy = A[k + 1] - cy, dz = A[k + 2] - cz; if (dy < -60) A[k + 1] += 120; if (dx > 80) A[k] -= 160; else if (dx < -80) A[k] += 160; if (dz > 80) A[k + 2] -= 160; else if (dz < -80) A[k + 2] += 160; } P.needsUpdate = true; }
+  if (window.__fishAnimate) window.__fishAnimate(now);
+  if (snowfall.pts) { const P = snowfall.pts.geometry.attributes.position, A = P.array, cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, vy = snowfall.up ? 2.2 : -5.5; for (let k = 0; k < A.length; k += 3) { A[k + 1] += vy * dt; A[k] += 1.2 * dt; let dx = A[k] - cx, dy = A[k + 1] - cy, dz = A[k + 2] - cz; if (dy < -60) A[k + 1] += 120; else if (dy > 60) A[k + 1] -= 120; if (dx > 80) A[k] -= 160; else if (dx < -80) A[k] += 160; if (dz > 80) A[k + 2] -= 160; else if (dz < -80) A[k + 2] += 160; } P.needsUpdate = true; }
   if (window.__signAnimate) window.__signAnimate(now);
   if (window.__bannerAnimate) window.__bannerAnimate(now);
   if ((frames & 1) === 0) { car.visible = false; if (mirror) mirror.visible = false; for (const a of ai) a.grp.visible = a.pos.distanceToSquared(st.pos) < 45 * 45; cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); car.visible = true; if (mirror) mirror.visible = true; for (const a of ai) a.grp.visible = true; }
