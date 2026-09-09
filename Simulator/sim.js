@@ -1775,7 +1775,7 @@ function toMenu() {
   // rebuilds the page) comes back to the mode screen with everything as it was
   const ls = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
   if (ls('revuelto.mode') && ['solo', 'time', 'versus'].includes(ls('revuelto.mode'))) GAME.mode = ls('revuelto.mode');
-  if (ls('revuelto.laps') && [3, 5, 10].includes(+ls('revuelto.laps'))) GAME.laps = +ls('revuelto.laps');
+  if (ls('revuelto.laps') && [1, 3, 5, 10].includes(+ls('revuelto.laps'))) GAME.laps = +ls('revuelto.laps');
   if (ls('revuelto.diff') != null && DIFFS[+ls('revuelto.diff')]) GAME.diff = +ls('revuelto.diff');
   let step = ls('revuelto.step') === '2' ? 2 : 1; lsSet('revuelto.step', '');
   const showStep = n => {
