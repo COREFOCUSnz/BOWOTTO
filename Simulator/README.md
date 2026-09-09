@@ -81,6 +81,16 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
 
+## The COREZ board
+
+The poster board near the start shows whatever sits in `models/` as
+`poster.webm` or `poster.mp4` (a muted, looping video texture) or, failing
+that, `poster.png` / `.jpg` / `.webp`; `build.py` embeds it. For the
+published page keep a clip under about 2 MB (the page has a 16 MB cap and
+the car model uses 12.5 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
+MP4. While the game is running you can also drag a picture or a clip onto
+the page to preview it on the board without rebuilding.
+
 ## Making it look like the real car
 
 The sim ships with a 505k-triangle Revuelto model baked in (see Credits). A

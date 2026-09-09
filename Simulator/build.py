@@ -40,12 +40,17 @@ def main():
         full = full.replace('<script src="vendor/three.min.js">', tag + '<script src="vendor/three.min.js">', 1) if 'vendor/three.min.js' in full else full.replace("<script>", tag + "<script>", 1)
         print("embedded models/revuelto.glb (%d KB raw -> %d KB base64 deflate)" % (len(raw) // 1024, len(b64) // 1024))
     import glob
-    posters = [q for q in glob.glob(os.path.join(HERE, "models", "poster.*")) if q.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
+    # the COREZ board: a video loop (poster.webm / poster.mp4) wins over a still (poster.png / jpg / webp)
+    MIMES = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp", "webm": "video/webm", "mp4": "video/mp4"}
+    posters = sorted([q for q in glob.glob(os.path.join(HERE, "models", "poster.*")) if q.rsplit(".", 1)[-1].lower() in MIMES], key=lambda q: 0 if q.lower().endswith((".webm", ".mp4")) else 1)
     if posters:
-        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}[posters[0].rsplit(".", 1)[1].lower()]
+        ext = posters[0].rsplit(".", 1)[1].lower()
         with open(posters[0], "rb") as f:
             pb64 = base64.b64encode(f.read()).decode("ascii")
-        ptag = '<img id="revuelto-poster" hidden alt="" src="data:%s;base64,%s">\n' % (mime, pb64)
+        if ext in ("webm", "mp4"):
+            ptag = '<video id="revuelto-poster-video" hidden muted loop playsinline preload="auto" src="data:%s;base64,%s"></video>\n' % (MIMES[ext], pb64)
+        else:
+            ptag = '<img id="revuelto-poster" hidden alt="" src="data:%s;base64,%s">\n' % (MIMES[ext], pb64)
         full = full.replace("<div id=\"app\">", ptag + "<div id=\"app\">", 1)
         print("embedded poster %s (%d KB)" % (os.path.basename(posters[0]), len(pb64) // 1024))
     os.makedirs(DIST, exist_ok=True)
