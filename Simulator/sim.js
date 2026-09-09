@@ -937,14 +937,14 @@ const signs = [];
 let paintIdx = 1;
 // TRON LEGACY paint: a living hologram. Patterns are computed in car space so they flow over the bodywork.
 const tronMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 }, uCarInv: { value: new THREE.Matrix4() } },
-  vertexShader: `uniform mat4 uCarInv; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vWy;
-    void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vL = (uCarInv * wp).xyz; vWy = wp.y; vN = normalize(normalMatrix * normal); vec4 mv = viewMatrix * wp; vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-  fragmentShader: `uniform float uTime; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vWy;
+  uniforms: { uTime: { value: 0 }, uCarInv: { value: new THREE.Matrix4() }, uClip: { value: new THREE.Vector4(0, -1, 0, 1e9) } },
+  vertexShader: `uniform mat4 uCarInv; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vWy; varying vec3 vWp;
+    void main(){ vec4 wp = modelMatrix * vec4(position, 1.0); vL = (uCarInv * wp).xyz; vWy = wp.y; vWp = wp.xyz; vN = normalize(normalMatrix * normal); vec4 mv = viewMatrix * wp; vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform float uTime; uniform vec4 uClip; varying vec3 vL; varying vec3 vN; varying vec3 vV; varying float vWy; varying vec3 vWp;
     float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
     float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int k = 0; k < 5; k++) { s += a * noise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
-    void main(){
+    void main(){ if (dot(uClip.xyz, vWp) + uClip.w < 0.0) discard;
       float t = uTime; vec3 L = vL;
       float n1 = fbm(L.xz * 1.6 + vec2(t * 0.30, 0.0) + L.y * 0.8);
       float n2 = fbm(L.xy * 2.4 - vec2(0.0, t * 0.22) + L.z * 0.5);
@@ -1179,7 +1179,7 @@ function setPaint(i) {
   paintIdx = (i + PAINTS.length) % PAINTS.length;
   const P = PAINTS[paintIdx];
   if (!P.shader) paintMat.color.setHex(P.hex);
-  $('paint-name').textContent = P.name; if (typeof roofClip !== 'undefined') setTimeout(applyRoofClip, 0);
+  $('paint-name').textContent = P.name; if (typeof roofClip !== 'undefined') setTimeout(applyRoofClip, 0); try { localStorage.setItem('revuelto.paint', String(paintIdx)); } catch (e) {}
   document.querySelectorAll('#paints button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
   (customModel || procBody).traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
@@ -1298,7 +1298,7 @@ const st = {
   sound: true, started: false, vmax: 0, record: 0, recordPend: false, coins: 0, score: 0, super: false,
   lapStart: null, lapLast: null, lapBest: null, lastP: 0, halfSeen: false, trackIdx: 0,
 };
-try { const b = localStorage.getItem('revuelto.best'); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; } catch (e) {}
+try { const b = localStorage.getItem('revuelto.best.' + TRACK_ID); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; const pm = localStorage.getItem('revuelto.paint'); if (pm != null && PAINTS[+pm]) paintIdx = +pm; const dm = localStorage.getItem('revuelto.drive'); if (dm != null && MODES[+dm]) st.mode = +dm; const cm = localStorage.getItem('revuelto.cam'); if (cm != null && +cm >= 0 && +cm < 5) st.cam = +cm; } catch (e) {}   // best lap is per world; paint, drive mode and camera come back too
 function placeOnTrack(idx) {
   const racing = GAME.state === 'racing';
   if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); st.lapsDone = Math.max(0, st.lapsDone - 1); }   // put back behind the line: that crossing is owed again
@@ -1695,7 +1695,7 @@ window.addEventListener('keydown', e => {
   switch (e.code) {
     case 'KeyM': setMode(st.mode + 1); break;
     case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': setMode(+e.code.slice(-1) - 1); break;
-    case 'KeyC': st.cam = (st.cam + 1) % 5; flash(['CHASE', 'CLOSE', 'BONNET', 'BUMPER', 'PHOTO'][st.cam], 700); break;
+    case 'KeyC': st.cam = (st.cam + 1) % 5; flash(['CHASE', 'CLOSE', 'COCKPIT', 'BUMPER', 'PHOTO'][st.cam], 700); try { localStorage.setItem('revuelto.cam', String(st.cam)); } catch (e) {} break;
     case 'KeyP': setPaint(paintIdx + 1); flash(PAINTS[paintIdx].name, 900); break;
     case 'KeyR': placeOnTrack(trackDistSq(st.x, st.z).i); flash('RESET', 700); break;
     case 'KeyT': st.auto = !st.auto; $('gearlbl').textContent = st.auto ? 'AUTO' : 'MANUAL'; flash(st.auto ? 'AUTOMATIC' : 'MANUAL · Q / E', 900); break;
@@ -1760,7 +1760,7 @@ let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {
   st.mode = (i + MODES.length) % MODES.length; const m = MODES[st.mode];
-  $('mode-name').textContent = m.name; $('mode-name').style.color = m.color; $('mode-sub').textContent = m.sub;
+  $('mode-name').textContent = m.name; $('mode-name').style.color = m.color; $('mode-sub').textContent = m.sub; try { localStorage.setItem('revuelto.drive', String(st.mode)); } catch (e) {}
   flash(m.name, 900);
 }
 function shiftTo(g) { if (g < 0 || g > 7 || g === st.gear) return; st.gear = g; st.shiftT = 0.09; audio.shift(); }
@@ -1980,6 +1980,8 @@ const music = {
   tracks: [
     { name: 'DOWNTEMPO · 100', bpm: 100, len: 64, chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]] },   // Dm · Bb · F · C (MIDI)
     { name: 'DARK DRIVE · 120', bpm: 120, len: 128, chords: [[40, 43, 47], [36, 40, 43], [38, 42, 45], [41, 45, 48]] },  // Em · C · D · F
+    { name: 'BLACK ICE · 130', bpm: 130, len: 128, chords: [[45, 48, 52], [41, 45, 48], [38, 41, 45], [40, 44, 47]] },   // Am · F · Dm · E (harmonic minor)
+    { name: 'CYBER GOTH · 110', bpm: 110, len: 128, chords: [[40, 43, 47], [36, 40, 43], [43, 47, 50], [38, 42, 45], [40, 43, 47], [45, 48, 52], [36, 40, 43], [47, 50, 54]] },   // Em · C · G · D · Em · Am · C · Bm
   ],
   get bpm() { return this.tracks[this.track].bpm; },
   f(n) { return 440 * Math.pow(2, (n - 69) / 12); },
@@ -2026,6 +2028,12 @@ const music = {
     this.osc('sine', freq * 0.5, t0, dur, vol * 0.9, this.drive, 0.004, 0.06);
     this.bassFilter.frequency.cancelScheduledValues(t0); this.bassFilter.frequency.setValueAtTime(1400, t0); this.bassFilter.frequency.exponentialRampToValueAtTime(380, t0 + dur + 0.05);
   },
+  riser(t, spb, root) {
+    // a noise sweep and a rising tone over the last bar of every 8
+    const C = this.ctx;
+    const n = C.createBufferSource(); n.buffer = this.noise; const f = C.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + spb * 4); const v = C.createGain(); v.gain.setValueAtTime(0.001, t); v.gain.exponentialRampToValueAtTime(0.35, t + spb * 3.9); v.gain.setValueAtTime(0.0001, t + spb * 4); n.connect(f); f.connect(v); v.connect(this.out); n.start(t); n.stop(t + spb * 4.05);
+    const o = C.createOscillator(), og = C.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(this.f(root), t); o.frequency.exponentialRampToValueAtTime(this.f(root + 12), t + spb * 4); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.12, t + spb * 3.9); og.gain.setValueAtTime(0.0001, t + spb * 4); o.connect(og); og.connect(this.padGain); o.start(t); o.stop(t + spb * 4.05);
+  },
   schedule() {
     const C = this.ctx, spb = 60 / this.bpm, s16 = spb / 4, T = this.tracks[this.track];
     while (this.next < C.currentTime + 0.6) {
@@ -2041,7 +2049,7 @@ const music = {
           if (beat === 0 || beat === 6 || beat === 10) this.osc('sine', this.f(ch[0] - 24), t, beat === 0 ? spb * 1.4 : spb * 0.6, 0.55, null, 0.01, 0.12);
           if (beat === 13 && bar % 2) this.osc('sine', this.f(ch[0] - 12), t, spb * 0.5, 0.35, null, 0.01, 0.1);
           if (beat % 4 === 2 || (beat === 15 && bar === 1)) { const n = ch[(Math.floor(st16 / 3) + bar) % 3] + 12; this.osc('triangle', this.f(n), t, 0.08, 0.16, this.delay, 0.004, 0.12); }
-        } else {
+        } else if (this.track === 1) {
           // DARK DRIVE: straight 16ths, four on the floor, rolling Phrygian bass, clap on 2 and 4, an 8-bar riser
           const t = this.next, ch = T.chords[bar % 4], root = ch[0], phr = bar % 8 >= 4;
           if (beat % 4 === 0) this.kick(t, true);
@@ -2056,9 +2064,35 @@ const music = {
           if (beat === 0 || beat === 10) { for (const n of ch) { this.osc('sawtooth', this.f(n), t, beat === 0 ? spb * 0.9 : spb * 0.45, 0.10, this.padGain, 0.01, 0.25, -9); this.osc('square', this.f(n - 12), t, beat === 0 ? spb * 0.9 : spb * 0.45, 0.05, this.padGain, 0.01, 0.25, 6); } this.padFilter.frequency.setValueAtTime(phr ? 2600 : 1600, t); this.padFilter.frequency.exponentialRampToValueAtTime(420, t + spb * 0.8); }
           // lead: sparse minor-pentatonic 16ths into the delay in the second half of the phrase
           if (phr && (beat === 3 || beat === 6 || beat === 9 || beat === 14)) { const scale = [0, 3, 5, 7, 10, 12]; const n = root + 24 + scale[(bar * 3 + beat) % 6]; this.osc('square', this.f(n), t, 0.07, 0.07, this.delay, 0.003, 0.1); }
-          // riser: a noise sweep and a rising tone over the last bar of every 8
-          if (bar === 7 && beat === 0) { const n = C.createBufferSource(); n.buffer = this.noise; const f = C.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + spb * 4); const v = C.createGain(); v.gain.setValueAtTime(0.001, t); v.gain.exponentialRampToValueAtTime(0.35, t + spb * 3.9); v.gain.setValueAtTime(0.0001, t + spb * 4); n.connect(f); f.connect(v); v.connect(this.out); n.start(t); n.stop(t + spb * 4.05);
-            const o = C.createOscillator(), og = C.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(this.f(root), t); o.frequency.exponentialRampToValueAtTime(this.f(root + 12), t + spb * 4); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.12, t + spb * 3.9); og.gain.setValueAtTime(0.0001, t + spb * 4); o.connect(og); og.connect(this.padGain); o.start(t); o.stop(t + spb * 4.05); }
+          if (bar === 7 && beat === 0) this.riser(t, spb, root);
+        } else if (this.track === 2) {
+          // BLACK ICE: 130, harmonic minor. A relentless kick, an octave-jumping sub through the drive, a cold pluck arpeggio,
+          // claps with a tail, a drone two octaves down, and an impact at the top of every 4 bars
+          const t = this.next, ch = T.chords[bar % 4], root = ch[0], second = bar % 8 >= 4;
+          if (beat % 4 === 0 || (bar % 2 === 1 && beat === 14)) this.kick(t, true);
+          if (beat === 4 || beat === 12) { this.hit(t, 1400, 0.5, 0.14, 0.6); this.hit(t + 0.02, 2200, 0.28, 0.42, 0.7); }
+          if (beat % 2 === 1) this.hit(t, 8500, beat % 4 === 3 ? 0.2 : 0.11, beat % 4 === 3 ? 0.11 : 0.04);
+          const pat = [0, 12, 0, 0, 12, 0, 0, 12, 0, 12, 0, 0, 12, 0, 3, 0];
+          if (beat !== 6 && beat !== 13) this.bass(this.f(root - 12 + pat[beat]), t, s16 * 0.5, 0.3);
+          if (beat === 0 && bar % 4 === 0) this.osc('sine', this.f(root - 24), t, spb * 15, 0.5, this.drive, 0.4, 1.5);
+          if (second || beat % 2 === 0) { const arp = [0, 3, 7, 12, 7, 3, 8, 7]; const n = root + 24 + arp[(beat + bar * 2) % 8]; this.osc('triangle', this.f(n), t, 0.06, second ? 0.14 : 0.09, this.delay, 0.002, 0.1); }
+          if (beat === 0 || beat === 8) { for (const n of ch) this.osc('sawtooth', this.f(n), t, spb * 1.8, 0.07, this.padGain, 0.02, 0.5, beat === 0 ? -7 : 7); this.padFilter.frequency.setValueAtTime(second ? 2200 : 1100, t); this.padFilter.frequency.exponentialRampToValueAtTime(380, t + spb * 1.8); }
+          if (bar % 4 === 0 && beat === 0) { this.hit(t, 200, 0.9, 0.9, 0.5, this.drive); this.hit(t, 6000, 0.35, 0.5, 0.3); }
+          if (bar === 7 && beat === 0) this.riser(t, spb, root);
+        } else {
+          // CYBER GOTH: 110, progressive. Offbeat rolling bass, a kick with ghosted snares late in the phrase, a choir pad
+          // with a slow attack that gets gated in the back half, evolving plucks whose filter opens over the 8 bars, and bells
+          const t = this.next, ch = T.chords[bar % 8], root = ch[0], open = bar / 8;
+          if (beat % 4 === 0) this.kick(t, false);
+          if (beat === 4 || beat === 12) { this.hit(t, 1700, 0.42, 0.16, 0.6); this.osc('triangle', 160, t, 0.03, 0.3, null, 0.002, 0.09); }
+          if (bar >= 6 && (beat === 7 || beat === 11 || beat === 15)) this.hit(t, 1700, 0.16, 0.08, 0.6);
+          if (beat % 2 === 1) this.hit(t, 7800, 0.13, beat % 4 === 3 ? 0.12 : 0.05);
+          if (beat % 2 === 1) this.bass(this.f(root - 12 + (beat === 15 ? 7 : 0)), t, s16 * 0.7, 0.26);                      // the offbeat roll
+          if (beat === 0) { for (const n of ch) { this.osc('square', this.f(n), t, spb * 3.7, 0.045, this.padGain, 0.9, 0.8, -5); this.osc('sawtooth', this.f(n + 12), t, spb * 3.7, 0.04, this.padGain, 0.9, 0.8, 6); } this.padFilter.frequency.setValueAtTime(600 + 1400 * open, t); this.padFilter.frequency.linearRampToValueAtTime(900 + 1600 * open, t + spb * 4); }
+          if (bar >= 4 && beat % 2 === 0) { const g = this.padGain.gain; g.setValueAtTime(0.05, t); g.linearRampToValueAtTime(0.22, t + s16 * 0.6); }   // gate
+          if (beat % 3 === 0 || beat === 14) { const pl = [0, 7, 12, 3, 7, 15, 12, 10]; const n = ch[(beat >> 2) % 3] + 12 + pl[(beat + bar) % 8] - 12; this.osc('sawtooth', this.f(n + 12), t, 0.05, 0.05 + 0.06 * open, this.delay, 0.003, 0.14); }
+          if (beat === 0 && bar % 2 === 0) for (const [mult, vol] of [[1, 0.2], [2, 0.06], [2.98, 0.03]]) this.osc('sine', this.f(root + 24) * mult, t, 1.2, vol, null, 0.004, 1.6);   // bell
+          if (bar === 7 && beat === 8) this.riser(t, spb / 2, root);
         }
       }
       this.next += s16; this.step++;
@@ -2196,11 +2230,12 @@ function step(dt) {
     st.x = st.pos.x; st.y = st.pos.y; st.z = st.pos.z; st.theta = Math.atan2(-st.fwd.z, st.fwd.x); st.trackIdx = frB.i;
     const gone = st.pos.y < roadY - 30 || st.airT > 9 || Math.abs(st.d) > D_WALL + 40;
     if (st.airT > 90) flash('MISSED · RESET', 1400);
-    const missed = over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0 && Math.abs(st.d) > ROAD_HALF + 0.3;   // came down on the verge or beyond: that is a miss
+    const missed = over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0 && Math.abs(st.d) > ROAD_HALF + 2.2;   // came down beyond the verge: that is a miss (the verge itself is a landing, with a nudge back)
     if (!missed && over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0) {
       // touchdown: keep the along-road speed, drop the rest
       const cpB = Math.cos(st.psi), spB = Math.sin(st.psi), fwdB = frB.t.clone().multiplyScalar(cpB).addScaledVector(frB.b, spB);
       st.u = st.vel.dot(fwdB); st.w = st.vel.dot(new THREE.Vector3().crossVectors(fwdB, frB.n)) * 0.5; st.air = false;
+      if (Math.abs(st.d) > ROAD_HALF - 0.5) { st.d = Math.sign(st.d) * (ROAD_HALF - 0.5); st.w = 0; st.psi *= 0.5; }   // edge landing: pulled back onto the tarmac
       st.d = clamp(st.d, -D_HIT + 0.1, D_HIT - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
     } else if (missed || gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
       // missed the landing (or fell through the gap): straight back to the run-up. Never let it keep falling
@@ -2245,7 +2280,7 @@ function step(dt) {
     const now = performance.now(); st.crossings++; if (RING_AT) ringsRespawn();
     if (st.lapStart != null && st.halfSeen) {
       st.lapLast = now - st.lapStart; st.lapsDone++; GAME.lapTimes.push(st.lapLast);
-      if (st.lapBest == null || st.lapLast < st.lapBest) { st.lapBest = st.lapLast; try { localStorage.setItem('revuelto.best', String(st.lapBest)); } catch (e) {} flash('NEW BEST ' + fmtTime(st.lapBest), 2500); }
+      if (st.lapBest == null || st.lapLast < st.lapBest) { st.lapBest = st.lapLast; try { localStorage.setItem('revuelto.best.' + TRACK_ID, String(st.lapBest)); } catch (e) {} flash('NEW BEST ' + fmtTime(st.lapBest), 2500); }
       else flash('LAP ' + fmtTime(st.lapLast), 2000);
       if (GAME.state === 'racing' && st.lapsDone >= GAME.laps) finishRace(now);
     } else if (GAME.mode === 'solo') flash('LAP STARTED', 1200);
@@ -2292,6 +2327,7 @@ function updateCamera(dt) {
   if (st.shake > 0.01) { camera.position.addScaledVector(r, (Math.random() - 0.5) * 0.25 * st.shake).addScaledVector(n, (Math.random() - 0.5) * 0.15 * st.shake); st.shake *= Math.exp(-dt * 6); }
   camera.lookAt(camLook);
   if (st.cam === 2) { roofClip.normal.copy(n).negate(); roofClip.constant = n.dot(camera.position) + 0.03; } else roofClip.constant = 1e9;
+  tronMat.uniforms.uClip.value.set(roofClip.normal.x, roofClip.normal.y, roofClip.normal.z, roofClip.constant);
   const fov = 60 + 24 * clamp(v / 95, 0, 1) + (st.nosOn ? 9 : 0) + (st.cam === 2 ? 6 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }

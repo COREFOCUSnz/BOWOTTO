@@ -112,3 +112,18 @@ UI iterated three times based on Corey's feedback:
 - Measured cabinet IR (method known, no capture session yet).
 - Still in scope but deferred: ORION PACK completion (AAX for Pro Tools,
   Windows builds on real hardware).
+
+## Side project in this repo: `Simulator/` (LAMBO SIM, Lamborghini Revuelto)
+
+Not part of THE BOWOTTO plugin. A browser driving game built for Corey on the
+branch `claude/lamborghini-revuelto-simulator-l7n9gt`, published as a claude.ai
+Artifact (https://claude.ai/code/artifact/c6dfe008-2876-449b-8c7c-da3e23312c06)
+and packaged for Firebase Hosting (`Simulator/firebase.json`, build output in
+`Simulator/dist/hosting/`). Everything is documented in `Simulator/README.md`:
+six worlds, Solo / Time Trial / Versus with three AI rivals and four
+difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
+Supersonic rings, the COREZ clips, volume buses. `python3 Simulator/build.py`
+rebuilds the single-file page, the artifact fragment and the hosting folder;
+tests are Playwright scripts (headless Chromium on SwiftShader) kept in the
+session scratchpad. Open items: engine sound samples and Corey's own music
+tracks (to be supplied), the Firebase deploy (Corey is creating the project).

@@ -80,7 +80,8 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   the limiter by the bottom, two overpasses crossing above the main straight, a chicane run under
   a tunnel, a 36 m loop and the canyon home. Rail physics: gravity acts along
   the slope, so loops need speed. Jumps are ballistic: land it and drive on,
-  fall short or land on the verge and you're reset to a standing start
+  fall short or land beyond the verge and you're reset (the verge itself
+  counts as a landing and nudges you back onto the tarmac) to a standing start
   350 m before the kicker for another run-up. In the air the flight follows
   most of the road's bend (both gaps curve left), so a clean straight
   take-off at any speed that clears the gap lands on the tarmac, while an
@@ -95,11 +96,16 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   across, heading against the tangent), which is what makes loops and
   inversions possible.
 - **Music**, generated in Web Audio as placeholders until Corey's own tracks
-  land. `B` cycles two tracks and off: **Downtempo 100** (Dm · Bb · F · C,
+  land. `B` cycles four tracks and off: **Downtempo 100** (Dm · Bb · F · C,
   swung, soft pads, sidechained) and **Dark Drive 120** (E Phrygian, four on
   the floor, a distorted two-saw sub through a resonant low-pass and a tanh
   drive bus, layered claps, offbeat hats, minor stabs, a sparse pentatonic
-  lead into delay and an 8-bar noise riser).
+  lead into delay and an 8-bar noise riser), **Black Ice 130** (harmonic
+  minor, a relentless kick, an octave-jumping sub through the drive, a cold
+  pluck arpeggio, claps with a tail, a drone and an impact every 4 bars) and
+  **Cyber Goth 110** (progressive: an offbeat rolling bass, ghosted snares
+  late in the phrase, a slow-attack choir pad that gets gated in the back
+  half, plucks whose filter opens over 8 bars, and bells).
 - **Volume** sliders in Settings (the ⚙ button top-left in game, or the
   start screen): CARS (engines, wind, tyres, the rivals), EFFECTS (hits,
   chimes, boosts, NOS, rings) and MUSIC on separate buses into the limiter,
