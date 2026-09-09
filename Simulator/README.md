@@ -20,28 +20,24 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   model (about 60 draw calls each instead of 850), each with its own V12
   mixed by distance, and drive a curvature-limited racing line with baked
   braking zones, taking the inside of corners and going round slower cars.
-- **Contact.** Cars are boxes in track coordinates; the shallower overlap
-  picks the contact normal, closing speed is exchanged at equal mass with
-  0.35 restitution, and off-centre contact twists both cars. A tailgate push
-  is just a push; a shunt into a rear quarter or a side rub at a big speed
-  difference spins the car that got it wrong (yaw impulse above 1.6 rad/s
-  breaks the rear loose for up to 1.5 s). A metallic crack, a crunch, camera
-  shake and the hit counter fire on every contact. `ESC` returns to the menu.
-- **Paint** picked from the bar on the right: twelve official Lamborghini
-  colours (Arancio Apodis, Verde Scandal, Giallo Inti, Nero Helene, Bianco
-  Siderale, Rosso Mars, Blu Uranus, Viola Pasifae, Grigio Telesto, Verde
-  Mantis, Blu Le Mans, Arancio Borealis), the **Core Focus livery** and the
-  animated TRON hologram. The livery is a canvas tile of CORE FOCUS /
-  PRODUCTIONS badges, CFP monograms and racing slashes over graphite carbon,
-  projected in car space by a vertex-shader hook (the model's body panels
-  carry no UVs) so it wraps every panel; sides, ends and roof each get their
-  own planar map with the text reading the right way round.
-- **Top speed record** persisted in the browser: beat it and, the moment the
-  speed comes off the peak, NEW TOP SPEED flashes in red with a rising chime.
-- **Announcer** on race and time-trial starts: "Are you ready? Start your
-  engines. Here we go. Three, two, one, go!" spoken with Web Speech where
-  the browser has an English voice, always shown on screen, and results
-  called at the flag.
+- **Contact** runs on momentum. Cars are boxes in track coordinates and the
+  shallower overlap picks the contact normal. Along it the closing speed is
+  exchanged as an impulse (equal masses, restitution 0.35) with a friction
+  impulse across it, and each car's yaw impulse is the moment of those about
+  its centre over the car's radius of gyration (I/m = 2.4 m²). Whether a car
+  spins is that impulse against a stability threshold set by its role: the
+  aggressor (the car moving into the contact) hitting with its nose is very
+  hard to spin (2.8×), a car struck ahead of its centre is pushed wide rather
+  than round (1.8×), and a car struck behind its centre goes round easily
+  (0.55×). Below the threshold the impulse is a nudge. So a tailgate is a
+  push, T-boning a rear quarter spins the other car and not you, and an
+  offset rear-end shunt spins the car in front. Both cars scrub 12 % of the
+  impulse as speed. A metallic crack, a crunch, camera shake and the hit
+  counter fire on every contact. `ESC` returns to the menu.
+- **Difficulty** for Versus, remembered between sessions: Easy, Medium, Hard,
+  Impossible scale the rivals' cornering speed (0.86 / 0.95 / 1.02 / 1.12),
+  top speed (310 / 331 / 346 / 364 km/h) and how far the rubber band lets
+  them fall back or pull ahead; on Impossible they never slow for you.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
 - **Circuit** 19.4 km on The Grid, in three dimensions: a 1.2 km main

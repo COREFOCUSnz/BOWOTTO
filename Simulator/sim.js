@@ -948,7 +948,13 @@ function syncPose() {
 // ------------------------------------------------------------------ game modes · rivals · race control
 // SOLO is the open track. TIME TRIAL is a standing start and a lap count. VERSUS adds three AI Lamborghinis on a grid
 // with full contact: shoves, tailgating and a badly judged hit that spins whoever got it wrong.
-const GAME = { mode: 'solo', laps: 3, state: 'free', cd: 0, cdShown: -1, startT: 0, finishT: null, lapTimes: [], resultsAt: 0, order: [] };
+const GAME = { mode: 'solo', laps: 3, diff: 1, state: 'free', cd: 0, cdShown: -1, startT: 0, finishT: null, lapTimes: [], resultsAt: 0, order: [] };
+const DIFFS = [   // rival pace: cornering and straight-line multipliers, the rubber band's reach, and how hard they lean on you
+  { name: 'EASY', skill: 0.86, vmax: 86, band: [0.84, 1.03] },
+  { name: 'MEDIUM', skill: 0.95, vmax: 92, band: [0.90, 1.07] },
+  { name: 'HARD', skill: 1.02, vmax: 96, band: [0.95, 1.10] },
+  { name: 'IMPOSSIBLE', skill: 1.12, vmax: 101, band: [1.0, 1.16] },
+];
 const RIVALS = [
   { name: 'MANTIS', hex: 0x30d21c, skill: 0.985, lane: -1 },   // Verde Mantis
   { name: 'INTI', hex: 0xffc400, skill: 0.965, lane: 1 },      // Giallo Inti
@@ -1061,8 +1067,8 @@ function rivalStep(a, dt, now) {
   const i = a.idx, kap = KAPPA[i], go = GAME.state === 'racing' || GAME.state === 'finished';
   // rubber band on the player's progress: chase harder when behind, ease off when well ahead. Keeps it a fight
   const gap = progressOf(st) - progressOf(a);
-  const rubber = clamp(1 + gap / 3500, 0.92, 1.10);
-  const target = go ? Math.min(96, VLIM[i] * a.skill * rubber) : 0;
+  const D = DIFFS[GAME.diff], rubber = clamp(1 + gap / 3500, D.band[0], D.band[1]);
+  const target = go ? Math.min(D.vmax, VLIM[i] * a.skill * D.skill * rubber) : 0;
   if (a.spinT > 0) { a.spinT -= dt; a.psi += a.spinDir * 5.5 * dt; a.u = Math.max(0, a.u - 9 * dt); a.dv *= Math.max(0, 1 - 2 * dt); }
   else {
     a.psi = damp(a.psi, Math.atan2(a.dv, Math.max(a.u, 4)), 6, dt);
@@ -1099,62 +1105,66 @@ function rivalStep(a, dt, now) {
   a.body.rotation.z = damp(a.body.rotation.z, 0, 8, dt); a.body.rotation.x = damp(a.body.rotation.x, a.dv * 0.02, 8, dt);
   a.glowDisc.material.opacity = 0.45 + 0.5 * a.glow;
 }
-// car-to-car contact. Both are 4.95 × 2.03 m boxes in track coordinates; the shallower overlap decides the contact normal.
-// Along the normal the closing speed is exchanged (equal masses, restitution 0.35). Off-centre contact twists both cars:
-// a shunt into a rear quarter or a rub at a big speed difference is enough to spin the car that got it wrong.
-function playerKick(kick) {
-  if (Math.abs(kick) > 1.6) { st.spinT = Math.max(st.spinT || 0, clamp(Math.abs(kick) * 0.28, 0.45, 1.5)); st.spinW = clamp(kick * 1.1, -5, 5); }
-  else st.yaw += kick;
+// car-to-car contact, on momentum. Both cars are 4.95 × 2.03 m boxes in track coordinates and the shallower overlap
+// picks the contact normal. Along it the closing speed is exchanged as an impulse (equal masses, restitution 0.35) with a
+// friction impulse across it. Each car's yaw impulse is the moment of those impulses about its centre over the car's
+// radius of gyration (I/m = 2.4 m²). Whether a car SPINS is decided by that impulse against a stability threshold that
+// depends on its role: the aggressor (the car moving into the contact) hitting with its nose is very hard to spin,
+// a car struck ahead of its centre gets pushed wide rather than round, and a car struck behind its centre goes round
+// easily. Below the threshold the impulse is just a nudge. Both cars scrub a little speed on every contact.
+const CONTACT_L = 4.7, CONTACT_W = 2.05, CONTACT_E = 0.35, CONTACT_I = 2.4, SPIN_W = 1.6;
+function stability(aggressor, x) { return aggressor && x > 0.5 ? 2.8 : x > 0.5 ? 1.8 : x < -0.5 ? 0.55 : 1.0; }
+function resolveContact(A, B) {
+  // A and B: { s, d, u (along), v (across), x (contact point along own axis), y (across), kick(dw), slow(k) }; returns closing speed
+  const ds = fwdGap(B.s, A.s), dd = B.d - A.d;
+  if (Math.abs(ds) >= CONTACT_L || Math.abs(dd) >= CONTACT_W) return 0;
+  const penS = CONTACT_L - Math.abs(ds), penD = CONTACT_W - Math.abs(dd);
+  let nS, nD;   // normal from A into B
+  if (penD < penS) { nS = 0; nD = dd >= 0 ? 1 : -1; A.sep(0, -nD * penD * 0.5); B.sep(0, nD * penD * 0.5); A.x = clamp(ds, -2.3, 2.3); A.y = nD; B.x = clamp(-ds, -2.3, 2.3); B.y = -nD; }
+  else { nS = ds >= 0 ? 1 : -1; nD = 0; A.sep(-nS * penS * 0.5, 0); B.sep(nS * penS * 0.5, 0); A.x = nS * 2.4; A.y = clamp(dd, -1, 1); B.x = -nS * 2.4; B.y = -clamp(dd, -1, 1); }
+  const tS = -nD, tD = nS;                                                   // tangent
+  const relN = (A.u - B.u) * nS + (A.v - B.v) * nD;                         // closing speed along the normal
+  if (relN <= 0) return 0;
+  const relT = (A.u - B.u) * tS + (A.v - B.v) * tD;
+  const Jn = (1 + CONTACT_E) / 2 * relN, Jt = clamp(relT * 0.5, -0.4 * Jn, 0.4 * Jn);
+  // who is moving into whom
+  const intoA = A.u * nS + A.v * nD, intoB = -(B.u * nS + B.v * nD);
+  const aggA = intoA >= intoB;
+  // velocity change: A loses along n and t, B gains
+  A.u -= Jn * nS + Jt * tS; A.v -= Jn * nD + Jt * tD; B.u += Jn * nS + Jt * tS; B.v += Jn * nD + Jt * tD;
+  // yaw impulse from the moment about each centre (left-positive)
+  const FxA = -(Jn * nS + Jt * tS), FyA = -(Jn * nD + Jt * tD);
+  const dwA = -(A.x * FyA - A.y * FxA) / CONTACT_I, dwB = -(B.x * -FyA - B.y * -FxA) / CONTACT_I;
+  const spinA = Math.abs(dwA) > SPIN_W * stability(aggA, A.x), spinB = Math.abs(dwB) > SPIN_W * stability(!aggA, B.x);
+  A.kick(dwA, spinA); B.kick(dwB, spinB);
+  A.slow(Jn); B.slow(Jn);
+  return relN;
 }
-function contactHit(k, a) {
+function contactHit(k) {
   if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; audio.clang(clamp(k / 8, 0.15, 1)); st.shake = Math.max(st.shake || 0, clamp(k / 10, 0.1, 0.8)); if (k > 5) flash('CONTACT', 500); }
-  if (a) a.hitT = 0.25;
 }
+const _cp = { s: 0, d: 0, u: 0, v: 0, x: 0, y: 0, sep(ds, dd) { st.s = ((st.s + ds) % trackLen + trackLen) % trackLen; st.d += dd; this.s = st.s; this.d = st.d; },
+  kick(dw, spin) { if (spin) { st.spinT = Math.max(st.spinT || 0, clamp(Math.abs(dw) * 0.28, 0.45, 1.5)); st.spinW = clamp(dw * 1.1, -5, 5); } else st.yaw += dw * 0.5; },
+  slow(Jn) { st.u -= Math.sign(st.u || 1) * Jn * 0.12; } };
+const rivalProxy = a => ({ s: a.s, d: a.d, u: a.u, v: a.dv, x: 0, y: 0, a,
+  sep(ds, dd) { a.s = ((a.s + ds) % trackLen + trackLen) % trackLen; a.d += dd; this.s = a.s; this.d = a.d; },
+  kick(dw, spin) { if (spin) { a.spinT = Math.max(a.spinT, clamp(Math.abs(dw) * 0.3, 0.5, 1.6)); a.spinDir = -Math.sign(dw); } else a.psi -= dw * 0.08; },
+  slow(Jn) { a.u = Math.max(0, a.u - Jn * 0.12); } });
 function contacts(dt) {
-  if (!ai.length || st.air) return;
-  const L = 4.7, W = 2.05;
-  const cp = Math.cos(st.psi), sp = Math.sin(st.psi);
-  const pu = st.u * cp - st.w * sp, pdDot = st.u * sp + st.w * cp;   // player velocity in the track frame
-  for (const a of ai) {
-    const ds = fwdGap(a.s, st.s), dd = a.d - st.d;
-    if (Math.abs(ds) >= L || Math.abs(dd) >= W) continue;
-    const penS = L - Math.abs(ds), penD = W - Math.abs(dd);
-    if (penD < penS) {
-      // side by side. dir = +1 when the rival is on the player's right
-      const dir = dd >= 0 ? 1 : -1;
-      st.d -= dir * penD * 0.55; a.d += dir * penD * 0.55;
-      const closing = (pdDot - a.dv) * dir;
-      const rel = pu - a.u;                                   // player faster along the track
-      const x = clamp(ds, -2.3, 2.3);                         // where along the player the rival sits: + is at the nose
-      let j = 0;
-      if (closing > 0) { j = closing * 0.675; st.w -= dir * j / Math.max(cp, 0.5); a.dv += dir * j; }
-      const rub = Math.abs(rel) > 3 ? clamp(Math.abs(rel) * 0.09, 0, 2.2) : 0;
-      const kick = x * dir * j * 0.45 - dir * Math.sign(rel) * rub;
-      // the car being pushed at its rear quarter is the one that goes round
-      playerKick(kick * (x < -0.8 ? 1.5 : 0.6)); rivalKick(a, kick * (x > 0.8 ? 1.5 : 0.6));
-      if (rub > 0) { const tr = Math.min(Math.abs(rel), 2.5) * 3 * dt; st.u -= Math.sign(rel) * tr; a.u += Math.sign(rel) * tr; }
-      contactHit(closing * 2 + Math.abs(rel) * 0.5, a);
-    } else {
-      // nose to tail. The car behind shunts the one in front; off-centre and it twists the leader round
-      const playerBehind = ds > 0, sg = playerBehind ? 1 : -1;
-      st.s = ((st.s - sg * penS * 0.5) % trackLen + trackLen) % trackLen; a.s = ((a.s + sg * penS * 0.5) % trackLen + trackLen) % trackLen;
-      const rel = playerBehind ? pu - a.u : a.u - pu;
-      if (rel > 0) {
-        const j = (1 + 0.35) / 2 * rel, off = clamp(dd, -1.6, 1.6);
-        if (playerBehind) { st.u -= j * cp; st.w += j * sp; a.u += j; } else { st.u += j * cp; st.w -= j * sp; a.u -= j; }
-        const kFront = -off * j * 0.55, kRear = -off * j * 0.22;
-        if (playerBehind) { rivalKick(a, kFront); playerKick(kRear); } else { playerKick(kFront); rivalKick(a, kRear); }
-        contactHit(rel * 1.2, a);
-      }
+  if (!ai.length) return;
+  if (!st.air) {
+    const cp = Math.cos(st.psi), sp = Math.sin(st.psi);
+    for (const a of ai) {
+      // player velocity in the track frame; after the impulse, back into the body frame
+      _cp.s = st.s; _cp.d = st.d; _cp.u = st.u * cp - st.w * sp; _cp.v = st.u * sp + st.w * cp;
+      const B = rivalProxy(a);
+      const rel = resolveContact(_cp, B);
+      if (rel > 0) { st.u = _cp.u * cp + _cp.v * sp; st.w = -_cp.u * sp + _cp.v * cp; a.u = B.u; a.dv = B.v; contactHit(rel); a.hitT = 0.25; }
     }
   }
-  // rivals among themselves: shove apart, the one behind gives way
   for (let p = 0; p < ai.length; p++) for (let q = p + 1; q < ai.length; q++) {
-    const a = ai[p], b = ai[q], ds = fwdGap(b.s, a.s), dd = b.d - a.d;
-    if (Math.abs(ds) >= L || Math.abs(dd) >= W) continue;
-    const penS = L - Math.abs(ds), penD = W - Math.abs(dd);
-    if (penD < penS) { const dir = dd >= 0 ? 1 : -1; a.d -= dir * penD * 0.5; b.d += dir * penD * 0.5; const c = (a.dv - b.dv) * dir; if (c > 0) { a.dv -= dir * c * 0.6; b.dv += dir * c * 0.6; } }
-    else { const sg = ds > 0 ? 1 : -1; a.s -= sg * penS * 0.5; b.s += sg * penS * 0.5; const back = ds > 0 ? a : b, front = ds > 0 ? b : a; if (back.u > front.u) { const j = (back.u - front.u) * 0.6; back.u -= j; front.u += j; } }
+    const A = rivalProxy(ai[p]), B = rivalProxy(ai[q]);
+    if (resolveContact(A, B) > 0) { ai[p].u = A.u; ai[p].dv = A.v; ai[q].u = B.u; ai[q].dv = B.v; }
   }
 }
 function placeAtS(s, d) { placeOnTrack(Math.floor(s / trackLen * N) % N); st.s = s; st.d = d; st.lastP = s / trackLen; syncPose(); }
@@ -1171,7 +1181,7 @@ function startRace(mode, laps) {
   GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = START_CUES[0].at + 0.01; GAME.cue = 0; announcer.stop();
   $('race').classList.toggle('hidden', mode === 'solo');
   $('lap-cur').parentElement.style.display = ''; 
-  if (mode === 'versus') flash('VERSUS · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
+  if (mode === 'versus') flash('VERSUS · ' + DIFFS[GAME.diff].name + ' · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
 }
 // the announcer: Web Speech where the browser has it, text on screen everywhere
 const announcer = {
@@ -1218,7 +1228,7 @@ function showResults() {
   const pos = rows.findIndex(r => r.me) + 1;
   $('res-title').textContent = GAME.mode === 'versus' ? (pos === 1 ? 'VICTORY' : 'P' + pos + ' OF ' + rows.length) : 'TIME TRIAL · ' + fmtTime(GAME.finishT);
   const lapsTxt = GAME.laps + (GAME.laps === 1 ? ' LAP' : ' LAPS');
-  $('res-sub').textContent = GAME.mode === 'versus' ? lapsTxt + ' · ' + fmtTime(GAME.finishT) : lapsTxt + ' · BEST ' + fmtTime(st.lapBest);
+  $('res-sub').textContent = GAME.mode === 'versus' ? DIFFS[GAME.diff].name + ' · ' + lapsTxt + ' · ' + fmtTime(GAME.finishT) : lapsTxt + ' · BEST ' + fmtTime(st.lapBest);
   const head = document.createElement('div'); head.className = 'row head'; head.innerHTML = '<b></b><i style="visibility:hidden"></i><span>DRIVER</span><em>BEST LAP</em><b>GAP</b>'; box.appendChild(head);
   rows.forEach((r, k) => {
     const el = document.createElement('div'); el.className = 'row' + (r.me ? ' me' : '');
@@ -1335,9 +1345,12 @@ function toMenu() {
   $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden');
 }
 { // mode picker on the start screen
-  const setModeBtn = m => { GAME.mode = m; document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('lapsel').classList.toggle('hidden', m === 'solo'); $('start-btn').textContent = m === 'versus' ? 'START RACE' : m === 'time' ? 'START TIME TRIAL' : 'START ENGINE'; };
+  const setModeBtn = m => { GAME.mode = m; document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('lapsel').classList.toggle('hidden', m === 'solo'); $('diffsel').classList.toggle('hidden', m !== 'versus'); $('start-btn').textContent = m === 'versus' ? 'START RACE' : m === 'time' ? 'START TIME TRIAL' : 'START ENGINE'; };
   document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); setModeBtn(b.dataset.m); }));
   document.querySelectorAll('#lapsel button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); GAME.laps = +b.dataset.l; document.querySelectorAll('#lapsel button').forEach(x => x.classList.toggle('on', x === b)); }));
+  try { const d = localStorage.getItem('revuelto.diff'); if (d != null && DIFFS[+d]) GAME.diff = +d; } catch (e) {}
+  const diffBtns = document.querySelectorAll('#diffsel button');
+  diffBtns.forEach(b => { b.classList.toggle('on', +b.dataset.d === GAME.diff); b.addEventListener('click', e => { e.stopPropagation(); GAME.diff = +b.dataset.d; diffBtns.forEach(x => x.classList.toggle('on', x === b)); try { localStorage.setItem('revuelto.diff', String(GAME.diff)); } catch (e) {} }); });
   $('res-again').addEventListener('click', e => { e.stopPropagation(); startRace(GAME.mode, GAME.laps); });
   $('res-menu').addEventListener('click', e => { e.stopPropagation(); toMenu(); });
   $('results').addEventListener('click', e => e.stopPropagation());
@@ -1860,5 +1873,5 @@ function frame(now) {
 }
 resize();
 requestAnimationFrame(frame);
-window.__sim = { music, audio, announcer, liveryTex, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
