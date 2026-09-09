@@ -1733,10 +1733,12 @@ function audioBtns() {
 }
 $('btn-music').addEventListener('click', e => { e.stopPropagation(); flash(music.cycle(), 1000); audioBtns(); });
 $('btn-sound').addEventListener('click', e => { e.stopPropagation(); st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); });
+$('btn-settings').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
 // settings & credits panel (start screen link, or ESC in the menu)
 function settingsRefresh() {
   const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF' };
   document.querySelectorAll('#settings [data-set]').forEach(b => { b.textContent = v[b.dataset.set]; });
+  document.querySelectorAll('#settings input[data-vol]').forEach(r => { r.value = Math.round(audio.vol[r.dataset.vol] * 100); r.nextElementSibling.textContent = r.value + '%'; });
 }
 document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListener('click', e => {
   e.stopPropagation();
@@ -1750,6 +1752,7 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
   }
   settingsRefresh(); audioBtns();
 }));
+document.querySelectorAll('#settings input[data-vol]').forEach(r => { const upd = () => { audio.setVolume(r.dataset.vol, r.value / 100); r.nextElementSibling.textContent = r.value + '%'; }; r.addEventListener('input', upd); r.addEventListener('change', upd); r.addEventListener('click', e => e.stopPropagation()); });
 $('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
 $('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
 $('settings').addEventListener('click', e => e.stopPropagation());
@@ -1810,11 +1813,17 @@ function toMenu() {
 // ------------------------------------------------------------------ audio (synthesized V12)
 const audio = {
   ctx: null,
+  vol: (() => { const v = { cars: 0.45, fx: 0.8, music: 0.8 }; try { const j = JSON.parse(localStorage.getItem('revuelto.vol') || 'null'); if (j) for (const k in v) if (typeof j[k] === 'number') v[k] = clamp(j[k], 0, 1); } catch (e) {} return v; })(),
+  setVolume(k, x) { this.vol[k] = clamp(x, 0, 1); try { localStorage.setItem('revuelto.vol', JSON.stringify(this.vol)); } catch (e) {} this.applyVolumes(); },
+  applyVolumes() { if (!this.busCars) return; const t = this.ctx.currentTime; this.busCars.gain.setTargetAtTime(this.vol.cars * this.vol.cars * 1.6, t, 0.05); this.busFx.gain.setTargetAtTime(this.vol.fx * this.vol.fx * 1.3, t, 0.05); this.busMusic.gain.setTargetAtTime(this.vol.music * this.vol.music * 2.2, t, 0.05); },
   start() {
     try {
       const C = this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       const master = C.createGain(); master.gain.value = 0.7; master.connect(C.destination); this.master = master;
       const comp = C.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.18; comp.connect(master); this.comp = comp;
+      // three buses into the limiter: the cars (engines, wind, tyres), the effects (hits, chimes, NOS), the music
+      const bus = () => { const g = C.createGain(); g.connect(comp); return g; };
+      this.busCars = bus(); this.busFx = bus(); this.busMusic = bus(); this.applyVolumes();
       const noiseBuf = C.createBuffer(1, C.sampleRate * 2, C.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       const noise = () => { const n = C.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.start(); return n; }; this._noiseBuf = noiseBuf;
       // engine: oscillator bank -> drive -> lowpass -> howl -> gain
@@ -1828,22 +1837,22 @@ const audio = {
       const howl = C.createBiquadFilter(); howl.type = 'peaking'; howl.frequency.value = 2400; howl.Q.value = 1.6; howl.gain.value = 6; this.howl = howl;
       const body = C.createBiquadFilter(); body.type = 'peaking'; body.frequency.value = 180; body.Q.value = 1.2; body.gain.value = 4;
       const eg = C.createGain(); eg.gain.value = 0; this.eg = eg;
-      mix.connect(shaper); shaper.connect(lp); lp.connect(howl); howl.connect(body); body.connect(eg); eg.connect(comp);
+      mix.connect(shaper); shaper.connect(lp); lp.connect(howl); howl.connect(body); body.connect(eg); eg.connect(this.busCars);
       // intake
-      const ib = C.createBiquadFilter(); ib.type = 'bandpass'; ib.frequency.value = 900; ib.Q.value = 0.7; const ig = C.createGain(); ig.gain.value = 0; noise().connect(ib); ib.connect(ig); ig.connect(comp); this.ig = ig; this.ib = ib;
+      const ib = C.createBiquadFilter(); ib.type = 'bandpass'; ib.frequency.value = 900; ib.Q.value = 0.7; const ig = C.createGain(); ig.gain.value = 0; noise().connect(ib); ib.connect(ig); ig.connect(this.busCars); this.ig = ig; this.ib = ib;
       // exhaust crackle
-      const cb = C.createBiquadFilter(); cb.type = 'bandpass'; cb.frequency.value = 420; cb.Q.value = 1.2; const cg = C.createGain(); cg.gain.value = 0; noise().connect(cb); cb.connect(cg); cg.connect(comp); this.cg = cg;
+      const cb = C.createBiquadFilter(); cb.type = 'bandpass'; cb.frequency.value = 420; cb.Q.value = 1.2; const cg = C.createGain(); cg.gain.value = 0; noise().connect(cb); cb.connect(cg); cg.connect(this.busCars); this.cg = cg;
       // wind
-      const wb = C.createBiquadFilter(); wb.type = 'lowpass'; wb.frequency.value = 300; const wg = C.createGain(); wg.gain.value = 0; noise().connect(wb); wb.connect(wg); wg.connect(comp); this.wg = wg; this.wb = wb;
+      const wb = C.createBiquadFilter(); wb.type = 'lowpass'; wb.frequency.value = 300; const wg = C.createGain(); wg.gain.value = 0; noise().connect(wb); wb.connect(wg); wg.connect(this.busCars); this.wg = wg; this.wb = wb;
       // tyres
-      const tb = C.createBiquadFilter(); tb.type = 'bandpass'; tb.frequency.value = 1500; tb.Q.value = 5; const tg = C.createGain(); tg.gain.value = 0; noise().connect(tb); tb.connect(tg); tg.connect(comp); this.tg = tg; this.tb = tb;
-      const ho = C.createOscillator(); ho.type = 'sawtooth'; ho.frequency.value = 240; const hf = C.createBiquadFilter(); hf.type = 'bandpass'; hf.frequency.value = 1100; hf.Q.value = 6; const hg = C.createGain(); hg.gain.value = 0; ho.connect(hf); hf.connect(hg); hg.connect(comp); ho.start(); this.ho = ho; this.hg = hg; this.hf = hf;
+      const tb = C.createBiquadFilter(); tb.type = 'bandpass'; tb.frequency.value = 1500; tb.Q.value = 5; const tg = C.createGain(); tg.gain.value = 0; noise().connect(tb); tb.connect(tg); tg.connect(this.busCars); this.tg = tg; this.tb = tb;
+      const ho = C.createOscillator(); ho.type = 'sawtooth'; ho.frequency.value = 240; const hf = C.createBiquadFilter(); hf.type = 'bandpass'; hf.frequency.value = 1100; hf.Q.value = 6; const hg = C.createGain(); hg.gain.value = 0; ho.connect(hf); hf.connect(hg); hg.connect(this.busCars); ho.start(); this.ho = ho; this.hg = hg; this.hf = hf;
       // gravel
-      const gb = C.createBiquadFilter(); gb.type = 'bandpass'; gb.frequency.value = 2600; gb.Q.value = 0.6; const gg = C.createGain(); gg.gain.value = 0; noise().connect(gb); gb.connect(gg); gg.connect(comp); this.gg = gg;
+      const gb = C.createBiquadFilter(); gb.type = 'bandpass'; gb.frequency.value = 2600; gb.Q.value = 0.6; const gg = C.createGain(); gg.gain.value = 0; noise().connect(gb); gb.connect(gg); gg.connect(this.busCars); this.gg = gg;
       // EV whine
-      const ev = C.createOscillator(); ev.type = 'sine'; const ev2 = C.createOscillator(); ev2.type = 'triangle'; const evg = C.createGain(); evg.gain.value = 0; ev.connect(evg); ev2.connect(evg); evg.connect(comp); ev.start(); ev2.start(); this.ev = ev; this.ev2 = ev2; this.evg = evg;
+      const ev = C.createOscillator(); ev.type = 'sine'; const ev2 = C.createOscillator(); ev2.type = 'triangle'; const evg = C.createGain(); evg.gain.value = 0; ev.connect(evg); ev2.connect(evg); evg.connect(this.busCars); ev.start(); ev2.start(); this.ev = ev; this.ev2 = ev2; this.evg = evg;
       this.load = 0;
-      music.start(C, comp);
+      music.start(C, this.busMusic);
     } catch (e) { console.warn('audio unavailable', e); this.ctx = null; }
   },
   nosStart() {
@@ -1851,7 +1860,7 @@ const audio = {
     const n = C.createBufferSource(); n.buffer = this.oscs ? this._noiseBuf : null; if (!n.buffer) return; n.loop = true;
     const hp = C.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2800; const g = C.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.05); g.gain.exponentialRampToValueAtTime(0.16, t + 0.5);
     const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 55; const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 140; const og = C.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.35, t + 0.08);
-    n.connect(hp); hp.connect(g); g.connect(this.comp); o.connect(lp); lp.connect(og); og.connect(this.comp); n.start(t); o.start(t);
+    n.connect(hp); hp.connect(g); g.connect(this.busFx); o.connect(lp); lp.connect(og); og.connect(this.busFx); n.start(t); o.start(t);
     this.nosNodes = { n, o, g, og };
   },
   nosStop() {
@@ -1863,38 +1872,38 @@ const audio = {
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
     const o = C.createOscillator(), g = C.createGain(); o.type = 'square'; o.frequency.value = freq; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t + 0.006); g.gain.setValueAtTime(0.28, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
-    o.connect(f); f.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.12);
+    o.connect(f); f.connect(g); g.connect(this.busFx); o.start(t); o.stop(t + dur + 0.12);
   },
   ring(n) {
     // a ring: bright and quick, climbing a little with the count
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime, f = 1568 * Math.pow(2, ((n - 1) % 8) / 12);
-    for (const [mult, vol] of [[1, 0.28], [2, 0.08]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = f * mult; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.3); }
+    for (const [mult, vol] of [[1, 0.28], [2, 0.08]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = f * mult; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.connect(g); g.connect(this.busFx); o.start(t); o.stop(t + 0.3); }
   },
   record() {
     // new top speed: a rising major arpeggio with a shimmer
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
-    [1046.5, 1318.5, 1568, 2093].forEach((freq, k) => { const t0 = t + k * 0.09; for (const [mult, vol] of [[1, 0.35], [2, 0.08], [3.01, 0.03]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + (k === 3 ? 1.1 : 0.45)); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 1.2); } });
+    [1046.5, 1318.5, 1568, 2093].forEach((freq, k) => { const t0 = t + k * 0.09; for (const [mult, vol] of [[1, 0.35], [2, 0.08], [3.01, 0.03]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + (k === 3 ? 1.1 : 0.45)); o.connect(g); g.connect(this.busFx); o.start(t0); o.stop(t0 + 1.2); } });
   },
   clang(k) {
     // car on car: a metallic crack on top of the crunch
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime; this.crunch(k * 0.7);
     const n = C.createBufferSource(); n.buffer = this._noiseBuf; const f = C.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1700 + 600 * Math.random(); f.Q.value = 4;
-    const g = C.createGain(); g.gain.setValueAtTime(0.5 * k, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12 + 0.2 * k); n.connect(f); f.connect(g); g.connect(this.comp); n.start(t); n.stop(t + 0.4);
-    const o = C.createOscillator(), og = C.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.12); og.gain.setValueAtTime(0.6 * k, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.connect(og); og.connect(this.comp); o.start(t); o.stop(t + 0.3);
+    const g = C.createGain(); g.gain.setValueAtTime(0.5 * k, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12 + 0.2 * k); n.connect(f); f.connect(g); g.connect(this.busFx); n.start(t); n.stop(t + 0.4);
+    const o = C.createOscillator(), og = C.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.12); og.gain.setValueAtTime(0.6 * k, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.22); o.connect(og); og.connect(this.busFx); o.start(t); o.stop(t + 0.3);
   },
   rivalStart(a) {
     // each rival carries a small V12 of its own, mixed by distance
     if (!this.ctx) return; const C = this.ctx;
     const o1 = C.createOscillator(); o1.type = 'sawtooth'; const o2 = C.createOscillator(); o2.type = 'square'; const g2 = C.createGain(); g2.gain.value = 0.25;
     const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 1.2; const g = C.createGain(); g.gain.value = 0;
-    o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(this.comp); o1.start(); o2.start();
+    o1.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); g.connect(this.busCars); o1.start(); o2.start();
     a.snd = { o1, o2, lp, g };
   },
   rivalStop(a) { if (!a.snd) return; try { a.snd.o1.stop(); a.snd.o2.stop(); a.snd.g.disconnect(); } catch (e) {} a.snd = null; },
   boost() {
     if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
     // two bright bings, a fifth apart
-    [[1318.5, 0], [1975.5, 0.13]].forEach(([freq, dt0]) => { const t0 = t + dt0; for (const [mult, vol] of [[1, 0.45], [2.76, 0.12], [5.4, 0.05]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32 / Math.sqrt(mult)); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 0.4); } });
+    [[1318.5, 0], [1975.5, 0.13]].forEach(([freq, dt0]) => { const t0 = t + dt0; for (const [mult, vol] of [[1, 0.45], [2.76, 0.12], [5.4, 0.05]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32 / Math.sqrt(mult)); o.connect(g); g.connect(this.busFx); o.start(t0); o.stop(t0 + 0.4); } });
   },
   crunch(k) {
     if (!this.ctx || !st.sound) return; const t = this.ctx.currentTime;

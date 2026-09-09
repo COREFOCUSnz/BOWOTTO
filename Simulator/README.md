@@ -100,6 +100,10 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   the floor, a distorted two-saw sub through a resonant low-pass and a tanh
   drive bus, layered claps, offbeat hats, minor stabs, a sparse pentatonic
   lead into delay and an 8-bar noise riser).
+- **Volume** sliders in Settings (the ⚙ button top-left in game, or the
+  start screen): CARS (engines, wind, tyres, the rivals), EFFECTS (hits,
+  chimes, boosts, NOS, rings) and MUSIC on separate buses into the limiter,
+  remembered between sessions. Cars default to 45 %.
 - **Sound** is fully synthesised in Web Audio: a V12 firing-frequency
   oscillator bank (6 fires per rev) through a tanh drive, tracking low-pass,
   an intake band, lift-off exhaust crackle in Sport/Corsa, wind, tyre
