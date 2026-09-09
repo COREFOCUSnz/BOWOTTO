@@ -44,6 +44,8 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 .tbtn{position:absolute;width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;backdrop-filter:blur(4px)}
 .tbtn:active,.tbtn.down{background:rgba(46,230,255,.45)}
 #t-left{left:20px;bottom:120px}#t-right{left:124px;bottom:120px}
+#t-nos{left:72px;bottom:218px;width:84px;height:64px;border-radius:32px;font-size:18px;letter-spacing:.2em;font-weight:700;border-color:rgba(166,77,255,.7);background:rgba(166,77,255,.22)}
+#t-nos:active,#t-nos.down{background:rgba(166,77,255,.6)}
 #t-gas{right:20px;bottom:150px}#t-brake{right:124px;bottom:96px}#t-hand{right:20px;bottom:44px;width:64px;height:64px;font-size:16px}
 #start{position:absolute;inset:0;overflow:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,rgba(8,30,60,.85),rgba(2,4,10,.96));z-index:5;text-align:center;padding:24px;cursor:pointer}
 #start.hidden{display:none}

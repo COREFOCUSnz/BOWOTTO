@@ -1663,7 +1663,7 @@ function updateRaceHUD() {
 placeOnTrack(20);
 
 // ------------------------------------------------------------------ input
-const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0 };
+const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0, nos: 0 };
 const inp = { steer: 0, throttle: 0, brake: 0, hand: false, nos: false, shiftUp: false, shiftDown: false };
 function readInput() {
   const k = c => keys[c] ? 1 : 0;
@@ -1671,7 +1671,7 @@ function readInput() {
   inp.throttle = Math.max(k('ArrowUp'), k('KeyW'), touch.gas);
   inp.brake = Math.max(k('ArrowDown'), k('KeyS'), touch.brake);
   inp.hand = !!(keys.Space || touch.hand);
-  inp.nos = !!keys.KeyN;
+  inp.nos = !!keys.KeyN || !!touch.nos;
   const gps = navigator.getGamepads ? navigator.getGamepads() : null;
   const gp = gps && (gps[0] || gps[1] || gps[2] || gps[3]);
   if (gp) {
@@ -2350,5 +2350,5 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, terrainH, nearField, COINS, superFin, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
