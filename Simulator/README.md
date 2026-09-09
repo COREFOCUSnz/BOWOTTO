@@ -51,6 +51,12 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   shake fire. Physics runs in track coordinates (distance along, offset
   across, heading against the tangent), which is what makes loops and
   inversions possible.
+- **Music**, generated in Web Audio as placeholders until Corey's own tracks
+  land. `B` cycles two tracks and off: **Downtempo 100** (Dm · Bb · F · C,
+  swung, soft pads, sidechained) and **Dark Drive 120** (E Phrygian, four on
+  the floor, a distorted two-saw sub through a resonant low-pass and a tanh
+  drive bus, layered claps, offbeat hats, minor stabs, a sparse pentatonic
+  lead into delay and an 8-bar noise riser).
 - **Sound** is fully synthesised in Web Audio: a V12 firing-frequency
   oscillator bank (6 fires per rev) through a tanh drive, tracking low-pass,
   an intake band, lift-off exhaust crackle in Sport/Corsa, wind, tyre

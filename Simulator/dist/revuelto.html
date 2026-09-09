@@ -157,7 +157,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
       <span><kbd>A D / ← →</kbd> steer</span><span><kbd>SPACE</kbd> handbrake · <kbd>N</kbd> hold for NOS</span>
       <span><kbd>M</kbd> drive mode</span><span><kbd>C</kbd> camera</span>
       <span><kbd>P</kbd> paint</span><span><kbd>T</kbd> auto / manual · <kbd>Q E</kbd> shift</span>
-      <span><kbd>R</kbd> reset to track · <kbd>ESC</kbd> menu</span><span><kbd>B</kbd> music · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
+      <span><kbd>R</kbd> reset to track · <kbd>ESC</kbd> menu</span><span><kbd>B</kbd> music (downtempo 100 · dark drive 120 · off) · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
       <span style="grid-column:1/3;opacity:.7">drop a .glb to swap the car model · gamepad supported · model: "Lamborghini Revuelto" by DRIVER-FIRE, CC BY 4.0</span>
     </div>
     <div id="touch">
@@ -6462,7 +6462,7 @@ window.addEventListener('keydown', e => {
     case 'KeyF': hiQ = !hiQ; resize(); flash(hiQ ? 'QUALITY HIGH' : 'QUALITY LOW', 800); break;
     case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); break;
     case 'KeyH': $('help').classList.toggle('hidden'); break;
-    case 'KeyB': music.on = !music.on; flash(music.on ? 'MUSIC ON' : 'MUSIC OFF', 800); break;
+    case 'KeyB': flash(music.cycle(), 1000); break;
     case 'KeyL': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); flash(trailOn ? 'LIGHT TRAIL ON' : 'LIGHT TRAIL OFF', 800); break;
     case 'KeyY': customYaw += Math.PI / 2; if (customModel) customModel.rotation.y += Math.PI / 2; break;
   }
@@ -6642,46 +6642,93 @@ const audio = {
   },
 };
 
-// ------------------------------------------------------------------ music: downtempo at 100 BPM, generated (placeholder until Corey's own track lands)
+// ------------------------------------------------------------------ music, generated (placeholders until Corey's own tracks land)
+// B cycles: DOWNTEMPO 100 (Dm · Bb · F · C, swung, soft) → DARK DRIVE 120 (E Phrygian, four-on-the-floor, distorted sub) → off
 const music = {
-  on: true, bpm: 100, ctx: null, next: 0, step: 0, timer: null,
-  chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]],   // Dm · Bb · F · C (MIDI)
+  on: true, track: 0, ctx: null, next: 0, step: 0, timer: null,
+  tracks: [
+    { name: 'DOWNTEMPO · 100', bpm: 100, len: 64, chords: [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]] },   // Dm · Bb · F · C (MIDI)
+    { name: 'DARK DRIVE · 120', bpm: 120, len: 128, chords: [[40, 43, 47], [36, 40, 43], [38, 42, 45], [41, 45, 48]] },  // Em · C · D · F
+  ],
+  get bpm() { return this.tracks[this.track].bpm; },
   f(n) { return 440 * Math.pow(2, (n - 69) / 12); },
   start(C, out) {
     if (this.ctx) return; this.ctx = C;
     const g = C.createGain(); g.gain.value = 0.32; g.connect(out); this.out = g;
+    // the dark track runs through a drive stage on its own bus
+    const drv = C.createWaveShaper(); const curve = new Float32Array(512); for (let i = 0; i < 512; i++) { const x = i / 256 - 1; curve[i] = Math.tanh(x * 1.8) * 0.9; } drv.curve = curve; drv.oversample = '2x';
+    const dg = C.createGain(); dg.gain.value = 1.15; drv.connect(dg); dg.connect(g); this.drive = drv;
     const dly = C.createDelay(1.0); dly.delayTime.value = 60 / this.bpm * 0.75; const fb = C.createGain(); fb.gain.value = 0.38; const df = C.createBiquadFilter(); df.type = 'lowpass'; df.frequency.value = 2200;
     dly.connect(df); df.connect(fb); fb.connect(dly); const dw = C.createGain(); dw.gain.value = 0.35; dly.connect(dw); dw.connect(g); this.delay = dly;
     this.padGain = C.createGain(); this.padGain.gain.value = 0.22; const pf = C.createBiquadFilter(); pf.type = 'lowpass'; pf.frequency.value = 900; pf.Q.value = 0.8; this.padGain.connect(pf); pf.connect(g); this.padFilter = pf;
+    this.bassGain = C.createGain(); this.bassGain.gain.value = 0.5; const bf = C.createBiquadFilter(); bf.type = 'lowpass'; bf.frequency.value = 500; bf.Q.value = 6; this.bassGain.connect(bf); bf.connect(drv); this.bassFilter = bf;
     const nb = C.createBuffer(1, C.sampleRate, C.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; this.noise = nb;
     this.next = C.currentTime + 0.1; this.step = 0;
     this.timer = setInterval(() => this.schedule(), 80);
+  },
+  cycle() {
+    // off → track 0 → track 1 → off
+    if (!this.on) { this.on = true; this.track = 0; } else if (this.track < this.tracks.length - 1) { this.track++; } else { this.on = false; }
+    if (this.delay) this.delay.delayTime.setTargetAtTime(60 / this.bpm * 0.75, this.ctx.currentTime, 0.05);
+    this.step = 0; return this.on ? this.tracks[this.track].name : 'MUSIC OFF';
   },
   osc(type, freq, t0, dur, vol, dest, a = 0.005, r = 0.1, detune = 0) {
     const C = this.ctx, o = C.createOscillator(), v = C.createGain(); o.type = type; o.frequency.value = freq; o.detune.value = detune;
     v.gain.setValueAtTime(0.0001, t0); v.gain.exponentialRampToValueAtTime(vol, t0 + a); v.gain.setValueAtTime(vol, t0 + dur); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + r);
     o.connect(v); v.connect(dest || this.out); o.start(t0); o.stop(t0 + dur + r + 0.05);
   },
-  hit(t0, cutoff, vol, dur, q = 0.7) {
+  hit(t0, cutoff, vol, dur, q = 0.7, dest) {
     const C = this.ctx, n = C.createBufferSource(); n.buffer = this.noise; const f = C.createBiquadFilter(); f.type = cutoff > 3000 ? 'highpass' : 'bandpass'; f.frequency.value = cutoff; f.Q.value = q;
-    const v = C.createGain(); v.gain.setValueAtTime(vol, t0); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); n.connect(f); f.connect(v); v.connect(this.out); n.start(t0); n.stop(t0 + dur + 0.02);
+    const v = C.createGain(); v.gain.setValueAtTime(vol, t0); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); n.connect(f); f.connect(v); v.connect(dest || this.out); n.start(t0); n.stop(t0 + dur + 0.02);
   },
-  kick(t0) { const C = this.ctx, o = C.createOscillator(), v = C.createGain(); o.frequency.setValueAtTime(150, t0); o.frequency.exponentialRampToValueAtTime(42, t0 + 0.09); v.gain.setValueAtTime(0.9, t0); v.gain.exponentialRampToValueAtTime(0.001, t0 + 0.34); o.connect(v); v.connect(this.out); o.start(t0); o.stop(t0 + 0.4);
-    this.padGain.gain.cancelScheduledValues(t0); this.padGain.gain.setValueAtTime(0.09, t0); this.padGain.gain.linearRampToValueAtTime(0.22, t0 + 0.28); },
+  kick(t0, hard) {
+    const C = this.ctx, o = C.createOscillator(), v = C.createGain(); o.frequency.setValueAtTime(hard ? 190 : 150, t0); o.frequency.exponentialRampToValueAtTime(hard ? 44 : 42, t0 + (hard ? 0.07 : 0.09)); v.gain.setValueAtTime(hard ? 1.1 : 0.9, t0); v.gain.exponentialRampToValueAtTime(0.001, t0 + (hard ? 0.42 : 0.34)); o.connect(v); v.connect(hard ? this.drive : this.out); o.start(t0); o.stop(t0 + 0.5);
+    if (hard) this.hit(t0, 3500, 0.5, 0.02, 1);                                                    // click on the front
+    // sidechain: pads and bass duck under every kick
+    for (const gn of [this.padGain, this.bassGain]) { const base = gn === this.padGain ? 0.22 : 0.5; gn.gain.cancelScheduledValues(t0); gn.gain.setValueAtTime(base * 0.35, t0); gn.gain.linearRampToValueAtTime(base, t0 + (hard ? 0.22 : 0.28)); }
+  },
+  bass(freq, t0, dur, vol) {
+    // distorted sub: two saws an octave apart into the resonant low-pass, then the drive
+    const C = this.ctx;
+    this.osc('sawtooth', freq, t0, dur, vol, this.bassGain, 0.004, 0.05);
+    this.osc('sawtooth', freq * 2.005, t0, dur, vol * 0.35, this.bassGain, 0.004, 0.05, 8);
+    this.osc('sine', freq * 0.5, t0, dur, vol * 0.9, this.drive, 0.004, 0.06);
+    this.bassFilter.frequency.cancelScheduledValues(t0); this.bassFilter.frequency.setValueAtTime(1400, t0); this.bassFilter.frequency.exponentialRampToValueAtTime(380, t0 + dur + 0.05);
+  },
   schedule() {
-    const C = this.ctx, spb = 60 / this.bpm, s16 = spb / 4;
+    const C = this.ctx, spb = 60 / this.bpm, s16 = spb / 4, T = this.tracks[this.track];
     while (this.next < C.currentTime + 0.6) {
-      const st16 = this.step % 64, bar = Math.floor(st16 / 16), beat = st16 % 16, t = this.next + (beat % 2 ? s16 * 0.11 : 0);   // light swing
+      const st16 = this.step % T.len, bar = Math.floor(st16 / 16), beat = st16 % 16;
       if (this.on && st.sound) {
-        const ch = this.chords[bar];
-        if (beat === 0 || beat === 8 || beat === 11 || (bar === 3 && beat === 14)) this.kick(t);
-        if (beat === 4 || beat === 12) { this.hit(t, 1800, 0.5, 0.18, 0.6); this.osc('triangle', 190, t, 0.02, 0.35, null, 0.002, 0.08); }
-        if (beat % 2 === 0) this.hit(t, 8000, beat % 4 === 2 ? 0.16 : 0.09, 0.05);
-        if ((beat === 7 || beat === 15) && Math.random() < 0.5) this.hit(t + s16 / 2, 9000, 0.1, 0.04);
-        if (beat === 0) { for (const n of ch) { this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, -6); this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, 6); } this.padFilter.frequency.setValueAtTime(700, t); this.padFilter.frequency.linearRampToValueAtTime(1500, t + spb * 2); this.padFilter.frequency.linearRampToValueAtTime(800, t + spb * 4); }
-        if (beat === 0 || beat === 6 || beat === 10) this.osc('sine', this.f(ch[0] - 24), t, beat === 0 ? spb * 1.4 : spb * 0.6, 0.55, null, 0.01, 0.12);
-        if (beat === 13 && bar % 2) this.osc('sine', this.f(ch[0] - 12), t, spb * 0.5, 0.35, null, 0.01, 0.1);
-        if (beat % 4 === 2 || (beat === 15 && bar === 1)) { const n = ch[(Math.floor(st16 / 3) + bar) % 3] + 12; this.osc('triangle', this.f(n), t, 0.08, 0.16, this.delay, 0.004, 0.12); }
+        if (this.track === 0) {
+          const t = this.next + (beat % 2 ? s16 * 0.11 : 0), ch = T.chords[bar];   // light swing
+          if (beat === 0 || beat === 8 || beat === 11 || (bar === 3 && beat === 14)) this.kick(t);
+          if (beat === 4 || beat === 12) { this.hit(t, 1800, 0.5, 0.18, 0.6); this.osc('triangle', 190, t, 0.02, 0.35, null, 0.002, 0.08); }
+          if (beat % 2 === 0) this.hit(t, 8000, beat % 4 === 2 ? 0.16 : 0.09, 0.05);
+          if ((beat === 7 || beat === 15) && Math.random() < 0.5) this.hit(t + s16 / 2, 9000, 0.1, 0.04);
+          if (beat === 0) { for (const n of ch) { this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, -6); this.osc('sawtooth', this.f(n), t, spb * 3.6, 0.09, this.padGain, 0.6, 0.6, 6); } this.padFilter.frequency.setValueAtTime(700, t); this.padFilter.frequency.linearRampToValueAtTime(1500, t + spb * 2); this.padFilter.frequency.linearRampToValueAtTime(800, t + spb * 4); }
+          if (beat === 0 || beat === 6 || beat === 10) this.osc('sine', this.f(ch[0] - 24), t, beat === 0 ? spb * 1.4 : spb * 0.6, 0.55, null, 0.01, 0.12);
+          if (beat === 13 && bar % 2) this.osc('sine', this.f(ch[0] - 12), t, spb * 0.5, 0.35, null, 0.01, 0.1);
+          if (beat % 4 === 2 || (beat === 15 && bar === 1)) { const n = ch[(Math.floor(st16 / 3) + bar) % 3] + 12; this.osc('triangle', this.f(n), t, 0.08, 0.16, this.delay, 0.004, 0.12); }
+        } else {
+          // DARK DRIVE: straight 16ths, four on the floor, rolling Phrygian bass, clap on 2 and 4, an 8-bar riser
+          const t = this.next, ch = T.chords[bar % 4], root = ch[0], phr = bar % 8 >= 4;
+          if (beat % 4 === 0) this.kick(t, true);
+          if (beat === 4 || beat === 12) { this.hit(t, 1500, 0.55, 0.16, 0.5); this.hit(t + 0.012, 2600, 0.35, 0.12, 0.8); this.hit(t + 0.024, 1900, 0.3, 0.2, 0.6); }   // layered clap
+          if (beat % 2 === 1) this.hit(t, 7500, 0.2, 0.09);                                       // open hats on the offbeat
+          else if (beat % 4 === 2) this.hit(t, 9000, 0.08, 0.03);
+          if (bar % 2 === 1 && beat === 15) this.hit(t, 1200, 0.3, 0.08, 1.5);                    // rim on the turn
+          // bass: 16th pulse on the root with the Phrygian b2 and the 5th on the pickups; rests leave the kick room
+          const pat = [0, 0, 12, 0, 0, 7, 0, 0, 0, 0, 12, 0, 1, 0, 7, 3], hold = [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1];
+          if (hold[beat]) this.bass(this.f(root - 12 + pat[beat]), t, s16 * 0.55, 0.32);
+          // stabs: minor chord on the one and the "and" of three, darker every second phrase
+          if (beat === 0 || beat === 10) { for (const n of ch) { this.osc('sawtooth', this.f(n), t, beat === 0 ? spb * 0.9 : spb * 0.45, 0.10, this.padGain, 0.01, 0.25, -9); this.osc('square', this.f(n - 12), t, beat === 0 ? spb * 0.9 : spb * 0.45, 0.05, this.padGain, 0.01, 0.25, 6); } this.padFilter.frequency.setValueAtTime(phr ? 2600 : 1600, t); this.padFilter.frequency.exponentialRampToValueAtTime(420, t + spb * 0.8); }
+          // lead: sparse minor-pentatonic 16ths into the delay in the second half of the phrase
+          if (phr && (beat === 3 || beat === 6 || beat === 9 || beat === 14)) { const scale = [0, 3, 5, 7, 10, 12]; const n = root + 24 + scale[(bar * 3 + beat) % 6]; this.osc('square', this.f(n), t, 0.07, 0.07, this.delay, 0.003, 0.1); }
+          // riser: a noise sweep and a rising tone over the last bar of every 8
+          if (bar === 7 && beat === 0) { const n = C.createBufferSource(); n.buffer = this.noise; const f = C.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(6000, t + spb * 4); const v = C.createGain(); v.gain.setValueAtTime(0.001, t); v.gain.exponentialRampToValueAtTime(0.35, t + spb * 3.9); v.gain.setValueAtTime(0.0001, t + spb * 4); n.connect(f); f.connect(v); v.connect(this.out); n.start(t); n.stop(t + spb * 4.05);
+            const o = C.createOscillator(), og = C.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(this.f(root), t); o.frequency.exponentialRampToValueAtTime(this.f(root + 12), t + spb * 4); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.12, t + spb * 3.9); og.gain.setValueAtTime(0.0001, t + spb * 4); o.connect(og); og.connect(this.padGain); o.start(t); o.stop(t + spb * 4.05); }
+        }
       }
       this.next += s16; this.step++;
     }
@@ -6972,7 +7019,7 @@ function frame(now) {
 }
 resize();
 requestAnimationFrame(frame);
-window.__sim = { GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { music, audio, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>
