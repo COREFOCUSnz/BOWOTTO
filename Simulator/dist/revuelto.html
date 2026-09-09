@@ -17,14 +17,14 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 .digits{font-family:"Orbitron","Bahnschrift","Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
 #top-left{position:absolute;left:22px;top:18px;letter-spacing:.18em}
 #top-left .presents{font-size:11px;letter-spacing:.32em;color:var(--amber);text-shadow:0 0 12px rgba(46,230,255,.5);margin-bottom:6px}
-#top-left .brand{font-size:11px;color:var(--dim)}
+#top-left .badge{display:flex;align-items:baseline;gap:14px;white-space:nowrap}#top-left .brand{font-size:34px;font-weight:700;letter-spacing:.1em;color:#ffd21f;text-shadow:0 0 16px rgba(255,210,31,.45),0 1px 4px rgba(0,0,0,.8)}
 #top-left .model em{font-style:normal;font-size:14px;font-weight:400;color:var(--dim);letter-spacing:.2em;margin-left:6px}
 #audiobtns{display:flex;gap:6px;margin-top:10px;pointer-events:auto}
 #audiobtns button{font:inherit;font-size:11px;letter-spacing:.18em;color:var(--hud);background:var(--panel);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;cursor:pointer}
 #audiobtns button:hover{border-color:var(--amber);background:rgba(46,230,255,.12)}
 #audiobtns button.off{color:var(--dim)}
 #top-left .model{font-size:26px;font-weight:700;line-height:1.05}
-#top-left .model span{font-size:11px;font-weight:400;color:var(--dim);display:block;letter-spacing:.22em;margin-top:4px}
+#top-left .sub span{font-size:11px;font-weight:400;color:var(--dim);display:block;letter-spacing:.22em;margin-top:4px}#modeline{font-size:12px;letter-spacing:.24em;color:var(--hud);margin-top:5px;opacity:.9}
 #top-right{position:absolute;right:22px;top:18px;display:flex;gap:14px;align-items:flex-start}
 #minimap{width:150px;height:150px;background:var(--panel);border-radius:8px;border:1px solid rgba(255,255,255,.08)}
 #laps{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 14px;min-width:150px;font-size:12px;letter-spacing:.14em;color:var(--dim)}
@@ -67,7 +67,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #start .credit{font-size:11px;letter-spacing:.2em;color:var(--dim);margin-top:28px;opacity:.8}
 #drop{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(46,230,255,.14);border:3px dashed rgba(46,230,255,.8);font-size:28px;letter-spacing:.3em;z-index:6;pointer-events:none}
 #drop.on{display:flex}
-@media (max-width:820px){#tach{width:150px;height:150px}#spd{font-size:50px}#gear{font-size:44px}#help{display:none}#top-right{transform:scale(.8);transform-origin:top right}#mode-name{font-size:24px}}
+@media (max-width:820px){#tach{width:150px;height:150px}#spd{font-size:50px}#gear{font-size:44px}#help{display:none}#top-right{transform:scale(.8);transform-origin:top right}#top-left .brand{font-size:24px}#top-left .model{font-size:20px}#mode-name{font-size:24px}}
 
 #paints{position:absolute;right:22px;bottom:150px;display:grid;grid-template-columns:repeat(2,26px);gap:7px;pointer-events:auto;background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px}
 #paints button{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
@@ -182,8 +182,9 @@ body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
     <div id="vignette"></div>
     <div id="top-left">
       <div class="presents">CORE FOCUS PRODUCTIONS PRESENTS</div>
-      <div class="brand">LAMBORGHINI</div>
-      <div class="model">REVUELTO <em>(SIM)</em><span>THE GRID · 19.4 KM · 1001 HP</span></div>
+      <div class="badge"><span class="brand">LAMBORGHINI</span><span class="model">REVUELTO <em>(SIM)</em></span></div>
+      <div class="sub"><span>THE GRID · 19.4 KM · 1001 HP</span></div>
+      <div id="modeline">SOLO · CHASE CAM</div>
       <div id="audiobtns"><button id="btn-music" title="change music (B)">♪ DOWNTEMPO · 100</button><button id="btn-sound" title="sound on / off (V)">SOUND ON</button><button id="btn-settings" title="settings">⚙</button></div>
     </div>
     <div id="top-right">
@@ -5474,13 +5475,14 @@ const TRACKS = {
       [-1400, -1800, 40], [-1400, -1700, 40], [-1400, -1575, 40], [-1400, -1450, 40], [-1400, -1350, 40],
       [-1300, -1100, 34], [-1450, -850, 26], [-1300, -600, 18], [-1400, -350, 14], [-1200, -100, 16], [-1000, 0, 20],
     ] },
-  sky: { name: 'STRATOS', sub: 'MONORAIL ABOVE THE CLOUDS · LED TUNNELS', theme: 'sky', km: 13.6, softWalls: true,
+  sky: { name: 'STRATOS', sub: 'MONORAIL ABOVE THE CLOUDS · LED TUNNELS · THE STAIRCASE', theme: 'sky', km: 14.9, softWalls: true, roofs: true,
     loops: [], rolls: [],
     jumps: [{ from: V3(800, 760, -1000), to: V3(600, 738, -1035) }, { from: V3(600, 740, -2600), to: V3(400, 718, -2625) }, { from: V3(-1300, 768, -1500), to: V3(-1410, 746, -1335) },
             { from: V3(-900, 762, 200), to: V3(-707, 740, 252) }, { from: V3(-500, 706, 60), to: V3(-700, 690, 48) }],
-    tunnels: [{ from: V3(300, 730, -1100), to: V3(-150, 715, -1450), hex: 0x2ee6ff }, { from: V3(-100, 712, -2650), to: V3(-650, 730, -2450), hex: 0xff3af0 },
-              { from: V3(-1500, 740, -1100), to: V3(-1450, 740, -700), hex: 0x3aff5a }, { from: V3(-650, 740, 255), to: V3(-250, 725, 170), hex: 0xff8a2a }],
-    superPads: [V3(600, 700, 0), V3(-100, 718, -1700), V3(1100, 755, -2400), V3(-1450, 738, -950), V3(-300, 725, 150)],
+    tunnels: [{ from: V3(500, 735, -1060), to: V3(-150, 715, -1450), hex: 0x2ee6ff }, { from: V3(280, 715, -2640), to: V3(-650, 730, -2450), hex: 0xff3af0 },
+              { from: V3(-1465, 743, -1240), to: V3(-1450, 740, -700), hex: 0x3aff5a }, { from: V3(-650, 740, 255), to: V3(-250, 725, 170), hex: 0xff8a2a }],
+    superPads: [V3(600, 700, 0), V3(-100, 718, -1700), V3(1100, 755, -2400), V3(-1450, 738, -950), V3(-300, 725, 150),
+                V3(-1330, 695, -80), V3(-1170, 685, -80), V3(-1330, 675, -80), V3(-850, 680, -135)],   // four down the staircase and out
     pads: [],
     ctrl: lp => [
       [-300, 0, 700], [900, 0, 700], [1300, -150, 712], [1500, -500, 730], [1400, -800, 740], [1100, -950, 748], [800, -1000, 760],
@@ -5488,8 +5490,13 @@ const TRACKS = {
       [1000, -2550, 750], [600, -2600, 740],
       [400, -2625, 718], [0, -2650, 712], [-400, -2600, 720], [-700, -2400, 732], [-900, -2100, 745], [-1100, -1800, 760], [-1300, -1500, 768],
       [-1410, -1335, 746], [-1500, -1100, 740], [-1400, -850, 735], [-1500, -600, 742], [-1350, -350, 748], [-1400, -100, 752], [-1200, 120, 758], [-900, 200, 762],
-      [-707, 252, 740], [-450, 250, 732], [-200, 150, 722], [-150, 80, 712], [-500, 60, 706],
-      [-700, 48, 690], [-950, 25, 694], [-1250, 0, 700],
+      [-707, 252, 740], [-450, 250, 732], [-230, 170, 724], [-100, 95, 716], [-110, 45, 712], [-300, 50, 708], [-500, 60, 706],
+      [-700, 48, 690], [-950, 25, 694], [-1120, 6, 698],
+      // the staircase: one and a half turns down round a tower, 80 m radius, 20 m a turn
+      [-1250.0, 0.0, 700.0], [-1290.0, -10.7, 698.3], [-1319.3, -40.0, 696.7], [-1330.0, -80.0, 695.0], [-1319.3, -120.0, 693.3], [-1290.0, -149.3, 691.7], [-1250.0, -160.0, 690.0],
+      [-1210.0, -149.3, 688.3], [-1180.7, -120.0, 686.7], [-1170.0, -80.0, 685.0], [-1180.7, -40.0, 683.3], [-1210.0, -10.7, 681.7], [-1250.0, 0.0, 680.0],
+      [-1290.0, -10.7, 678.3], [-1319.3, -40.0, 676.7], [-1330.0, -80.0, 675.0], [-1319.3, -120.0, 673.3], [-1290.0, -149.3, 671.7], [-1250.0, -160.0, 670.0],
+      [-1080, -160, 672], [-850, -135, 680], [-600, -80, 690],
     ] },
 };
 const TRACK_ID = (() => { try { const t = localStorage.getItem('revuelto.track'); if (t && TRACKS[t]) return t; } catch (e) {} return 'grid'; })();
@@ -5722,6 +5729,7 @@ function sampleAt(s) {
 }
 const D_WALL = ROAD_HALF + 2.4;   // boundary walls both sides, all the way round
 const D_HIT = D_WALL - 1.2;       // the car's centre stops here: half a car width short of the wall face
+const ROOF_H = 7.6, ROOF_W = 5.5;  // tunnel roofs (STRATOS): a deck on top you can land on and drive along
 const MASK_X0 = -3400, MASK_Z0 = -3700, MASK_W = 6800;   // world window covered by the underground mask and distance field
 // mask of underground corridors (the grid floor and mirror are cut away there)
 const maskTex = canvasTex(512, (ctx, sz) => {
@@ -6030,7 +6038,10 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
       const fins2 = []; for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins2.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
       instanced(finGeo, new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }), fins2, false);
       for (let i = i0 + 30; i < i1 - 10; i += 90) { const m = frameAt(i), l = new THREE.PointLight(hex, 1.3, 110, 1.5); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); }
+      const edge = ribbon(ROOF_W + 0.35, ROOF_W + 0.9, 12, ROOF_H + 0.03, i => i >= i0 && i < i1, null, hex); edge.material = new THREE.MeshBasicMaterial({ color: hex, toneMapped: false });   // lit edge of the roof deck
     }
+    ribbon(-(ROOF_W + 0.9), ROOF_W + 0.9, 12, ROOF_H, i => CAVE[i], null, 0x1a2230);   // the roof deck: overshoot a jump and you land up here
+    { const dash = []; for (const [i0, i1] of TUNNELS) for (let i = i0 + 4; i < i1 - 4; i += 6) { const f = frameAt(i); dash.push({ x: f.p.x + f.n.x * (ROOF_H + 0.04), y: f.p.y + f.n.y * (ROOF_H + 0.04), z: f.p.z + f.n.z * (ROOF_H + 0.04), quat: f.quat }); } instanced(new THREE.BoxGeometry(2.4, 0.02, 0.18), new THREE.MeshBasicMaterial({ color: 0xf4f1ea }), dash, false); }
   }
   const fins = [], portals = [];
   for (const [i0, i1] of TUNNELS) {
@@ -6197,7 +6208,7 @@ const rainMat = THEME === 'matrix' ? new THREE.ShaderMaterial({
   }
   if (THEME === 'sky') {
     // cumulus puffs around the rail (flattened spheres, soft white), and the monorail beam with holders under the road
-    const puffs = []; for (let k = 0; k < 2600; k++) { const i = Math.floor(rnd() * N), f = frameAt(i), side = rnd() < 0.5 ? -1 : 1; const s0 = 14 + rnd() * rnd() * 70, off = 26 + s0 * 1.15 + rnd() * rnd() * 700, p = f.p.clone().addScaledVector(f.b, side * off).addScaledVector(f.t, (rnd() - 0.5) * 80); p.y += (rnd() - 0.55) * 160; puffs.push({ x: p.x, y: p.y, z: p.z, s: s0, rot: rnd() * 6.28 }); }
+    const puffs = []; for (let k = 0; k < 2600; k++) { const i = Math.floor(rnd() * N), f = frameAt(i), side = rnd() < 0.5 ? -1 : 1; const s0 = 14 + rnd() * rnd() * 70, off = 26 + s0 * 1.15 + rnd() * rnd() * 700, p = f.p.clone().addScaledVector(f.b, side * off).addScaledVector(f.t, (rnd() - 0.5) * 80); p.y += (rnd() - 0.55) * 160; let clear = true; for (let q = 0; q < N; q += 3) { if (S[q].distanceToSquared(p) < (s0 * 1.2 + 12) * (s0 * 1.2 + 12)) { clear = false; break; } } if (clear) puffs.push({ x: p.x, y: p.y, z: p.z, s: s0, rot: rnd() * 6.28 }); }   // clear of every road layer (the staircase stacks them)
     puffs.forEach(it => { it.sy = it.s * (0.45 + rnd() * 0.3); });
     instanced(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf0f6ff, emissiveIntensity: 0.25, roughness: 1, transparent: true, opacity: 0.9, depthWrite: false }), puffs, false);
     const holders = []; for (let i = 0; i < N; i += 9) { if (JUMP[i]) continue; const f = frameAt(i); holders.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
@@ -6729,7 +6740,7 @@ function trailUpdate() {
 const st = {
   s: 0, d: 0, psi: 0, u: 0, w: 0, yaw: 0,             // track coordinates: distance along, offset right, heading vs tangent; body-frame velocity
   x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
-  hits: 0, hitT: 0, boost2Cd: 0, crossings: 0, lapsDone: 0, spinT: 0, spinW: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
+  hits: 0, hitT: 0, boost2Cd: 0, roof: false, roofIn: false, crossings: 0, lapsDone: 0, spinT: 0, spinW: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -6741,7 +6752,7 @@ function placeOnTrack(idx) {
   const racing = GAME.state === 'racing';
   if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); st.lapsDone = Math.max(0, st.lapsDone - 1); }   // put back behind the line: that crossing is owed again
   st.s = CUM[idx]; st.d = 0; st.psi = 0; syncPose(); st.lastP = idx / N;   // no phantom lap when resetting near the line
-  st.u = st.w = st.yaw = 0; st.air = false; st.airT = 0; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.spinT = 0;
+  st.u = st.w = st.yaw = 0; st.air = false; st.airT = 0; st.roof = st.roofIn = false; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.spinT = 0;
   if (!racing) { st.lapStart = null; st.halfSeen = false; }               // mid-race the lap keeps running: a reset costs time, not the lap
   if (typeof trailReset === 'function') trailReset();
   st.snapCam = true;
@@ -6749,7 +6760,7 @@ function placeOnTrack(idx) {
 // world pose from track coordinates
 function syncPose() {
   const fr = sampleAt(st.s), cp = Math.cos(st.psi), sp = Math.sin(st.psi);
-  st.pos.copy(fr.p).addScaledVector(fr.b, st.d);
+  st.pos.copy(fr.p).addScaledVector(fr.b, st.d); if (st.roof) st.pos.addScaledVector(fr.n, ROOF_H);
   st.fwd.copy(fr.t).multiplyScalar(cp).addScaledVector(fr.b, sp).normalize();
   st.up.copy(fr.n); st.right.crossVectors(st.fwd, st.up);
   st.x = st.pos.x; st.y = st.pos.y; st.z = st.pos.z; st.theta = Math.atan2(-st.fwd.z, st.fwd.x); st.trackIdx = fr.i;
@@ -7241,7 +7252,7 @@ function toMenu() {
   const tp = $('tracksel');
   for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme + (id === TRACK_ID ? ' on' : ''); b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`;
     b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) { showStep(2); return; } lsSet('revuelto.track', id); lsSet('revuelto.step', '2'); $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
-  document.querySelector('#top-left .model span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP';
+  document.querySelector('#top-left .sub span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP';
   $('start-sub').textContent = TRACK.name + ' · ' + TRACK.sub + ' · ' + TRACK.km + ' KM';
   if (RING_AT) $('ringrow').classList.remove('hidden');
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === GAME.mode)); $('lapsel').classList.toggle('hidden', GAME.mode === 'solo');
@@ -7466,6 +7477,13 @@ const music = {
     this.osc('sine', freq * 0.5, t0, dur, vol * 0.9, this.drive, 0.004, 0.06);
     this.bassFilter.frequency.cancelScheduledValues(t0); this.bassFilter.frequency.setValueAtTime(1400, t0); this.bassFilter.frequency.exponentialRampToValueAtTime(380, t0 + dur + 0.05);
   },
+  lead(freq, t0, dur, vol) {
+    // the CYBER GOTH voice: a triangle with two soft detuned saws and a sub octave, through a plucked low-pass, wet into the delay
+    const C = this.ctx, f = C.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 2.5; f.frequency.setValueAtTime(3200, t0); f.frequency.exponentialRampToValueAtTime(650, t0 + dur + 0.2);
+    const v = C.createGain(); v.gain.setValueAtTime(0.0001, t0); v.gain.exponentialRampToValueAtTime(vol, t0 + 0.015); v.gain.setValueAtTime(vol, t0 + dur); v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.3);
+    f.connect(v); v.connect(this.out); const wet = C.createGain(); wet.gain.value = 0.8; v.connect(wet); wet.connect(this.delay);
+    for (const [type, mult, det, g] of [['triangle', 1, 0, 1], ['sawtooth', 1, 7, 0.28], ['sawtooth', 1, -7, 0.28], ['sine', 0.5, 0, 0.45]]) { const o = C.createOscillator(), og = C.createGain(); o.type = type; o.frequency.value = freq * mult; o.detune.value = det; og.gain.value = g; o.connect(og); og.connect(f); o.start(t0); o.stop(t0 + dur + 0.35); }
+  },
   riser(t, spb, root) {
     // a noise sweep and a rising tone over the last bar of every 8
     const C = this.ctx;
@@ -7519,7 +7537,8 @@ const music = {
           if (bar === 7 && beat === 0) this.riser(t, spb, root);
         } else {
           // CYBER GOTH: 110, progressive. Offbeat rolling bass, a kick with ghosted snares late in the phrase, a choir pad
-          // with a slow attack that gets gated in the back half, evolving plucks whose filter opens over the 8 bars, and bells
+          // with a slow attack that gets gated in the back half, and a written lead in E minor over the eight bars
+          // (Em C G D Em Am C Bm): a warm filtered voice, answered an octave down in the second half, bells on the turn
           const t = this.next, ch = T.chords[bar % 8], root = ch[0], open = bar / 8;
           if (beat % 4 === 0) this.kick(t, false);
           if (beat === 4 || beat === 12) { this.hit(t, 1700, 0.42, 0.16, 0.6); this.osc('triangle', 160, t, 0.03, 0.3, null, 0.002, 0.09); }
@@ -7528,8 +7547,11 @@ const music = {
           if (beat % 2 === 1) this.bass(this.f(root - 12 + (beat === 15 ? 7 : 0)), t, s16 * 0.7, 0.26);                      // the offbeat roll
           if (beat === 0) { for (const n of ch) { this.osc('square', this.f(n), t, spb * 3.7, 0.045, this.padGain, 0.9, 0.8, -5); this.osc('sawtooth', this.f(n + 12), t, spb * 3.7, 0.04, this.padGain, 0.9, 0.8, 6); } this.padFilter.frequency.setValueAtTime(600 + 1400 * open, t); this.padFilter.frequency.linearRampToValueAtTime(900 + 1600 * open, t + spb * 4); }
           if (bar >= 4 && beat % 2 === 0) { const g = this.padGain.gain; g.setValueAtTime(0.05, t); g.linearRampToValueAtTime(0.22, t + s16 * 0.6); }   // gate
-          if (beat % 3 === 0 || beat === 14) { const pl = [0, 7, 12, 3, 7, 15, 12, 10]; const n = ch[(beat >> 2) % 3] + 12 + pl[(beat + bar) % 8] - 12; this.osc('sawtooth', this.f(n + 12), t, 0.05, 0.05 + 0.06 * open, this.delay, 0.003, 0.14); }
-          if (beat === 0 && bar % 2 === 0) for (const [mult, vol] of [[1, 0.2], [2, 0.06], [2.98, 0.03]]) this.osc('sine', this.f(root + 24) * mult, t, 1.2, vol, null, 0.004, 1.6);   // bell
+          const MEL = [[76, 0, 0, 71, 0, 0, 67, 0, 0, 0, 69, 0, 71, 0, 0, 0], [72, 0, 0, 71, 0, 0, 67, 0, 0, 0, 64, 0, 0, 0, 67, 0], [74, 0, 0, 71, 0, 0, 74, 0, 0, 0, 79, 0, 0, 0, 78, 0], [81, 0, 0, 78, 0, 0, 74, 0, 0, 0, 76, 0, 0, 0, 78, 0],
+                       [76, 0, 0, 71, 0, 0, 67, 0, 0, 0, 69, 0, 71, 0, 72, 0], [72, 0, 0, 69, 0, 0, 64, 0, 0, 0, 67, 0, 69, 0, 0, 0], [72, 0, 0, 76, 0, 0, 79, 0, 0, 0, 76, 0, 0, 0, 74, 0], [78, 0, 0, 74, 0, 0, 71, 0, 0, 0, 71, 0, 74, 0, 78, 0]];
+          const mn = MEL[bar % 8][beat];
+          if (mn) { let hold = 1; while (hold < 6 && !MEL[bar % 8][beat + hold] && beat + hold < 16) hold++; const dur = s16 * (hold - 0.35); this.lead(this.f(mn), t, dur, 0.09 + 0.05 * open); if (bar >= 4) this.lead(this.f(mn - 12), t, dur, 0.035); }
+          if (beat === 0 && bar % 2 === 0) for (const [mult, vol] of [[1, 0.1], [2, 0.03]]) this.osc('sine', this.f(root + 24) * mult, t, 1.2, vol, null, 0.004, 1.6);   // bell
           if (bar === 7 && beat === 8) this.riser(t, spb / 2, root);
         }
       }
@@ -7611,8 +7633,8 @@ function step(dt) {
   if (st.boostCd > 0) st.boostCd -= dt;
   if (st.boostT > 0) { st.boostT -= dt; F += CAR.mass * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
   if (st.nosOn) F += CAR.mass * (driftBoost ? 7.0 : 3.0);                            // the shove you feel in the seat; a drift boost is a kick
-  if (BOOST[fr0.i] && !st.air && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
-  if (BOOST2[fr0.i] && !st.air && st.boost2Cd <= 0 && st.u > 2) { st.u = Math.min(st.u * 1.4, 118); st.boost2Cd = 2.0; st.glow = 1; st.shake = Math.max(st.shake || 0, 0.5); audio.boost(); audio.record(); flash('SUPER BOOST +40%', 900, '#ff3af0'); }
+  if (BOOST[fr0.i] && !st.air && !st.roof && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
+  if (BOOST2[fr0.i] && !st.air && !st.roof && st.boost2Cd <= 0 && st.u > 2) { st.u = Math.min(st.u * 1.4, 118); st.boost2Cd = 2.0; st.glow = 1; st.shake = Math.max(st.shake || 0, 0.5); audio.boost(); audio.record(); flash('SUPER BOOST +40%', 900, '#ff3af0'); }
   if (st.boost2Cd > 0) st.boost2Cd -= dt;
   let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
@@ -7666,17 +7688,21 @@ function step(dt) {
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
     const frB = sampleAt(st.s), roadY = frB.p.y + frB.b.y * st.d, over = !JUMP[frB.i];
+    // tunnel roofs (STRATOS): come down over a tunnel from above and you land on top of it, not inside
+    const roofOK = TRACK.roofs && CAVE[frB.i] && Math.abs(st.d) < ROOF_W + 1; st.roofIn = roofOK && (st.roofIn || st.pos.y > roadY + ROOF_H - 0.5);
+    const surfY = roadY + (st.roofIn ? ROOF_H : 0), landW = st.roofIn ? ROOF_W : ROAD_HALF;
     st.fwd.lerp(st.vel.clone().normalize(), 1 - Math.exp(-dt * 3)).normalize(); st.up.copy(WORLD_UP); st.right.crossVectors(st.fwd, st.up); st.up.crossVectors(st.right, st.fwd).normalize();
     st.x = st.pos.x; st.y = st.pos.y; st.z = st.pos.z; st.theta = Math.atan2(-st.fwd.z, st.fwd.x); st.trackIdx = frB.i;
     const gone = st.pos.y < roadY - 30 || st.airT > 9 || Math.abs(st.d) > D_WALL + 40;
     if (st.airT > 90) flash('MISSED · RESET', 1400);
-    const missed = over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0 && Math.abs(st.d) > ROAD_HALF + 2.2;   // came down beyond the verge: that is a miss (the verge itself is a landing, with a nudge back)
-    if (!missed && over && st.pos.y <= roadY + 0.1 && st.vel.y <= 0) {
+    const missed = over && st.pos.y <= surfY + 0.1 && st.vel.y <= 0 && Math.abs(st.d) > landW + 2.2;   // came down beyond the verge: that is a miss (the verge itself is a landing, with a nudge back)
+    if (!missed && over && st.pos.y <= surfY + 0.1 && st.vel.y <= 0) {
       // touchdown: keep the along-road speed, drop the rest
       const cpB = Math.cos(st.psi), spB = Math.sin(st.psi), fwdB = frB.t.clone().multiplyScalar(cpB).addScaledVector(frB.b, spB);
       st.u = st.vel.dot(fwdB); st.w = st.vel.dot(new THREE.Vector3().crossVectors(fwdB, frB.n)) * 0.5; st.air = false;
-      if (Math.abs(st.d) > ROAD_HALF - 0.5) { st.d = Math.sign(st.d) * (ROAD_HALF - 0.5); st.w = 0; st.psi *= 0.5; }   // edge landing: pulled back onto the tarmac
-      st.d = clamp(st.d, -D_HIT + 0.1, D_HIT - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash('LANDED', 700); syncPose();
+      if (Math.abs(st.d) > landW - 0.5) { st.d = Math.sign(st.d) * (landW - 0.5); st.w = 0; st.psi *= 0.5; }   // edge landing: pulled back onto the tarmac
+      st.roof = st.roofIn; st.roofIn = false;
+      st.d = clamp(st.d, -D_HIT + 0.1, D_HIT - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash(st.roof ? 'ON THE ROOF' : 'LANDED', 700); syncPose();
     } else if (missed || gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
       // missed the landing (or fell through the gap): straight back to the run-up. Never let it keep falling
       // back to a standing start 350 m before the kicker so the attempt can be repeated with a full run-up
@@ -7691,8 +7717,14 @@ function step(dt) {
   st.psi = Math.atan2(Math.sin(st.psi), Math.cos(st.psi));
   st.s = ((st.s + sDot * dt) % trackLen + trackLen) % trackLen;
   st.d += dDot * dt;
+  // off the end of a tunnel roof: drop back down onto the road
+  if (st.roof && !CAVE[sampleAt(st.s).i]) {
+    const fr1 = sampleAt(st.s), f1 = fr1.t.clone().multiplyScalar(cp).addScaledVector(fr1.b, sp), hor = f1.clone().setY(0).normalize();
+    st.vel.copy(hor).multiplyScalar(st.u); st.vel.y = Math.max(0, st.u * f1.y);   // signed: backing off the roof drops you too
+    syncPose(); st.roof = false; st.roofIn = false; st.air = true; st.airT = 0; flash('DROP IN', 600);
+  }
   // take-off: leaving the road at a gap. The kicker lip gives at least a 12° launch so the arc is real
-  if (JUMP[sampleAt(st.s).i] && st.u > 3) {
+  if (!st.air && JUMP[sampleAt(st.s).i] && st.u > 3) {
     const fr1 = sampleAt(st.s), f1 = fr1.t.clone().multiplyScalar(cp).addScaledVector(fr1.b, sp);
     const pitch = Math.max(Math.asin(clamp(f1.y, -1, 1)), 0.21), hor = f1.clone().setY(0).normalize();
     st.vel.copy(hor).multiplyScalar(st.u * Math.cos(pitch)); st.vel.y = st.u * Math.sin(pitch);
@@ -7701,15 +7733,16 @@ function step(dt) {
   }
   // boundary walls: speed retained = 1 - 0.85·sin(impact angle); lateral bounce with 0.35 restitution; the wall straightens the car
   if (st.hitT > 0) st.hitT -= dt;
-  if (Math.abs(st.d) > D_HIT) {
+  const dLim = st.roof ? ROOF_W : D_HIT;   // on a roof the deck edge is the wall
+  if (!st.air && Math.abs(st.d) > dLim) {
     const sideW = Math.sign(st.d), vn = Math.abs(dDot), phi = Math.atan2(vn, Math.abs(st.u) + 0.1);
-    const retain = TRACK.softWalls ? 1 : clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);   // soft walls (STRATOS) keep you on the rail without taking speed
+    const retain = TRACK.softWalls || st.roof ? 1 : clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);   // soft walls (STRATOS) keep you on the rail without taking speed
     if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); if (TRACK.softWalls) audio.beep(440, 0.05); else { audio.crunch(k); if (k > 0.25) flash('WALL', 500); } st.shake = Math.max(st.shake || 0, TRACK.softWalls ? k * 0.3 : k); }
     st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
-    st.d = sideW * (D_HIT - 0.02);
+    st.d = sideW * (dLim - 0.02);
   }
   if (RING_AT) { const i0 = sampleAt(st.s).i; for (let k = -1; k <= 1; k++) { const list = RING_AT[(i0 + k + N) % N]; if (!list) continue; for (const id of list) { const r = COINS[id]; if (!r.alive) continue; if (Math.abs(fwdGap(r.s, st.s)) < 2.8 && Math.abs(st.d - r.d) < 1.9) { r.alive = false; st.coins++; st.score += 10; audio.ring(st.coins); if (st.coins === 10) flash('NOS ARMED', 900, '#b48cff'); } } } }
-  contacts(dt);
+  if (!st.roof) contacts(dt);
   }
   if (!st.air) syncPose();
   // track relation
@@ -7828,6 +7861,13 @@ function updateHUD() {
     $('lap-best').textContent = fmtTime(st.lapBest);
     $('vmax').textContent = Math.round(st.vmax) + ' km/h';
     $('hits').textContent = String(st.hits);
+    { // what you are playing: mode, laps, difficulty, camera
+      const parts = [GAME.mode === 'versus' ? 'VERSUS' : GAME.mode === 'time' ? 'TIME TRIAL' : 'SOLO'];
+      if (GAME.mode !== 'solo') parts.push(GAME.laps + (GAME.laps === 1 ? ' LAP' : ' LAPS'));
+      if (GAME.mode === 'versus') parts.push(DIFFS[GAME.diff].name);
+      parts.push(['CHASE', 'CLOSE', 'COCKPIT', 'BUMPER', 'PHOTO'][st.cam] + ' CAM');
+      const line = parts.join(' · '); if (line !== st.modeLine) { st.modeLine = line; $('modeline').textContent = line; }
+    }
     if (RING_AT) $('ringsv').textContent = st.coins + ' · ' + st.score + ' PTS' + (st.super ? ' · SUPERSONIC' : st.coins >= 10 ? ' · NOS' : '');
     updateRaceHUD();
     $('nos-fill').style.width = Math.round(st.nos * 100) + '%'; $('nos').classList.toggle('on', st.nosOn);
@@ -7874,7 +7914,7 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>

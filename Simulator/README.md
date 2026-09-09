@@ -48,8 +48,10 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **After a spin** you are never stranded: under power the car can pivot on
   the spot, and if it is stopped facing backwards with the throttle down for
   more than half a second the nose swings round on its own (TURNING AROUND).
-  `R` still resets to the track. The HUD's top-left has click buttons for
-  the music track and sound alongside the B and V keys.
+  `R` still resets to the track. The HUD's top-left carries the yellow
+  LAMBORGHINI · REVUELTO badge, the course line, a line saying what you are
+  playing (mode, laps, difficulty, camera) and click buttons for the music
+  track and sound alongside the B and V keys.
 - **Difficulty** for Versus, remembered between sessions. Easy, Medium, Hard
   and Impossible scale the rivals' cornering speed (0.88 / 1.12 / 1.20 /
   1.30) and top speed (317 / 349 / 360 / 374 km/h), how far the rubber band
@@ -105,7 +107,10 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   pluck arpeggio, claps with a tail, a drone and an impact every 4 bars) and
   **Cyber Goth 110** (progressive: an offbeat rolling bass, ghosted snares
   late in the phrase, a slow-attack choir pad that gets gated in the back
-  half, plucks whose filter opens over 8 bars, and bells).
+  half, and a written eight-bar lead in E minor over Em C G D Em Am C Bm on
+  a warm voice, a triangle with two soft detuned saws and a sub octave
+  through a plucked low-pass into the delay, answered an octave down in the
+  second half, with bells on the turn).
 - **Volume** sliders in Settings (the ⚙ button top-left in game, or the
   start screen): CARS (engines, wind, tyres, the rivals), EFFECTS (hits,
   chimes, boosts, NOS, rings) and MUSIC on separate buses into the limiter,
@@ -156,13 +161,19 @@ walls and dressing.
   surface shimmering 200 m above. Deep blue fog.
 - **WHITEOUT** (alpine, 11.3 km): overcast, snowing around the car, snowy
   pines, a ski lift crossing the mountain, red poles at the five jumps.
-- **STRATOS** (monorail, 13.6 km): a rail 700 m up between two cloud decks,
+- **STRATOS** (monorail, 14.9 km): a rail 700 m up between two cloud decks,
   cumulus drifting past on both sides, holders and a neon strip under the
   road. Five jumps, four LED tunnels each in its own colour (cyan, magenta,
-  green, orange: lit seams, fins and lamps in that colour), and **five super
-  pads** (the big magenta arrows) worth **+40 % speed** on the spot, capped
-  at 425 km/h, one every two seconds. **The walls are soft**: they keep you
-  on the rail with a tick and a nudge but never take your speed.
+  green, orange: lit seams, fins and lamps in that colour) starting right
+  after the landings, and **nine super pads** (the big magenta arrows) worth
+  **+40 % speed** on the spot, capped at 425 km/h, one every two seconds.
+  **The walls are soft**: they keep you on the rail with a tick and a nudge
+  but never take your speed. **Overshoot a jump and you land on the tunnel
+  roof** (ON THE ROOF): a dark deck with the tunnel's colour along its edges
+  and a dashed line, its own soft edges, and you drive it to the end and
+  drop back in (DROP IN). The lap ends on **THE STAIRCASE**: a turn and a
+  half down round a tower, 80 m radius, 20 m a turn, with four super pads
+  down it and out, in place of what used to be a hairpin.
 
 Terrain colours are per vertex (height bands, slope-exposed rock, dirt
 beside the road) over a fractal of rolling hills and ridges; a bucketed
