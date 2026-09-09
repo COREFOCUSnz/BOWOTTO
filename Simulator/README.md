@@ -182,18 +182,31 @@ placement.
 
 ## Hosting it (Firebase)
 
+The game is live at **https://lambo-sim.web.app** on the Firebase project
+`lambo-sim` (pinned in `Simulator/.firebaserc`).
+
 `python3 Simulator/build.py` also writes `Simulator/dist/hosting/`: the page as
-`index.html` with `revuelto.glb` and `poster.webm` as separate files the
-browser caches (the model and the clip are ignored by git; the build copies
-them from `models/`). `Simulator/firebase.json` points Firebase Hosting at
-that folder with sensible cache headers. To deploy:
+`index.html` with `revuelto.glb`, `poster.webm` and `poster2.webm` as separate
+files the browser caches (the build copies them from `models/`).
+`Simulator/firebase.json` points Firebase Hosting at that folder with sensible
+cache headers. **All four files are committed** so a clone is a complete deploy
+folder; a deploy that reports "found 1 files" means the binaries are missing.
+
+First time on a new machine:
 
 ```
 npm install -g firebase-tools
-cd Simulator
-python3 build.py
 firebase login
-firebase use lambo-sim                 # the LAMBO SIM project (pinned in .firebaserc)
+git clone -b claude/lamborghini-revuelto-simulator-l7n9gt \
+  https://github.com/corefocusnz/bowotto.git ~/lambo-sim
+cd ~/lambo-sim/Simulator
+firebase deploy --only hosting          # expect: found 4 files in dist/hosting
+```
+
+Every update after that, in the same folder:
+
+```
+git pull
 firebase deploy --only hosting
 ```
 

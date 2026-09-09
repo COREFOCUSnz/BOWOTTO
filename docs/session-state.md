@@ -126,5 +126,10 @@ difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
 Supersonic rings, the COREZ clips, volume buses. `python3 Simulator/build.py`
 rebuilds the single-file page, the artifact fragment and the hosting folder;
 tests are Playwright scripts (headless Chromium on SwiftShader) kept in the
-session scratchpad. Open items: engine sound samples and Corey's own music
-tracks (to be supplied), the Firebase deploy (Corey is creating the project).
+session scratchpad. **Live at https://lambo-sim.web.app** (Firebase project
+`lambo-sim`, pinned in `Simulator/.firebaserc`); the whole `dist/hosting/`
+folder including the .glb and the two .webm clips is committed, so deploying
+is `git pull` then `firebase deploy --only hosting` in a clone of the branch,
+run on Corey's machine (it needs his Google login). A deploy that reports
+"found 1 files" means the binaries did not come down with the clone. Open
+items: engine sound samples and Corey's own music tracks (to be supplied).
