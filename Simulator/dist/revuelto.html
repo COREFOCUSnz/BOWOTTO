@@ -6098,7 +6098,7 @@ function setPaint(i) {
   paintIdx = (i + PAINTS.length) % PAINTS.length;
   const P = PAINTS[paintIdx];
   if (!P.shader) paintMat.color.setHex(P.hex);
-  $('paint-name').textContent = P.name;
+  $('paint-name').textContent = P.name; if (typeof roofClip !== 'undefined') setTimeout(applyRoofClip, 0);
   document.querySelectorAll('#paints button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
   (customModel || procBody).traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
@@ -6149,7 +6149,7 @@ function installModel(root, name) {
   customModel = wrap; bodyGroup.add(wrap);
   procBody.visible = false;
   wheels.forEach(w => w.steer.visible = false);   // the model brings its own wheels
-  fitPlates(); setPaint(paintIdx);
+  fitPlates(); setPaint(paintIdx); applyRoofClip();
   rivalTemplate = null; for (const a of ai) buildRivalVisual(a);
   if (name !== 'embedded') flash('MODEL LOADED', 1800);
 }
@@ -6324,7 +6324,8 @@ function buildRivalVisual(a) {
   if (!rivalTemplate) rivalTemplate = buildRivalTemplate();
   const grp = new THREE.Group(), body = new THREE.Group(); grp.add(body);
   for (const part of rivalTemplate.parts) {
-    let mat = part.mat;
+    if (!part.rivalMat) part.rivalMat = part.mat.clone();   // own copy: the player's roof clip must not cut the rivals
+    let mat = part.rivalMat;
     if (part.paint) { mat = part.mat.clone(); mat.map = null; mat.color.setHex(a.hex); mat.envMap = cubeRT.texture; mat.envMapIntensity = 0.9; mat.metalness = 0.3; mat.roughness = 0.3; }
     const m = new THREE.Mesh(part.geo, mat); m.castShadow = false; m.receiveShadow = true; body.add(m);
   }
@@ -7079,12 +7080,20 @@ function step(dt) {
 }
 
 // ------------------------------------------------------------------ camera
+// bonnet view: everything on the player's car above eye level is clipped away so the road stays visible through the cabin
+const EYE = { h: 0.98, fwd: 0.10, side: -0.36, lookH: 0.70 };
+const roofClip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e9);
+renderer.localClippingEnabled = true;
+function applyRoofClip() { (customModel || procBody).traverse(o => { if (o.isMesh && o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.clippingPlanes = [roofClip]; m.clipShadows = true; } } }); }
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tmpV = new THREE.Vector3(), fwd = new THREE.Vector3(), velDir = new THREE.Vector3();
 let camInit = false;
 function updateCamera(dt) {
   const v = Math.abs(st.u), f = st.fwd, n = st.up, r = st.right, pos = st.pos;
   let target, look;
-  if (st.cam === 2) { target = pos.clone().addScaledVector(n, 1.08).addScaledVector(f, -0.9); look = pos.clone().addScaledVector(n, 0.9).addScaledVector(f, 40); }
+  if (st.cam === 2) {   // driver's eye: over the wheel on the left seat, roof clipped above it
+    const E = window.__eye || EYE;
+    target = pos.clone().addScaledVector(n, E.h).addScaledVector(f, E.fwd).addScaledVector(r, E.side); look = pos.clone().addScaledVector(n, E.lookH).addScaledVector(f, 40).addScaledVector(r, E.side);
+  }
   else if (st.cam === 3) { target = pos.clone().addScaledVector(n, 0.55).addScaledVector(f, 2.7); look = pos.clone().addScaledVector(n, 0.55).addScaledVector(f, 40); }
   else if (st.cam === 4) { const a = 0.6 + performance.now() * 0.00012; target = pos.clone().addScaledVector(f, Math.cos(a) * 7.5).addScaledVector(r, -Math.sin(a) * 7.5).addScaledVector(n, 1.7); look = pos.clone().addScaledVector(n, 0.6); }
   else {
@@ -7099,7 +7108,8 @@ function updateCamera(dt) {
   if (st.cam < 2 && v > 60) camera.position.addScaledVector(n, (Math.random() - 0.5) * 0.02 * (v - 60) / 40);
   if (st.shake > 0.01) { camera.position.addScaledVector(r, (Math.random() - 0.5) * 0.25 * st.shake).addScaledVector(n, (Math.random() - 0.5) * 0.15 * st.shake); st.shake *= Math.exp(-dt * 6); }
   camera.lookAt(camLook);
-  const fov = 60 + 24 * clamp(v / 95, 0, 1) + (st.nosOn ? 9 : 0);
+  if (st.cam === 2) { roofClip.normal.copy(n).negate(); roofClip.constant = n.dot(camera.position) + 0.03; } else roofClip.constant = 1e9;
+  const fov = 60 + 24 * clamp(v / 95, 0, 1) + (st.nosOn ? 9 : 0) + (st.cam === 2 ? 6 : 0);
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 
