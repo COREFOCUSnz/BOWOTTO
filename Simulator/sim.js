@@ -617,7 +617,7 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   const arc = [];
   for (let k = 0; k <= SEG; k++) { const a = Math.PI * (1 - k / SEG), c = Math.cos(a), si = Math.sin(a); arc.push([W * Math.sign(c) * Math.pow(Math.abs(c), E), H * Math.pow(Math.max(0, si), E)]); }
   const pos = [], uv = [];
-  for (const [i0, i1] of TUNNELS) for (let i = i0; i < i1; i++) {
+  for (const [i0, i1] of TUNNELS) for (let i = i0; i < Math.min(i1, N - 2); i++) {
     const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 12;
     for (let k = 0; k < SEG; k++) {
       const p = (f, q) => f.p.clone().addScaledVector(f.b, q[0]).addScaledVector(f.n, q[1]);
@@ -1330,7 +1330,8 @@ const DIFFS = [
   { name: 'HARD', skill: 1.20, vmax: 100, band: [1.0, 1.18], aggr: 0.75, nosAI: true, mistake: [70, 140], player: { power: 1.16, grip: 1.05, steer: 1.22 }, nos: { drain: 1.2, charge: 0.75 } },
   { name: 'IMPOSSIBLE', skill: 1.30, vmax: 104, band: [1.04, 1.25], aggr: 1.0, nosAI: true, mistake: [140, 300], player: { power: 1.25, grip: 1.08, steer: 1.32 }, nos: { drain: 1.35, charge: 0.6 } },
 ];
-const diffNow = () => GAME.mode === 'versus' ? DIFFS[GAME.diff] : DIFFS[1];
+const DIFF_FREE = Object.assign({}, DIFFS[1], { player: { power: 1.0, grip: 1.0, steer: 1.0 } });   // Solo and Time Trial: the stock car, Medium NOS economy
+const diffNow = () => GAME.mode === 'versus' ? DIFFS[GAME.diff] : DIFF_FREE;
 const RIVALS = [
   { name: 'MANTIS', hex: 0x30d21c, skill: 0.985, lane: -1 },   // Verde Mantis
   { name: 'INTI', hex: 0xffc400, skill: 0.965, lane: 1 },      // Giallo Inti
@@ -1571,7 +1572,7 @@ function clearRivals() { for (const a of ai) { scene.remove(a.grp); audio.rivalS
 function startRace(mode, laps) {
   GAME.mode = mode; GAME.laps = laps; GAME.finishT = null; GAME.lapTimes = []; GAME.order = []; GAME.cdShown = -1;
   clearRivals(); $('results').classList.add('hidden');
-  st.crossings = 0; st.lapsDone = 0; st.hits = 0; st.resets = 0; st.vmax = 0; st.lapLast = null; st.nos = 1; st.spinT = 0;
+  st.crossings = 0; st.lapsDone = 0; st.hits = 0; st.resets = 0; st.vmax = 0; st.lapLast = null; st.nos = 1; st.spinT = 0; st.coins = 0; st.score = 0; st.driftBoostT = 0; if (RING_AT) ringsRespawn();
   if (mode === 'versus') {
     RIVALS.forEach((R, k) => { const a = makeRival(R); a.s = trackLen - 16 - 8.5 * k; a.d = k % 2 ? 2.7 : -2.7; a.lastP = a.s / trackLen; rivalPose(a); audio.rivalStart(a); ai.push(a); });
     placeAtS(trackLen - 16 - 8.5 * 3, 2.7);
@@ -1689,7 +1690,7 @@ function readInput() {
 window.addEventListener('keydown', e => {
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
   keys[e.code] = true;
-  if (!$('start').classList.contains('hidden')) { if (e.code !== 'Escape') startGame(); }
+  if (!$('start').classList.contains('hidden')) { if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
   if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; } toMenu(); return; }
   switch (e.code) {
     case 'KeyM': setMode(st.mode + 1); break;
@@ -1714,7 +1715,7 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 document.querySelectorAll('.tbtn').forEach(b => {
   const k = b.dataset.k;
-  const on = e => { e.preventDefault(); touch[k] = 1; b.classList.add('down'); if (!$('start').classList.contains('hidden')) startGame(); };
+  const on = e => { e.preventDefault(); touch[k] = 1; b.classList.add('down'); };
   const off = e => { e.preventDefault(); touch[k] = 0; b.classList.remove('down'); };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
 });
@@ -1724,7 +1725,6 @@ $('start-btn').addEventListener('click', startGame);
   const bar = $('paints'), picks = PAINTS.map((_, i) => i).filter(i => i > 0);
   for (const i of picks) { const b = document.createElement('button'); b.dataset.p = String(i); b.title = PAINTS[i].name; b.className = PAINTS[i].shader ? 'tron' : PAINTS[i].livery ? 'livery' : ''; if (!PAINTS[i].shader && !PAINTS[i].livery) b.style.background = '#' + PAINTS[i].hex.toString(16).padStart(6, '0'); b.addEventListener('click', e => { e.stopPropagation(); setPaint(i); }); bar.appendChild(b); }
 }
-$('start').addEventListener('click', startGame);
 
 function audioBtns() {
   const mb = $('btn-music'), sb = $('btn-sound');
@@ -1769,26 +1769,42 @@ function startGame() {
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden');
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
-{ // mode picker on the start screen
-  const setModeBtn = m => { GAME.mode = m; document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('lapsel').classList.toggle('hidden', m === 'solo'); $('diffsel').classList.toggle('hidden', m !== 'versus'); $('start-btn').textContent = m === 'versus' ? 'START RACE' : m === 'time' ? 'START TIME TRIAL' : 'START ENGINE'; };
+{ // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
+  // rebuilds the page) comes back to the mode screen with everything as it was
+  const ls = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  if (ls('revuelto.mode') && ['solo', 'time', 'versus'].includes(ls('revuelto.mode'))) GAME.mode = ls('revuelto.mode');
+  if (ls('revuelto.laps') && [3, 5, 10].includes(+ls('revuelto.laps'))) GAME.laps = +ls('revuelto.laps');
+  if (ls('revuelto.diff') != null && DIFFS[+ls('revuelto.diff')]) GAME.diff = +ls('revuelto.diff');
+  let step = ls('revuelto.step') === '2' ? 2 : 1; lsSet('revuelto.step', '');
+  const showStep = n => {
+    step = n; ['track', 'mode', 'diff'].forEach((k, i) => $('step-' + k).classList.toggle('hidden', i + 1 !== n));
+    const last = n === 3 || (n === 2 && GAME.mode !== 'versus');
+    $('back-btn').classList.toggle('hidden', n === 1); $('next-btn').classList.toggle('hidden', last || n === 1); $('start-btn').classList.toggle('hidden', !last);
+    $('start-btn').textContent = GAME.mode === 'versus' ? 'START RACE' : GAME.mode === 'time' ? 'START TIME TRIAL' : 'START ENGINE';
+  };
+  window.startNav = d => { if (d < 0 && step > 1) showStep(step - 1); else if (d > 0) showStep(step + 1); };
+  window.startShow = showStep;
+  const setModeBtn = m => { GAME.mode = m; lsSet('revuelto.mode', m); document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('lapsel').classList.toggle('hidden', m === 'solo'); showStep(2); };
   document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); setModeBtn(b.dataset.m); }));
-  document.querySelectorAll('#lapsel button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); GAME.laps = +b.dataset.l; document.querySelectorAll('#lapsel button').forEach(x => x.classList.toggle('on', x === b)); }));
-  try { const d = localStorage.getItem('revuelto.diff'); if (d != null && DIFFS[+d]) GAME.diff = +d; } catch (e) {}
+  document.querySelectorAll('#lapsel button').forEach(b => { b.classList.toggle('on', +b.dataset.l === GAME.laps); b.addEventListener('click', e => { e.stopPropagation(); GAME.laps = +b.dataset.l; lsSet('revuelto.laps', String(GAME.laps)); document.querySelectorAll('#lapsel button').forEach(x => x.classList.toggle('on', x === b)); }); });
   const diffBtns = document.querySelectorAll('#diffsel button');
-  diffBtns.forEach(b => { b.classList.toggle('on', +b.dataset.d === GAME.diff); b.addEventListener('click', e => { e.stopPropagation(); GAME.diff = +b.dataset.d; diffBtns.forEach(x => x.classList.toggle('on', x === b)); try { localStorage.setItem('revuelto.diff', String(GAME.diff)); } catch (e) {} }); });
+  diffBtns.forEach(b => { b.classList.toggle('on', +b.dataset.d === GAME.diff); b.addEventListener('click', e => { e.stopPropagation(); GAME.diff = +b.dataset.d; diffBtns.forEach(x => x.classList.toggle('on', x === b)); lsSet('revuelto.diff', String(GAME.diff)); }); });
+  $('back-btn').addEventListener('click', e => { e.stopPropagation(); startNav(-1); });
+  $('next-btn').addEventListener('click', e => { e.stopPropagation(); startNav(1); });
   $('res-again').addEventListener('click', e => { e.stopPropagation(); startRace(GAME.mode, GAME.laps); });
   $('res-menu').addEventListener('click', e => { e.stopPropagation(); toMenu(); });
   $('results').addEventListener('click', e => e.stopPropagation());
-  setModeBtn('solo');
-  // track picker: pick a world and the page rebuilds itself for it
+  // track tiles: the current one just moves on; another one rebuilds the page and comes back to the mode screen
   const tp = $('tracksel');
   for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme + (id === TRACK_ID ? ' on' : ''); b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`;
-    b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) return; try { localStorage.setItem('revuelto.track', id); } catch (er) {} $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
+    b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) { showStep(2); return; } lsSet('revuelto.track', id); lsSet('revuelto.step', '2'); $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
   document.querySelector('#top-left .model span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP';
   $('start-sub').textContent = TRACK.name + ' · ' + TRACK.sub + ' · ' + TRACK.km + ' KM';
   if (RING_AT) $('ringrow').classList.remove('hidden');
+  document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === GAME.mode)); $('lapsel').classList.toggle('hidden', GAME.mode === 'solo');
+  showStep(step);
 }
 
 // ------------------------------------------------------------------ audio (synthesized V12)

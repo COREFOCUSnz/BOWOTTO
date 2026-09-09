@@ -77,15 +77,24 @@
   <div id="start">
     <h1><small>LAMBORGHINI</small>REVUELTO</h1>
     <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV · 0–100 KM/H 2.5 S · V-MAX 350+ KM/H<br><span id="start-sub">THE GRID</span></p>
-    <div id="tracksel"></div>
-    <div id="modes">
-      <button data-m="solo" class="on"><b>SOLO</b><span>FREESTYLE · OPEN TRACK · NO CLOCK</span></button>
-      <button data-m="time"><b>TIME TRIAL</b><span>STANDING START · YOU AGAINST THE CLOCK</span></button>
-      <button data-m="versus"><b>VERSUS</b><span>3 AI LAMBORGHINIS · FULL CONTACT</span></button>
+    <div class="step" id="step-track">
+      <h2>CHOOSE YOUR COURSE</h2>
+      <div id="tracksel"></div>
     </div>
-    <div id="lapsel" class="hidden"><span>LAPS</span><button data-l="3" class="on">3</button><button data-l="5">5</button><button data-l="10">10</button></div>
-    <div id="diffsel" class="hidden"><span>RIVALS</span><button data-d="0">EASY</button><button data-d="1" class="on">MEDIUM</button><button data-d="2">HARD</button><button data-d="3">IMPOSSIBLE</button></div>
-    <button id="start-btn">START ENGINE</button>
+    <div class="step hidden" id="step-mode">
+      <h2>CHOOSE YOUR MODE</h2>
+      <div id="modes">
+        <button data-m="solo" class="on"><b>SOLO</b><span>FREESTYLE · OPEN TRACK · NO CLOCK</span></button>
+        <button data-m="time"><b>TIME TRIAL</b><span>STANDING START · YOU AGAINST THE CLOCK</span></button>
+        <button data-m="versus"><b>VERSUS</b><span>3 AI LAMBORGHINIS · FULL CONTACT</span></button>
+      </div>
+      <div id="lapsel" class="hidden"><span>LAPS</span><button data-l="3" class="on">3</button><button data-l="5">5</button><button data-l="10">10</button></div>
+    </div>
+    <div class="step hidden" id="step-diff">
+      <h2>CHOOSE YOUR RIVALS</h2>
+      <div id="diffsel"><button data-d="0">EASY</button><button data-d="1" class="on">MEDIUM</button><button data-d="2">HARD</button><button data-d="3">IMPOSSIBLE</button></div>
+    </div>
+    <div class="nav"><button id="back-btn" class="ghost hidden">◀ BACK</button><button id="next-btn" class="hidden">NEXT ▶</button><button id="start-btn" class="hidden">START ENGINE</button></div>
     <p class="credit"><button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
   </div>
   <div id="settings" class="hidden">

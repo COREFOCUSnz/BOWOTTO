@@ -10,6 +10,10 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   combined, AWD launch, 8-speed DCT with auto or paddle shifting, 9500 rpm
   redline, drag-limited top speed. Bench numbers from the headless test:
   0–100 km/h 2.7 s, 0–200 km/h 6.9 s, 100–0 km/h in 30 m, v-max 343 km/h.
+- **Start screens**: choose your course, then your mode (and laps), then
+  your rivals for Versus. Choices are remembered, and a course change (which
+  rebuilds the page for the new world) comes back to the mode screen with
+  everything as it was. Only START (or Enter) starts the game.
 - **Game modes** picked on the start screen. **Solo** is the open track,
   freestyle, no clock pressure. **Time Trial** is a standing start behind
   the line, a countdown, and 3, 5 or 10 timed laps with a results sheet.
