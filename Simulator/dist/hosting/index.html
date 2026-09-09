@@ -7742,14 +7742,15 @@ function drawMini() {
   if (!miniPath) {
     let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
     for (const p of S) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
-    const sc = (W - 36) / Math.max(maxX - minX, maxZ - minZ);
-    const ox = (W - (maxX - minX) * sc) / 2 - minX * sc, oz = (W - (maxZ - minZ) * sc) / 2 - minZ * sc;
+    const sc = (W - 46) / Math.max(maxX - minX, maxZ - minZ);
+    const ox = (W - (maxX - minX) * sc) / 2 - minX * sc, oz = (W - 24 - (maxZ - minZ) * sc) / 2 - minZ * sc;
     miniPath = { sc, ox, oz, pts: S.map(p => [p.x * sc + ox, p.z * sc + oz]) };
   }
   c.clearRect(0, 0, W, W);
   c.strokeStyle = 'rgba(244,241,234,0.85)'; c.lineWidth = 5; c.lineJoin = 'round'; c.beginPath();
   miniPath.pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.stroke();
   const s0 = miniPath.pts[0]; c.fillStyle = '#fff'; c.fillRect(s0[0] - 4, s0[1] - 4, 8, 8);
+  c.fillStyle = 'rgba(244,241,234,0.9)'; c.font = '700 26px Orbitron, Bahnschrift, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.shadowColor = 'rgba(0,0,0,0.9)'; c.shadowBlur = 8; c.fillText(TRACK.name.split('').join(' '), W / 2, W - 14); c.shadowBlur = 0;   // the world's name along the bottom
   for (const a of ai) { c.fillStyle = '#' + a.hex.toString(16).padStart(6, '0'); c.beginPath(); c.arc(a.pos.x * miniPath.sc + miniPath.ox, a.pos.z * miniPath.sc + miniPath.oz, 5, 0, Math.PI * 2); c.fill(); }
   const px = st.x * miniPath.sc + miniPath.ox, pz = st.z * miniPath.sc + miniPath.oz;
   c.save(); c.translate(px, pz); c.rotate(-st.theta);
