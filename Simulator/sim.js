@@ -515,7 +515,7 @@ const signs = [];
     { idx: Math.floor(N * 0.06), side: 1, w: 26, h: 9.5, lines: ['CTX2-X', 'COMING SOON'], accent: '#ff8a2a', blink: 1 },
     { idx: Math.floor(N * 0.41), side: -1, w: 32, h: 9.5, lines: ['ORION VST PLUG-IN SUITE', 'NOVEMBER'], accent: '#9fe8ff', blink: 1 },
     { idx: Math.floor(N * 0.985), side: 1, w: 32, h: 9.5, lines: ['CORE FOCUS PRODUCTIONS', 'REVUELTO · THE GRID'], accent: '#2ee6ff' },
-    { idx: Math.floor(N * 0.044), side: 1, w: 20, h: 10.3, poster: true, lines: ['COREZ'], accent: '#dff8ff' },
+    { idx: Math.floor(N * 0.044), side: 1, w: 30, h: 15.2, poster: true, lines: ['COREZ'], accent: '#dff8ff' },
   ];
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, metalness: 0.7, roughness: 0.35 });
   const edgeMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
@@ -544,7 +544,7 @@ const signs = [];
     ctx.strokeStyle = 'rgba(46,230,255,0.25)'; ctx.lineWidth = 2; for (let x = 0; x < W; x += 128) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     if (d.poster) {
       const v = sg.vid;
-      if (v && v.readyState >= 2 && v.videoWidth) { const r = Math.min(W / v.videoWidth, H / v.videoHeight), iw = v.videoWidth * r, ih = v.videoHeight * r; ctx.drawImage(v, (W - iw) / 2, (H - ih) / 2, iw, ih); if (v.paused && st.started) v.play().catch(() => {}); }
+      if (v && v.readyState >= 2 && v.videoWidth) { const r = Math.min(W / v.videoWidth, H / v.videoHeight), iw = v.videoWidth * r, ih = v.videoHeight * r; ctx.drawImage(v, (W - iw) / 2, (H - ih) / 2, iw, ih); if (v.paused) v.play().catch(() => {}); }
       else if (sg.img && sg.img.complete && sg.img.naturalWidth) { const r = Math.min(W / sg.img.naturalWidth, H / sg.img.naturalHeight), iw = sg.img.naturalWidth * r, ih = sg.img.naturalHeight * r; ctx.drawImage(sg.img, (W - iw) / 2, (H - ih) / 2, iw, ih); }
       else { ctx.fillStyle = d.accent; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fit(ctx, d.lines[0], W * 0.8, 260, '700', 'Orbitron, Bahnschrift, Arial'); ctx.fillText(d.lines[0], W / 2, H * 0.45); ctx.font = '600 70px "Barlow Condensed", Arial Narrow, Arial'; ctx.fillStyle = 'rgba(223,248,255,0.7)'; ctx.fillText('COMING SOON', W / 2, H * 0.62); }
     } else {
