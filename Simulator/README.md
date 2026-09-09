@@ -10,6 +10,23 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   combined, AWD launch, 8-speed DCT with auto or paddle shifting, 9500 rpm
   redline, drag-limited top speed. Bench numbers from the headless test:
   0–100 km/h 2.7 s, 0–200 km/h 6.9 s, 100–0 km/h in 30 m, v-max 343 km/h.
+- **Game modes** picked on the start screen. **Solo** is the open track,
+  freestyle, no clock pressure. **Time Trial** is a standing start behind
+  the line, a countdown, and 3, 5 or 10 timed laps with a results sheet.
+  **Versus** puts three AI Lamborghinis on the grid ahead of you — MANTIS
+  (Verde Mantis), INTI (Giallo Inti) and LE MANS (Blu Le Mans) — for 3, 5 or
+  10 laps, with live positions and gaps, a rubber band that keeps the pack
+  in a fight, and full contact. The rivals share one merged copy of the car
+  model (about 60 draw calls each instead of 850), each with its own V12
+  mixed by distance, and drive a curvature-limited racing line with baked
+  braking zones, taking the inside of corners and going round slower cars.
+- **Contact.** Cars are boxes in track coordinates; the shallower overlap
+  picks the contact normal, closing speed is exchanged at equal mass with
+  0.35 restitution, and off-centre contact twists both cars. A tailgate push
+  is just a push; a shunt into a rear quarter or a side rub at a big speed
+  difference spins the car that got it wrong (yaw impulse above 1.6 rad/s
+  breaks the rear loose for up to 1.5 s). A metallic crack, a crunch, camera
+  shake and the hit counter fire on every contact. `ESC` returns to the menu.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
 - **Circuit** 15.8 km on The Grid, in three dimensions: a 1.2 km main
@@ -20,8 +37,11 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   jump, two overpasses crossing above the main straight, a chicane run under
   a tunnel, a 36 m loop and the canyon home. Rail physics: gravity acts along
   the slope, so loops need speed. Jumps are ballistic: land it and drive on,
-  fall short and you're reset onto the landing at half speed with a hit
-  counted. Tunnels are placed automatically on the twistiest stretches.
+  fall short or land on the verge and you're reset to a standing start
+  350 m before the kicker for another run-up. In the air the flight follows
+  most of the road's bend (both gaps curve left), so a clean straight
+  take-off at any speed that clears the gap lands on the tarmac, while an
+  angled take-off or a short flight still misses. Tunnels are placed automatically on the twistiest stretches.
   Lap timer with best lap persisted in the browser, minimap, hit counter.
 - **Boundaries.** Light-walls run both sides all the way round, 2.4 m past
   the road edge. Hitting one applies a formula: speed retained

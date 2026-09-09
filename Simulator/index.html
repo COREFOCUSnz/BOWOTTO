@@ -40,13 +40,17 @@
       <div id="status"></div>
     </div>
     <div id="paints"></div>
+    <div id="race" class="hidden">
+      <div id="race-top"><b id="race-pos" class="digits">P4</b><span id="race-lap" class="digits">1 / 3</span><span id="race-time" class="digits">0:00.000</span></div>
+      <div id="standings"></div>
+    </div>
     <div id="msg"></div>
     <div id="help">
       <span><kbd>W / ↑</kbd> throttle</span><span><kbd>S / ↓</kbd> brake · reverse</span>
       <span><kbd>A D / ← →</kbd> steer</span><span><kbd>SPACE</kbd> handbrake · <kbd>N</kbd> hold for NOS</span>
       <span><kbd>M</kbd> drive mode</span><span><kbd>C</kbd> camera</span>
       <span><kbd>P</kbd> paint</span><span><kbd>T</kbd> auto / manual · <kbd>Q E</kbd> shift</span>
-      <span><kbd>R</kbd> reset to track</span><span><kbd>B</kbd> music · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
+      <span><kbd>R</kbd> reset to track · <kbd>ESC</kbd> menu</span><span><kbd>B</kbd> music · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
       <span style="grid-column:1/3;opacity:.7">drop a .glb to swap the car model · gamepad supported · model: "Lamborghini Revuelto" by DRIVER-FIRE, CC BY 4.0</span>
     </div>
     <div id="touch">
@@ -58,9 +62,21 @@
     </div>
   </div>
   <div id="drop">DROP .GLB TO LOAD MODEL</div>
+  <div id="results" class="hidden">
+    <h2 id="res-title">FINISHED</h2>
+    <p id="res-sub"></p>
+    <div id="res-rows"></div>
+    <div class="btns"><button id="res-again">RACE AGAIN</button><button id="res-menu">MENU</button></div>
+  </div>
   <div id="start">
     <h1><small>LAMBORGHINI</small>REVUELTO</h1>
-    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV<br>0–100 KM/H 2.5 S · V-MAX 350+ KM/H · 8-SPEED DCT<br><br>THE GRID · 5.1 KM · TURN THE VOLUME UP</p>
+    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV<br>0–100 KM/H 2.5 S · V-MAX 350+ KM/H · 8-SPEED DCT<br>THE GRID · 15.8 KM · TURN THE VOLUME UP</p>
+    <div id="modes">
+      <button data-m="solo" class="on"><b>SOLO</b><span>FREESTYLE · OPEN TRACK · NO CLOCK</span></button>
+      <button data-m="time"><b>TIME TRIAL</b><span>STANDING START · YOU AGAINST THE CLOCK</span></button>
+      <button data-m="versus"><b>VERSUS</b><span>3 AI LAMBORGHINIS · FULL CONTACT</span></button>
+    </div>
+    <div id="lapsel" class="hidden"><span>LAPS</span><button data-l="3" class="on">3</button><button data-l="5">5</button><button data-l="10">10</button></div>
     <button id="start-btn">START ENGINE</button>
     <p class="credit">CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0</p>
   </div>
