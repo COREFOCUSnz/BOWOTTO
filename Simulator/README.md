@@ -193,7 +193,7 @@ npm install -g firebase-tools
 cd Simulator
 python3 build.py
 firebase login
-firebase use <your-project-id>        # the LAMBO SIM project
+firebase use lambo-sim                 # the LAMBO SIM project (pinned in .firebaserc)
 firebase deploy --only hosting
 ```
 
