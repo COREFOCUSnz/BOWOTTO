@@ -15,7 +15,13 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.75) 100%);opacity:.25;transition:opacity .2s}
 .digits{font-family:"Orbitron","Bahnschrift","Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
 #top-left{position:absolute;left:22px;top:18px;letter-spacing:.18em}
+#top-left .presents{font-size:11px;letter-spacing:.32em;color:var(--amber);text-shadow:0 0 12px rgba(46,230,255,.5);margin-bottom:6px}
 #top-left .brand{font-size:11px;color:var(--dim)}
+#top-left .model em{font-style:normal;font-size:14px;font-weight:400;color:var(--dim);letter-spacing:.2em;margin-left:6px}
+#audiobtns{display:flex;gap:6px;margin-top:10px;pointer-events:auto}
+#audiobtns button{font:inherit;font-size:11px;letter-spacing:.18em;color:var(--hud);background:var(--panel);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;cursor:pointer}
+#audiobtns button:hover{border-color:var(--amber);background:rgba(46,230,255,.12)}
+#audiobtns button.off{color:var(--dim)}
 #top-left .model{font-size:26px;font-weight:700;line-height:1.05}
 #top-left .model span{font-size:11px;font-weight:400;color:var(--dim);display:block;letter-spacing:.22em;margin-top:4px}
 #top-right{position:absolute;right:22px;top:18px;display:flex;gap:14px;align-items:flex-start}
@@ -125,8 +131,10 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
   <div id="hud">
     <div id="vignette"></div>
     <div id="top-left">
+      <div class="presents">CORE FOCUS PRODUCTIONS PRESENTS</div>
       <div class="brand">LAMBORGHINI</div>
-      <div class="model">REVUELTO <span>LB744 · THE GRID · 1015 CV</span></div>
+      <div class="model">REVUELTO <em>(SIM)</em><span>THE GRID · 19.4 KM · 1001 HP</span></div>
+      <div id="audiobtns"><button id="btn-music" title="change music (B)">♪ DOWNTEMPO · 100</button><button id="btn-sound" title="sound on / off (V)">SOUND ON</button></div>
     </div>
     <div id="top-right">
       <div id="laps">
@@ -6554,9 +6562,9 @@ window.addEventListener('keydown', e => {
     case 'KeyQ': shiftManual(-1); break;
     case 'KeyG': bloomOn = !bloomOn; flash(bloomOn ? 'BLOOM ON' : 'BLOOM OFF', 700); break;
     case 'KeyF': hiQ = !hiQ; resize(); flash(hiQ ? 'QUALITY HIGH' : 'QUALITY LOW', 800); break;
-    case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); break;
+    case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); break;
     case 'KeyH': $('help').classList.toggle('hidden'); break;
-    case 'KeyB': flash(music.cycle(), 1000); break;
+    case 'KeyB': flash(music.cycle(), 1000); audioBtns(); break;
     case 'KeyL': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); flash(trailOn ? 'LIGHT TRAIL ON' : 'LIGHT TRAIL OFF', 800); break;
     case 'KeyY': customYaw += Math.PI / 2; if (customModel) customModel.rotation.y += Math.PI / 2; break;
   }
@@ -6578,6 +6586,13 @@ $('start-btn').addEventListener('click', startGame);
 }
 $('start').addEventListener('click', startGame);
 
+function audioBtns() {
+  const mb = $('btn-music'), sb = $('btn-sound');
+  mb.textContent = '♪ ' + (music.on ? music.tracks[music.track].name : 'MUSIC OFF'); mb.classList.toggle('off', !music.on);
+  sb.textContent = st.sound ? 'SOUND ON' : 'SOUND OFF'; sb.classList.toggle('off', !st.sound);
+}
+$('btn-music').addEventListener('click', e => { e.stopPropagation(); flash(music.cycle(), 1000); audioBtns(); });
+$('btn-sound').addEventListener('click', e => { e.stopPropagation(); st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); });
 let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {
@@ -6914,7 +6929,11 @@ function step(dt) {
   if (st.hand && v > 3) wTarget *= 2.2; else if (powerOver) wTarget *= 1.45;
   if (drifting) mu *= 1 - 0.3 * st.drift;
   if (st.spinT > 0) { st.spinT -= dt; wTarget = st.spinW; mu *= 0.32; st.spinW *= Math.max(0, 1 - dt * 0.5); st.drift = Math.max(st.drift, 0.85); }   // spun by contact: the rear is gone, the car goes round
+  if (v < 2.5 && st.throttle > 0.2 && !st.reverse) wTarget += st.steer * 1.0 * (1 - v / 2.5);   // pivot: the car can turn on the spot under power, so a spin never leaves you stranded
   st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
+  // facing backwards and stopped with the throttle down: swing the nose round rather than driving off the wrong way
+  if (!st.air && Math.abs(st.psi) > 1.75 && v < 3 && st.throttle > 0.3 && st.spinT <= 0) { st.turnT = (st.turnT || 0) + dt; if (st.turnT > 0.6) { if (st.turnT - dt <= 0.6) flash('TURNING AROUND', 900); st.psi = damp(st.psi, 0, 5, dt); st.yaw = 0; st.u = Math.abs(st.u); st.w = 0; } }
+  else st.turnT = 0;
   const uPrev = st.u, wPrev = st.w;
   st.w += st.yaw * uPrev * dt; st.u -= st.yaw * wPrev * dt;
   const k = (11 + 8 * m.stab) * (1 - 0.55 * st.drift);

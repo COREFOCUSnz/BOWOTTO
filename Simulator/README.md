@@ -34,6 +34,11 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   offset rear-end shunt spins the car in front. Both cars scrub 12 % of the
   impulse as speed. A metallic crack, a crunch, camera shake and the hit
   counter fire on every contact. `ESC` returns to the menu.
+- **After a spin** you are never stranded: under power the car can pivot on
+  the spot, and if it is stopped facing backwards with the throttle down for
+  more than half a second the nose swings round on its own (TURNING AROUND).
+  `R` still resets to the track. The HUD's top-left has click buttons for
+  the music track and sound alongside the B and V keys.
 - **Difficulty** for Versus, remembered between sessions: Easy, Medium, Hard,
   Impossible scale the rivals' cornering speed (0.86 / 0.95 / 1.02 / 1.12),
   top speed (310 / 331 / 346 / 364 km/h) and how far the rubber band lets

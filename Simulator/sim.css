@@ -6,7 +6,13 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.75) 100%);opacity:.25;transition:opacity .2s}
 .digits{font-family:"Orbitron","Bahnschrift","Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
 #top-left{position:absolute;left:22px;top:18px;letter-spacing:.18em}
+#top-left .presents{font-size:11px;letter-spacing:.32em;color:var(--amber);text-shadow:0 0 12px rgba(46,230,255,.5);margin-bottom:6px}
 #top-left .brand{font-size:11px;color:var(--dim)}
+#top-left .model em{font-style:normal;font-size:14px;font-weight:400;color:var(--dim);letter-spacing:.2em;margin-left:6px}
+#audiobtns{display:flex;gap:6px;margin-top:10px;pointer-events:auto}
+#audiobtns button{font:inherit;font-size:11px;letter-spacing:.18em;color:var(--hud);background:var(--panel);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:5px 11px;cursor:pointer}
+#audiobtns button:hover{border-color:var(--amber);background:rgba(46,230,255,.12)}
+#audiobtns button.off{color:var(--dim)}
 #top-left .model{font-size:26px;font-weight:700;line-height:1.05}
 #top-left .model span{font-size:11px;font-weight:400;color:var(--dim);display:block;letter-spacing:.22em;margin-top:4px}
 #top-right{position:absolute;right:22px;top:18px;display:flex;gap:14px;align-items:flex-start}

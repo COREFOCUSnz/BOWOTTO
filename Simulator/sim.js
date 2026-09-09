@@ -1310,9 +1310,9 @@ window.addEventListener('keydown', e => {
     case 'KeyQ': shiftManual(-1); break;
     case 'KeyG': bloomOn = !bloomOn; flash(bloomOn ? 'BLOOM ON' : 'BLOOM OFF', 700); break;
     case 'KeyF': hiQ = !hiQ; resize(); flash(hiQ ? 'QUALITY HIGH' : 'QUALITY LOW', 800); break;
-    case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); break;
+    case 'KeyV': st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); break;
     case 'KeyH': $('help').classList.toggle('hidden'); break;
-    case 'KeyB': flash(music.cycle(), 1000); break;
+    case 'KeyB': flash(music.cycle(), 1000); audioBtns(); break;
     case 'KeyL': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); flash(trailOn ? 'LIGHT TRAIL ON' : 'LIGHT TRAIL OFF', 800); break;
     case 'KeyY': customYaw += Math.PI / 2; if (customModel) customModel.rotation.y += Math.PI / 2; break;
   }
@@ -1334,6 +1334,13 @@ $('start-btn').addEventListener('click', startGame);
 }
 $('start').addEventListener('click', startGame);
 
+function audioBtns() {
+  const mb = $('btn-music'), sb = $('btn-sound');
+  mb.textContent = '♪ ' + (music.on ? music.tracks[music.track].name : 'MUSIC OFF'); mb.classList.toggle('off', !music.on);
+  sb.textContent = st.sound ? 'SOUND ON' : 'SOUND OFF'; sb.classList.toggle('off', !st.sound);
+}
+$('btn-music').addEventListener('click', e => { e.stopPropagation(); flash(music.cycle(), 1000); audioBtns(); });
+$('btn-sound').addEventListener('click', e => { e.stopPropagation(); st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); });
 let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {
@@ -1670,7 +1677,11 @@ function step(dt) {
   if (st.hand && v > 3) wTarget *= 2.2; else if (powerOver) wTarget *= 1.45;
   if (drifting) mu *= 1 - 0.3 * st.drift;
   if (st.spinT > 0) { st.spinT -= dt; wTarget = st.spinW; mu *= 0.32; st.spinW *= Math.max(0, 1 - dt * 0.5); st.drift = Math.max(st.drift, 0.85); }   // spun by contact: the rear is gone, the car goes round
+  if (v < 2.5 && st.throttle > 0.2 && !st.reverse) wTarget += st.steer * 1.0 * (1 - v / 2.5);   // pivot: the car can turn on the spot under power, so a spin never leaves you stranded
   st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
+  // facing backwards and stopped with the throttle down: swing the nose round rather than driving off the wrong way
+  if (!st.air && Math.abs(st.psi) > 1.75 && v < 3 && st.throttle > 0.3 && st.spinT <= 0) { st.turnT = (st.turnT || 0) + dt; if (st.turnT > 0.6) { if (st.turnT - dt <= 0.6) flash('TURNING AROUND', 900); st.psi = damp(st.psi, 0, 5, dt); st.yaw = 0; st.u = Math.abs(st.u); st.w = 0; } }
+  else st.turnT = 0;
   const uPrev = st.u, wPrev = st.w;
   st.w += st.yaw * uPrev * dt; st.u -= st.yaw * wPrev * dt;
   const k = (11 + 8 * m.stab) * (1 - 0.55 * st.drift);
