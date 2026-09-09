@@ -60,13 +60,14 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #drop.on{display:flex}
 @media (max-width:820px){#tach{width:150px;height:150px}#spd{font-size:50px}#gear{font-size:44px}#help{display:none}#top-right{transform:scale(.8);transform-origin:top right}#mode-name{font-size:24px}}
 
-#paints{position:absolute;left:50%;bottom:112px;transform:translateX(-50%);display:flex;gap:10px;pointer-events:auto;background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:7px 10px}
-#paints button{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
+#paints{position:absolute;right:22px;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:repeat(2,26px);gap:7px;pointer-events:auto;background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px}
+#paints button{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
 #paints button:hover{transform:scale(1.12)}
 #paints button.on{border-color:#fff;box-shadow:0 0 12px rgba(46,230,255,.6)}
+#paints button.livery{background:linear-gradient(135deg,#15181f 0 40%,#2ee6ff 40% 50%,#ff7a00 50% 55%,#15181f 55%)}
 #paints button.tron{background:conic-gradient(from 0deg,#0a2a6a,#2ee6ff,#7a3cff,#0a2a6a,#2ee6ff);animation:tronspin 3s linear infinite}
 @keyframes tronspin{to{filter:hue-rotate(360deg)}}
-@media (max-width:820px){#paints{bottom:200px}}
+@media (max-width:820px){#paints{right:8px;transform:translateY(-50%) scale(.8)}}
 
 #nos{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:11px;letter-spacing:.3em;color:var(--dim)}
 #nos.on span{color:#b48cff;text-shadow:0 0 12px rgba(180,140,255,.8)}
@@ -177,7 +178,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
   </div>
   <div id="start">
     <h1><small>LAMBORGHINI</small>REVUELTO</h1>
-    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV<br>0–100 KM/H 2.5 S · V-MAX 350+ KM/H · 8-SPEED DCT<br>THE GRID · 15.8 KM · TURN THE VOLUME UP</p>
+    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV<br>0–100 KM/H 2.5 S · V-MAX 350+ KM/H · 8-SPEED DCT<br>THE GRID · 19.4 KM · TURN THE VOLUME UP</p>
     <div id="modes">
       <button data-m="solo" class="on"><b>SOLO</b><span>FREESTYLE · OPEN TRACK · NO CLOCK</span></button>
       <button data-m="time"><b>TIME TRIAL</b><span>STANDING START · YOU AGAINST THE CLOCK</span></button>
@@ -5258,12 +5259,13 @@ const MODES = [
   { name: 'SPORT',  sub: 'HYBRID · 907 CV',    power: 0.92, grip: 1.50, stab: 0.55, ev: false, color: '#ff8c1a' },
   { name: 'CORSA',  sub: 'HYBRID · 1015 CV',   power: 1.00, grip: 1.75, stab: 0.8, ev: false, color: '#ff2a2a' },
 ];
-const PAINTS = [
+const PAINTS = [   // official Lamborghini names; the bar shows all but the first
   { name: 'AS DOWNLOADED', hex: 0xff2a03, original: true },
-  { name: 'VERDE SCANDAL', hex: 0x22b400 }, { name: 'ARANCIO APODIS', hex: 0xc22e08 },
-  { name: 'GIALLO INTI', hex: 0xffd200 },   { name: 'BIANCO SIDERALE', hex: 0xf2f2ec },
-  { name: 'NERO HELENE', hex: 0x0a0a0c },   { name: 'BLU URANUS', hex: 0x0a3cff },
-  { name: 'ROSSO MARS', hex: 0xd40015 },    { name: 'GRIGIO TELESTO', hex: 0x8b8f94 },
+  { name: 'ARANCIO APODIS', hex: 0xc22e08 }, { name: 'VERDE SCANDAL', hex: 0x22b400 }, { name: 'GIALLO INTI', hex: 0xffd200 },
+  { name: 'NERO HELENE', hex: 0x0a0a0c },    { name: 'BIANCO SIDERALE', hex: 0xf2f2ec }, { name: 'ROSSO MARS', hex: 0xd40015 },
+  { name: 'BLU URANUS', hex: 0x0a3cff },     { name: 'VIOLA PASIFAE', hex: 0x5a2d91 },   { name: 'GRIGIO TELESTO', hex: 0x8b8f94 },
+  { name: 'VERDE MANTIS', hex: 0x30d21c },   { name: 'BLU LE MANS', hex: 0x1d3bb0 },     { name: 'ARANCIO BOREALIS', hex: 0xff7a00 },
+  { name: 'CORE FOCUS LIVERY', hex: 0x15181f, livery: true },
   { name: 'TRON LEGACY', hex: 0x2ee6ff, shader: true },
 ];
 const ROAD_HALF = 6.0;      // 12 m wide track
@@ -5428,6 +5430,9 @@ const CTRL = [
   [-350, -2016, 0], ...loopPts(LOOPS[1]), ...loopPts(LOOPS[2]), [-900, -2044, 0],                          // double loop
   [-1200, -2000, 8], [-1450, -1750, 20], [-1500, -1450, 24], [-1500, -1350, 24], [-1500, -1200, 24], [-1500, -1050, 24], [-1480, -900, 22],   // climb, corkscrew
   [-1300, -650, 26], [-1100, -450, 32], [-930, -300, 8], [-700, -150, 2],                                  // second jump
+  [-780, 60, 30], [-860, 400, 95], [-920, 800, 175], [-950, 1150, 245], [-930, 1350, 262],                 // THE SUMMIT: 1.5 km straight up the wall to 262 m
+  [-820, 1500, 262], [-640, 1520, 250], [-520, 1400, 225],                                                 // the turn on top
+  [-560, 1200, 150], [-700, 1060, 100], [-540, 900, 62], [-700, 740, 38], [-560, 590, 26], [-620, 400, 22], [-540, 200, 22],   // THE PLUNGE: 20° down through the esses
   [-500, 0, 22], [-350, 150, 24], [-100, 250, 20], [200, 250, 12], [500, 150, 20], [650, 0, 24], [800, -150, 18],   // overpasses across the main straight
   [900, -300, 12], [750, -420, 8], [600, -300, 6], [450, -450, 4], [300, -350, 2], [100, -350, 0], ...loopPts(LOOPS[3]),   // chicanes, big loop
   [-400, -380, 0], [-700, -300, 4], [-1000, -150, 2], [-1300, -80, 0], [-1400, -10, 0], [-1250, 0, 0],   // home
@@ -5802,7 +5807,7 @@ const signs = [];
 }
 
 // ------------------------------------------------------------------ car// ------------------------------------------------------------------ car
-let paintIdx = 2;
+let paintIdx = 1;
 // TRON LEGACY paint: a living hologram. Patterns are computed in car space so they flow over the bodywork.
 const tronMat = new THREE.ShaderMaterial({
   uniforms: { uTime: { value: 0 }, uCarInv: { value: new THREE.Matrix4() } },
@@ -5989,6 +5994,56 @@ function fitPlates() {
   fit(8, -1, 0.30, 0.372, 0.134);    // front plate
 }
 fitPlates();
+// CORE FOCUS PRODUCTIONS livery: stickers all over a graphite base, drawn once the display font is in
+function drawLivery(ctx, sz) {
+  ctx.fillStyle = '#20242d'; ctx.fillRect(0, 0, sz, sz);
+  // carbon weave
+  ctx.fillStyle = 'rgba(255,255,255,0.035)'; for (let y = 0; y < sz; y += 8) for (let x = ((y / 8) % 2) * 4; x < sz; x += 8) ctx.fillRect(x, y, 4, 4);
+  // two racing slashes, cyan and orange
+  ctx.save(); ctx.translate(sz / 2, sz / 2); ctx.rotate(-0.55); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(-sz, -sz * 0.06, sz * 2, sz * 0.035); ctx.fillStyle = '#ff7a00'; ctx.fillRect(-sz, -sz * 0.015, sz * 2, sz * 0.012); ctx.restore();
+  const badge = (x, y, sc, rot, col) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc);
+    // angular plate, cut corners, glowing edge
+    ctx.beginPath(); ctx.moveTo(-210, -62); ctx.lineTo(180, -62); ctx.lineTo(210, -30); ctx.lineTo(210, 62); ctx.lineTo(-180, 62); ctx.lineTo(-210, 30); ctx.closePath();
+    ctx.fillStyle = 'rgba(4,8,14,0.92)'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 22; ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(-200, -52); ctx.lineTo(-150, -52); ctx.lineTo(-170, -30); ctx.lineTo(-200, -30); ctx.closePath(); ctx.fill();   // corner wedge
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.transform(1.08, 0, -0.16, 1, 0, 0);
+    ctx.font = '900 62px Orbitron, Bahnschrift, Arial Black, sans-serif'; ctx.fillStyle = '#f4f1ea'; ctx.shadowColor = col; ctx.shadowBlur = 12; ctx.fillText('CORE FOCUS', 0, -16);
+    ctx.font = '700 24px Orbitron, Bahnschrift, Arial, sans-serif'; ctx.fillStyle = col; ctx.shadowBlur = 8; ctx.fillText('P R O D U C T I O N S', 6, 34); ctx.restore();
+    ctx.fillStyle = col; ctx.fillRect(-120, 12, 240, 2.5);
+    ctx.restore();
+  };
+  const mono = (x, y, sc, rot, col) => { ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '900 70px Orbitron, Bahnschrift, Arial Black, sans-serif'; ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.fillText('CFP', 0, 0); ctx.restore(); };
+  let sd = 7; const r = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296; };
+  // the body's UVs put about 2.5 m across one tile, so a sticker has to be big to read at speed: two large badges,
+  // two monograms and four small badges per tile
+  const q = sz / 4;
+  badge(q + (r() - 0.5) * 120, q + (r() - 0.5) * 120, 2.3, (r() - 0.5) * 0.5, '#2ee6ff');
+  badge(3 * q + (r() - 0.5) * 120, 3 * q + (r() - 0.5) * 120, 2.3, (r() - 0.5) * 0.5, '#ff7a00');
+  mono(3 * q, q, 2.2, (r() - 0.5) * 0.6, '#2ee6ff'); mono(q, 3 * q, 2.2, (r() - 0.5) * 0.6, '#f4f1ea');
+  badge(2 * q, q * 0.45, 1.1, (r() - 0.5) * 0.6, '#f4f1ea'); badge(2 * q, q * 3.55, 1.1, (r() - 0.5) * 0.6, '#2ee6ff');
+  badge(q * 0.45, 2 * q, 1.1, 1.3 + (r() - 0.5) * 0.4, '#ff7a00'); badge(q * 3.55, 2 * q, 1.1, -1.3 + (r() - 0.5) * 0.4, '#2ee6ff');
+}
+const liveryTex = canvasTex(2048, drawLivery); liveryTex.anisotropy = maxAniso;
+if (document.fonts && document.fonts.load) document.fonts.load('900 62px Orbitron').then(() => { drawLivery(liveryTex.image.getContext('2d'), 2048); liveryTex.needsUpdate = true; }).catch(() => {});
+// the body panels carry no UVs, so the livery is projected in car space: sides, ends and roof each get a planar map
+function liveryMaterial(src) {
+  const m = src.clone(); m.map = liveryTex; m.color.setHex(0xffffff); m.envMap = cubeRT.texture; m.metalness = 0.25; m.roughness = 0.42; m.envMapIntensity = 0.7;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uCarInv = tronMat.uniforms.uCarInv;
+    sh.vertexShader = 'uniform mat4 uCarInv;\n' + sh.vertexShader.replace('#include <uv_vertex>', `
+      vec4 cl = uCarInv * modelMatrix * vec4(position, 1.0);
+      vec3 cn = normalize(mat3(uCarInv * modelMatrix) * normal);
+      float k = 0.4;
+      if (abs(cn.y) > 0.6) vUv = cl.xz * k;
+      else if (abs(cn.z) >= abs(cn.x)) vUv = vec2(cn.z > 0.0 ? cl.x : -cl.x, cl.y) * k;
+      else vUv = vec2(cn.x > 0.0 ? -cl.z : cl.z, cl.y) * k;
+    `);
+  };
+  m.customProgramCacheKey = () => 'livery';
+  return m;
+}
 function setPaint(i) {
   paintIdx = (i + PAINTS.length) % PAINTS.length;
   const P = PAINTS[paintIdx];
@@ -5999,6 +6054,7 @@ function setPaint(i) {
     if (!(o.isMesh && o.userData.paint)) return;
     if (P.shader) { o.material = tronMat; return; }                          // living hologram paint
     if (P.original) { o.material = o.userData.origMat; return; }             // the author's own paint, untouched
+    if (P.livery) { if (!o.userData.livMat) o.userData.livMat = liveryMaterial(o.userData.origMat); o.material = o.userData.livMat; return; }
     if (!o.userData.tintMat) { o.userData.tintMat = o.userData.origMat.clone(); o.userData.tintMat.map = null; o.userData.tintMat.envMap = cubeRT.texture; o.userData.tintMat.metalness = 0.25; o.userData.tintMat.roughness = 0.34; o.userData.tintMat.envMapIntensity = 0.8; }
     o.material = o.userData.tintMat; o.material.color.setHex(P.hex);
   });
@@ -6107,10 +6163,10 @@ const st = {
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
-  sound: true, started: false, vmax: 0,
+  sound: true, started: false, vmax: 0, record: 0, recordPend: false,
   lapStart: null, lapLast: null, lapBest: null, lastP: 0, halfSeen: false, trackIdx: 0,
 };
-try { const b = localStorage.getItem('revuelto.best'); if (b) st.lapBest = +b; } catch (e) {}
+try { const b = localStorage.getItem('revuelto.best'); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; } catch (e) {}
 function placeOnTrack(idx) {
   const racing = GAME.state === 'racing';
   if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); st.lapsDone = Math.max(0, st.lapsDone - 1); }   // put back behind the line: that crossing is owed again
@@ -6352,18 +6408,34 @@ function startRace(mode, laps) {
     placeAtS(trackLen - 16 - 8.5 * 3, 2.7);
   } else if (mode === 'time') placeAtS(trackLen - 20, 0);
   else placeOnTrack(20);
-  GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = 3.0;
+  GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = START_CUES[0].at + 0.01; GAME.cue = 0; announcer.stop();
   $('race').classList.toggle('hidden', mode === 'solo');
   $('lap-cur').parentElement.style.display = ''; 
   if (mode === 'versus') flash('VERSUS · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
 }
+// the announcer: Web Speech where the browser has it, text on screen everywhere
+const announcer = {
+  voice: null,
+  pick() { try { const vs = speechSynthesis.getVoices(); this.voice = vs.find(v => /^en/i.test(v.lang) && /male|daniel|david|mark|george|ryan|guy|james/i.test(v.name)) || vs.find(v => /^en[-_](GB|AU|NZ)/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; } catch (e) {} },
+  say(text, rate = 1, pitch = 0.8) {
+    if (!st.sound || !window.speechSynthesis) return;
+    try { if (!this.voice) this.pick(); const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = pitch; u.volume = 1; if (this.voice) u.voice = this.voice; speechSynthesis.speak(u); } catch (e) {}
+  },
+  stop() { try { speechSynthesis.cancel(); } catch (e) {} },
+};
+if (window.speechSynthesis) { announcer.pick(); speechSynthesis.onvoiceschanged = () => announcer.pick(); }
+const START_CUES = [   // seconds remaining on the countdown clock
+  { at: 8.6, text: 'ARE YOU READY?', say: 'Are you ready?', rate: 0.95 },
+  { at: 6.9, text: 'START YOUR ENGINES', say: 'Start your engines.', rate: 0.95 },
+  { at: 4.9, text: 'HERE WE GO', say: 'Here we go.', rate: 1 },
+  { at: 3.0, text: '3', say: 'Three', beep: 660 }, { at: 2.0, text: '2', say: 'Two', beep: 660 }, { at: 1.0, text: '1', say: 'One', beep: 660 },
+];
 function raceTick(dt) {
   const now = performance.now();
   if (GAME.state === 'countdown') {
-    const cur = Math.ceil(GAME.cd - 1e-6);
-    if (cur !== GAME.cdShown) { GAME.cdShown = cur; if (cur > 0) { flash(String(cur), 900); audio.beep(660, 0.12); } }
+    for (let k = GAME.cue; k < START_CUES.length; k++) { const c = START_CUES[k]; if (GAME.cd <= c.at) { GAME.cue = k + 1; flash(c.text, c.beep ? 900 : 1500, c.beep ? '#2ee6ff' : ''); if (c.beep) audio.beep(c.beep, 0.12); announcer.say(c.say, c.rate || 1); } }
     GAME.cd -= dt;
-    if (GAME.cd <= 0) { GAME.state = 'racing'; GAME.startT = now; st.lapStart = null; flash('GO', 700); audio.beep(1320, 0.45); }
+    if (GAME.cd <= 0) { GAME.state = 'racing'; GAME.startT = now; st.lapStart = null; flash('GO!', 900, '#30d21c'); audio.beep(1320, 0.45); announcer.say('Go!', 1.1, 0.9); }
   }
   for (const a of ai) rivalStep(a, dt, now);
   if (GAME.state === 'finished' && GAME.resultsAt && now > GAME.resultsAt) { GAME.resultsAt = 0; showResults(); }
@@ -6378,7 +6450,7 @@ function finishRace(now) {
   GAME.state = 'finished'; GAME.finishT = now - GAME.startT; GAME.resultsAt = now + 1800;
   const pos = standings().findIndex(r => r.me) + 1;
   flash(GAME.mode === 'versus' ? (pos === 1 ? 'VICTORY' : 'FINISHED · P' + pos) : 'FINISHED · ' + fmtTime(GAME.finishT), 2200);
-  audio.beep(pos === 1 ? 1568 : 988, 0.5);
+  audio.beep(pos === 1 ? 1568 : 988, 0.5); announcer.say(GAME.mode === 'versus' ? (pos === 1 ? 'Victory. You win.' : 'Finished. P' + pos + '.') : 'Time trial complete.', 1, 0.85);
 }
 function showResults() {
   const rows = standings(), box = $('res-rows'); box.innerHTML = '';
@@ -6479,13 +6551,13 @@ document.querySelectorAll('.tbtn').forEach(b => {
 if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) $('touch').classList.add('on');
 $('start-btn').addEventListener('click', startGame);
 { // colour bar: five quick picks (the fifth is the animated TRON paint); P still cycles the full list
-  const bar = $('paints'), picks = [2, 1, 0, 4, PAINTS.length - 1];
-  for (const i of picks) { const b = document.createElement('button'); b.dataset.p = String(i); b.title = PAINTS[i].name; b.className = PAINTS[i].shader ? 'tron' : ''; if (!PAINTS[i].shader) b.style.background = '#' + PAINTS[i].hex.toString(16).padStart(6, '0'); b.addEventListener('click', e => { e.stopPropagation(); setPaint(i); }); bar.appendChild(b); }
+  const bar = $('paints'), picks = PAINTS.map((_, i) => i).filter(i => i > 0);
+  for (const i of picks) { const b = document.createElement('button'); b.dataset.p = String(i); b.title = PAINTS[i].name; b.className = PAINTS[i].shader ? 'tron' : PAINTS[i].livery ? 'livery' : ''; if (!PAINTS[i].shader && !PAINTS[i].livery) b.style.background = '#' + PAINTS[i].hex.toString(16).padStart(6, '0'); b.addEventListener('click', e => { e.stopPropagation(); setPaint(i); }); bar.appendChild(b); }
 }
 $('start').addEventListener('click', startGame);
 
 let flashTimer = null;
-function flash(text, ms) { const m = $('msg'); m.textContent = text; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
+function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {
   st.mode = (i + MODES.length) % MODES.length; const m = MODES[st.mode];
   $('mode-name').textContent = m.name; $('mode-name').style.color = m.color; $('mode-sub').textContent = m.sub;
@@ -6569,6 +6641,11 @@ const audio = {
     const o = C.createOscillator(), g = C.createGain(); o.type = 'square'; o.frequency.value = freq; const f = C.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t + 0.006); g.gain.setValueAtTime(0.28, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
     o.connect(f); f.connect(g); g.connect(this.master); o.start(t); o.stop(t + dur + 0.12);
+  },
+  record() {
+    // new top speed: a rising major arpeggio with a shimmer
+    if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime;
+    [1046.5, 1318.5, 1568, 2093].forEach((freq, k) => { const t0 = t + k * 0.09; for (const [mult, vol] of [[1, 0.35], [2, 0.08], [3.01, 0.03]]) { const o = C.createOscillator(), g = C.createGain(); o.type = 'sine'; o.frequency.value = freq * mult; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t0 + (k === 3 ? 1.1 : 0.45)); o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + 1.2); } });
   },
   clang(k) {
     // car on car: a metallic crack on top of the crunch
@@ -6831,6 +6908,7 @@ function step(dt) {
     const frA = sampleAt(st.s), hv = st.vel.clone(); hv.y = 0;
     const sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * 0.9 + st.steer * 0.35 * dt;
     if (turn) { const c = Math.cos(turn), sn = Math.sin(turn), vx = st.vel.x, vz = st.vel.z; st.vel.x = vx * c + vz * sn; st.vel.z = -vx * sn + vz * c; hv.set(st.vel.x, 0, st.vel.z); }
+    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * 1.2))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
     st.pos.addScaledVector(st.vel, dt);
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
@@ -6895,6 +6973,9 @@ function step(dt) {
   }
   st.lastP = p;
   st.vmax = Math.max(st.vmax, v * 3.6);
+  // top speed record: beat it, and the moment the speed comes off the peak it is announced
+  if (v * 3.6 > st.record + 0.5 && !st.air) { st.record = v * 3.6; st.recordPend = true; }
+  else if (st.recordPend && v * 3.6 < st.record - 4) { st.recordPend = false; try { localStorage.setItem('revuelto.vmax', String(Math.round(st.record))); } catch (e) {} flash('NEW TOP SPEED · ' + Math.round(st.record) + ' KM/H', 2600, '#ff2a2a'); audio.record(); }
   // wheels
   const dist = st.u * dt;
   for (const w of wheels) { w.spin.rotation.z -= dist / w.r; w.steer.rotation.y = w.front ? st.delta : 0; }
@@ -7019,7 +7100,7 @@ function frame(now) {
 }
 resize();
 requestAnimationFrame(frame);
-window.__sim = { music, audio, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { music, audio, announcer, liveryTex, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>

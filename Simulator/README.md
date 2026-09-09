@@ -27,14 +27,31 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   difference spins the car that got it wrong (yaw impulse above 1.6 rad/s
   breaks the rear loose for up to 1.5 s). A metallic crack, a crunch, camera
   shake and the hit counter fire on every contact. `ESC` returns to the menu.
+- **Paint** picked from the bar on the right: twelve official Lamborghini
+  colours (Arancio Apodis, Verde Scandal, Giallo Inti, Nero Helene, Bianco
+  Siderale, Rosso Mars, Blu Uranus, Viola Pasifae, Grigio Telesto, Verde
+  Mantis, Blu Le Mans, Arancio Borealis), the **Core Focus livery** and the
+  animated TRON hologram. The livery is a canvas tile of CORE FOCUS /
+  PRODUCTIONS badges, CFP monograms and racing slashes over graphite carbon,
+  projected in car space by a vertex-shader hook (the model's body panels
+  carry no UVs) so it wraps every panel; sides, ends and roof each get their
+  own planar map with the text reading the right way round.
+- **Top speed record** persisted in the browser: beat it and, the moment the
+  speed comes off the peak, NEW TOP SPEED flashes in red with a rising chime.
+- **Announcer** on race and time-trial starts: "Are you ready? Start your
+  engines. Here we go. Three, two, one, go!" spoken with Web Speech where
+  the browser has an English voice, always shown on screen, and results
+  called at the flag.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
-- **Circuit** 15.8 km on The Grid, in three dimensions: a 1.2 km main
+- **Circuit** 19.4 km on The Grid, in three dimensions: a 1.2 km main
   straight, a climb through turn one to a kicker jump with a real gap (about
   170 km/h to clear it), a steep dive to an underground hairpin, a 1.7 km
   back straight carrying a 28 m loop and a back-to-back double loop, a climb
   to a 300 m corkscrew that rolls the road through 360°, a second and longer
-  jump, two overpasses crossing above the main straight, a chicane run under
+  jump, then THE SUMMIT: a 1.5 km straight climbing the wall to 262 m, a
+  turn on top and THE PLUNGE, a 20° drop through the esses that has you at
+  the limiter by the bottom, two overpasses crossing above the main straight, a chicane run under
   a tunnel, a 36 m loop and the canyon home. Rail physics: gravity acts along
   the slope, so loops need speed. Jumps are ballistic: land it and drive on,
   fall short or land on the verge and you're reset to a standing start
