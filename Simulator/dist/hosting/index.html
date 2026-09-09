@@ -7416,18 +7416,21 @@ function step(dt) {
   // nitrous: hold N. ~1500 CV while the tank lasts (5 s), refills slowly when released
   if (st.nos <= 0.02) st.nosEmpty = true; else if (st.nos > 0.25) st.nosEmpty = false;   // hysteresis: an empty tank must refill to a quarter before it fires again
   if (TRACK.rings && !st.nosOn) st.nos = st.coins >= 10 ? 1 : 0;   // SUPERSONIC: ten rings arm the tank
-  const wantNos = inp.nos && !m.ev && st.throttle > 0.2 && !st.nosEmpty && !st.air && (!TRACK.rings || st.coins >= 10);
+  const wantNos = inp.nos && !m.ev && st.throttle > 0.2 && !st.nosEmpty && !st.air && (!TRACK.rings || st.coins >= 10 || st.nosOn);   // rings arm it; once lit it runs on the tank
   if (wantNos && !st.nosOn) { audio.nosStart(); if (TRACK.rings) { st.coins = 0; if (st.super) flash('SUPERSONIC OVER', 900); } }
   if (!wantNos && st.nosOn) audio.nosStop();
   st.nosOn = wantNos;
   // drift boost: NOS while sliding is the big one. The tank is charged by drifting (a trickle otherwise)
-  if (st.nosOn && (st.drift || 0) > 0.5) st.driftBoostT = 2.0; else st.driftBoostT = Math.max(0, (st.driftBoostT || 0) - dt);   // latched: two seconds of rocket once it fires
+  // drift boost: NOS while sliding. It fires with a jolt, and it keeps going as long as you hold the drift (the slide
+  // charges the tank almost as fast as the boost drains it); straighten up and it falls back to plain NOS
+  if (st.nosOn && (st.drift || 0) > 0.5) st.driftBoostT = 0.6; else st.driftBoostT = Math.max(0, (st.driftBoostT || 0) - dt);   // a short bridge over dips in the slide
   const driftBoost = st.nosOn && st.driftBoostT > 0;
-  if (driftBoost && !st.driftBoostOn) { flash('DRIFT BOOST', 900, '#b48cff'); audio.beep(1760, 0.18); }
+  if (driftBoost && !st.driftBoostOn) { flash('DRIFT BOOST', 900, '#b48cff'); audio.beep(1760, 0.18); st.u += Math.sign(st.u || 1) * 5.5; st.shake = Math.max(st.shake || 0, 0.55); }   // the jolt
   st.driftBoostOn = driftBoost;
   const DN = diffNow().nos;
-  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5 * DN.drain); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
-  else { const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30; st.nos = Math.min(1, st.nos + dt * charge * DN.charge); }
+  const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30;
+  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5 * DN.drain * (driftBoost ? 0.3 : 1) + (driftBoost ? dt * charge * DN.charge * 0.8 : 0)); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
+  else st.nos = Math.min(1, st.nos + dt * charge * DN.charge);
   // SUPERSONIC mode: twenty rings held raise the fin, light the trail and add 20 %
   const wantSuper = !!TRACK.rings && st.coins >= 20;
   if (wantSuper && !st.super) { flash('SUPERSONIC', 1200, '#2ee6ff'); audio.record(); st.superTrail = trailOn; trailOn = true; trailMesh.visible = true; trailReset(); }
@@ -7477,7 +7480,7 @@ function step(dt) {
   wTarget *= 1 / (1 + Math.abs(slipAng) * (1.2 + 1.6 * m.stab) * (1 - 0.6 * st.drift));
   if (st.hand && v > 3) wTarget *= 2.2; else if (powerOver) wTarget *= 1.45;
   if (drifting) { mu *= 1 - 0.36 * st.drift; if (st.throttle > 0.5 && !st.hand) wTarget *= 1 + 0.25 * st.drift; }   // the slide holds while you stay on the power
-  if (driftBoost) mu *= 1.4;                                                                                            // the boost hooks up and fires you out of the slide
+  if (driftBoost) { mu *= 1.4; wTarget *= 1.35; }                                                                        // the boost hooks up, and the wheel has more say in the slide
   if (st.spinT > 0) { st.spinT -= dt; wTarget = st.spinW; mu *= 0.32; st.spinW *= Math.max(0, 1 - dt * 0.5); st.drift = Math.max(st.drift, 0.85); }   // spun by contact: the rear is gone, the car goes round
   if (v < 2.5 && st.throttle > 0.2 && !st.reverse) wTarget += st.steer * 1.0 * (1 - v / 2.5);   // pivot: the car can turn on the spot under power, so a spin never leaves you stranded
   st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
