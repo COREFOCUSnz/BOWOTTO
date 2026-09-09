@@ -107,6 +107,41 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
 
+## Six worlds
+
+Picked on the start screen (the page rebuilds itself for the choice, which
+is remembered). Each is a Catmull-Rom loop of control points with its own
+loops, jumps, corkscrews, caves and a theme that sets sky, fog, ground,
+walls and dressing.
+
+- **THE GRID** (Tron, 19.4 km): the original neon circuit.
+- **THE SOURCE** (Matrix, 13.0 km): black world, code rain falling down
+  the floor grid and on tall panels along both sides (a shader: columns
+  with their own speed and phase, glyph cells flickering, bright heads and
+  fading tails), green light-walls and lines, two loops, a corkscrew, a jump
+  and an underground dive.
+- **RED MESA** (desert, 11.9 km): a heightfield of sandstone mountains
+  carved to the road (cuttings and embankments within 60 m, cliff walls
+  where the noise says so), three caves through the ridges with rock shells
+  and warm lamps, boulders and scrub, a gorge jump, blue sky and warm haze.
+- **SUPERSONIC** (Green Hill, 14.3 km): bright grass with checkered dirt by
+  the road, palms and sunflowers, three loops, a corkscrew and a jump, and
+  441 gold rings along the road. A ring is 10 points. **Ten rings arm the
+  NOS**; without them there is none, and firing it spends every ring you
+  hold. **Twenty rings held** go SUPERSONIC: a swept fin rises out of the
+  rear deck, the Tron light trail comes on and the car runs 20 % faster
+  until the NOS is used. Rings respawn each lap.
+- **TIMBERLINE** (forest, 12.1 km): a dusk sky, 11 000 pines, a summit
+  start at 270 m, a long winding descent through hairpins and esses down to
+  the valley, then a 1.6 km climb straight back up. Made for the handbrake.
+- **WHITEOUT** (alpine, 11.3 km): overcast, snowing around the car, snowy
+  pines, a ski lift crossing the mountain, red poles at the five jumps.
+
+Terrain colours are per vertex (height bands, slope-exposed rock, dirt
+beside the road) over a fractal of rolling hills and ridges; a bucketed
+nearest-road field at 20 m drives the carving, the cave hills and prop
+placement.
+
 ## Hosting it (Firebase)
 
 `python3 Simulator/build.py` also writes `Simulator/dist/hosting/`: the page as

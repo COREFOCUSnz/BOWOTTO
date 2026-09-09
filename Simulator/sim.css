@@ -129,3 +129,19 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #settings .cred a{color:var(--amber);text-decoration:none}
 #settings .btns button{font:inherit;font-size:13px;letter-spacing:.26em;font-weight:700;padding:8px 22px;border-radius:4px;border:0;background:var(--amber);color:#02121a;cursor:pointer}
 #diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
+
+#tracksel{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px;pointer-events:auto;max-width:900px}
+#tracksel button{font:inherit;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--hud);border-radius:6px;padding:8px 12px;min-width:138px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;position:relative;overflow:hidden}
+#tracksel button b{display:block;font-size:15px;letter-spacing:.2em;font-weight:700}
+#tracksel button span{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);margin-top:3px}
+#tracksel button:hover{background:rgba(255,255,255,.1)}
+#tracksel button.on{border-color:var(--amber);background:rgba(46,230,255,.16);box-shadow:0 0 18px rgba(46,230,255,.25)}
+#tracksel button::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+#tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
+#loading.hidden{display:none}
+@media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
+body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
+body.outdoor #top-left .presents{text-shadow:0 1px 6px rgba(0,0,0,.9)}
+body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
+#laps div.hidden{display:none}

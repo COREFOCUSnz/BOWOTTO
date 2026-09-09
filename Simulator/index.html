@@ -27,6 +27,7 @@
         <div><span>BEST</span><b id="lap-best" class="digits">--:--.---</b></div>
         <div><span>V-MAX</span><b id="vmax" class="digits">0</b></div>
         <div><span>HITS</span><b id="hits" class="digits">0</b></div>
+        <div id="ringrow" class="hidden"><span>RINGS</span><b id="ringsv" class="digits">0</b></div>
       </div>
       <canvas id="minimap" width="300" height="300"></canvas>
     </div>
@@ -65,6 +66,7 @@
     </div>
   </div>
   <div id="drop">DROP .GLB TO LOAD MODEL</div>
+  <div id="loading" class="hidden">LOADING …</div>
   <div id="results" class="hidden">
     <h2 id="res-title">FINISHED</h2>
     <p id="res-sub"></p>
@@ -73,7 +75,8 @@
   </div>
   <div id="start">
     <h1><small>LAMBORGHINI</small>REVUELTO</h1>
-    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV<br>0–100 KM/H 2.5 S · V-MAX 350+ KM/H · 8-SPEED DCT<br>THE GRID · 19.4 KM · TURN THE VOLUME UP</p>
+    <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV · 0–100 KM/H 2.5 S · V-MAX 350+ KM/H<br><span id="start-sub">THE GRID</span></p>
+    <div id="tracksel"></div>
     <div id="modes">
       <button data-m="solo" class="on"><b>SOLO</b><span>FREESTYLE · OPEN TRACK · NO CLOCK</span></button>
       <button data-m="time"><b>TIME TRIAL</b><span>STANDING START · YOU AGAINST THE CLOCK</span></button>
