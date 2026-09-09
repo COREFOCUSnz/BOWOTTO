@@ -66,6 +66,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #paints button.livery{background:linear-gradient(135deg,#15181f 0 40%,#2ee6ff 40% 50%,#ff7a00 50% 55%,#15181f 55%)}
 #paints button.tron{background:conic-gradient(from 0deg,#0a2a6a,#2ee6ff,#7a3cff,#0a2a6a,#2ee6ff);animation:tronspin 3s linear infinite}
 @keyframes tronspin{to{filter:hue-rotate(360deg)}}
+@media (max-width:480px){#top-left{transform:scale(.76);transform-origin:top left}}   /* the badge is 405px wide: scale the whole block so it fits a 390px phone */
 @media (max-width:820px){#paints{right:8px;bottom:120px;transform:scale(.8);transform-origin:bottom right}}
 
 #nos{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:11px;letter-spacing:.3em;color:var(--dim)}
