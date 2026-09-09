@@ -217,7 +217,7 @@ body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
     <div id="msg"></div>
     <div id="help">
       <span><kbd>W / ↑</kbd> throttle</span><span><kbd>S / ↓</kbd> brake · reverse</span>
-      <span><kbd>A D / ← →</kbd> steer</span><span><kbd>SPACE</kbd> handbrake · <kbd>N</kbd> NOS (drift to charge · NOS in a drift = boost)</span>
+      <span><kbd>A D / ← →</kbd> steer</span><span><kbd>SPACE</kbd> handbrake · <kbd>N</kbd> or <kbd>SHIFT</kbd> NOS (drift to charge · NOS in a drift = boost)</span>
       <span><kbd>M</kbd> drive mode</span><span><kbd>C</kbd> camera</span>
       <span><kbd>P</kbd> paint</span><span><kbd>T</kbd> auto / manual · <kbd>Q E</kbd> shift</span>
       <span><kbd>R</kbd> reset to track · <kbd>ESC</kbd> menu</span><span><kbd>B</kbd> music (downtempo 100 · dark drive 120 · off) · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
@@ -7008,7 +7008,7 @@ function readInput() {
   inp.throttle = Math.max(k('ArrowUp'), k('KeyW'), touch.gas);
   inp.brake = Math.max(k('ArrowDown'), k('KeyS'), touch.brake);
   inp.hand = !!(keys.Space || touch.hand);
-  inp.nos = !!keys.KeyN || !!touch.nos;
+  inp.nos = !!keys.KeyN || !!keys.ShiftLeft || !!keys.ShiftRight || !!touch.nos;   // N or Shift: a second key for keyboards that ghost Up + arrow + N
   const gps = navigator.getGamepads ? navigator.getGamepads() : null;
   const gp = gps && (gps[0] || gps[1] || gps[2] || gps[3]);
   if (gp) {
@@ -7108,7 +7108,7 @@ function startGame() {
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
 { // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
   // rebuilds the page) comes back to the mode screen with everything as it was
@@ -7198,6 +7198,23 @@ const audio = {
     const o = C.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 55; const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 140; const og = C.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.35, t + 0.08);
     n.connect(hp); hp.connect(g); g.connect(this.busFx); o.connect(lp); lp.connect(og); og.connect(this.busFx); n.start(t); o.start(t);
     this.nosNodes = { n, o, g, og };
+  },
+  rumbleStart() {
+    // drift boost: a low, slow-throbbing rumble that rides under everything until the boost ends
+    if (!this.ctx || !st.sound) return; const C = this.ctx, t = C.currentTime; this.rumbleStop();
+    const o1 = C.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 41; const o2 = C.createOscillator(); o2.type = 'sine'; o2.frequency.value = 55; const o3 = C.createOscillator(); o3.type = 'square'; o3.frequency.value = 27.5;
+    const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 150; lp.Q.value = 1.2;
+    const n = C.createBufferSource(); n.buffer = this._noiseBuf; n.loop = true; const nl = C.createBiquadFilter(); nl.type = 'lowpass'; nl.frequency.value = 110; const ng = C.createGain(); ng.gain.value = 0.7;
+    const trem = C.createGain(); trem.gain.value = 0.7; const lfo = C.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 5.5; const lg = C.createGain(); lg.gain.value = 0.3; lfo.connect(lg); lg.connect(trem.gain);
+    const g = C.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t + 0.12);
+    o1.connect(lp); o2.connect(lp); o3.connect(lp); n.connect(nl); nl.connect(ng); ng.connect(lp); lp.connect(trem); trem.connect(g); g.connect(this.busFx);
+    o1.start(t); o2.start(t); o3.start(t); n.start(t); lfo.start(t);
+    this.rumble = { nodes: [o1, o2, o3, n, lfo], g };
+  },
+  rumbleStop() {
+    if (!this.ctx || !this.rumble) return; const C = this.ctx, t = C.currentTime, r = this.rumble; this.rumble = null;
+    r.g.gain.cancelScheduledValues(t); r.g.gain.setValueAtTime(r.g.gain.value, t); r.g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    for (const x of r.nodes) x.stop(t + 0.4);
   },
   nosStop() {
     if (!this.ctx || !this.nosNodes) return; const C = this.ctx, t = C.currentTime, x = this.nosNodes; this.nosNodes = null;
@@ -7414,7 +7431,7 @@ function step(dt) {
   if (m.ev && st.gear !== 0) st.gear = 0;
   // longitudinal forces
   // nitrous: hold N. ~1500 CV while the tank lasts (5 s), refills slowly when released
-  if (st.nos <= 0.02) st.nosEmpty = true; else if (st.nos > 0.25) st.nosEmpty = false;   // hysteresis: an empty tank must refill to a quarter before it fires again
+  if (st.nos <= 0.02) st.nosEmpty = true; else if (st.nos > 0.10) st.nosEmpty = false;   // hysteresis: an empty tank needs a tenth back before it fires again (no flapping at empty)
   if (TRACK.rings && !st.nosOn) st.nos = st.coins >= 10 ? 1 : 0;   // SUPERSONIC: ten rings arm the tank
   const wantNos = inp.nos && !m.ev && st.throttle > 0.2 && !st.nosEmpty && !st.air && (!TRACK.rings || st.coins >= 10 || st.nosOn);   // rings arm it; once lit it runs on the tank
   if (wantNos && !st.nosOn) { audio.nosStart(); if (TRACK.rings) { st.coins = 0; if (st.super) flash('SUPERSONIC OVER', 900); } }
@@ -7425,7 +7442,8 @@ function step(dt) {
   // charges the tank almost as fast as the boost drains it); straighten up and it falls back to plain NOS
   if (st.nosOn && (st.drift || 0) > 0.5) st.driftBoostT = 0.6; else st.driftBoostT = Math.max(0, (st.driftBoostT || 0) - dt);   // a short bridge over dips in the slide
   const driftBoost = st.nosOn && st.driftBoostT > 0;
-  if (driftBoost && !st.driftBoostOn) { flash('DRIFT BOOST', 900, '#b48cff'); audio.beep(1760, 0.18); st.u += Math.sign(st.u || 1) * 5.5; st.shake = Math.max(st.shake || 0, 0.55); }   // the jolt
+  if (driftBoost && !st.driftBoostOn) { flash('DRIFT BOOST', 900, '#b48cff'); audio.beep(1760, 0.18); audio.rumbleStart(); st.u += Math.sign(st.u || 1) * 5.5; st.shake = Math.max(st.shake || 0, 0.55); }   // the jolt
+  if (!driftBoost && st.driftBoostOn) audio.rumbleStop();
   st.driftBoostOn = driftBoost;
   const DN = diffNow().nos;
   const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30;
