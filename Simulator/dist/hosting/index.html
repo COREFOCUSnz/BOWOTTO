@@ -91,7 +91,9 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #lapsel,#diffsel{display:flex;gap:8px;align-items:center;margin:10px 0 6px;pointer-events:auto;font-size:12px;letter-spacing:.3em;color:var(--dim)}
 #lapsel.hidden{visibility:hidden}
 #diffsel.hidden{display:none}
-#diffsel button{width:auto;padding:0 12px;font-size:13px;letter-spacing:.2em}
+#diffsel{flex-direction:column;align-items:center;gap:6px}
+#diffsel span{margin-bottom:2px}
+#diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
 #lapsel button,#diffsel button{font:inherit;font-size:16px;font-weight:700;width:46px;height:36px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--hud);border-radius:4px;cursor:pointer}
 #lapsel button.on,#diffsel button.on{border-color:var(--amber);background:rgba(46,230,255,.16)}
 #race{position:absolute;left:0;right:0;top:16px;pointer-events:none}
@@ -136,6 +138,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #settings .cred{font-size:11px;letter-spacing:.16em;color:var(--dim);line-height:1.8;margin:0 0 16px}
 #settings .cred a{color:var(--amber);text-decoration:none}
 #settings .btns button{font:inherit;font-size:13px;letter-spacing:.26em;font-weight:700;padding:8px 22px;border-radius:4px;border:0;background:var(--amber);color:#02121a;cursor:pointer}
+#diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
 
 </style>
 </head>
@@ -5774,20 +5777,56 @@ const boostMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: fals
   const wall = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: wallTex, emissiveMap: wallTex, emissive: 0xffffff, emissiveIntensity: 1.3, metalness: 0.5, roughness: 0.4, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })); wall.receiveShadow = true; scene.add(wall);
   instanced(new THREE.BoxGeometry(0.12, 1.0, 0.12).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ color: 0x0a1626, metalness: 0.6, roughness: 0.5 }), posts, false);
 }
-{ // start gantry, billboards, pit building
+{ // start gantry: two wide towers and a big LED banner. CORE FOCUS PRODUCTIONS, the sim's name and GOOD LUCK, then the COREZ clip
   const dark = new THREE.MeshStandardMaterial({ color: 0x0a1220, roughness: 0.5, metalness: 0.6 });
   const gantry = new THREE.Group();
-  const post = new THREE.BoxGeometry(0.5, 7, 0.5).translate(0, 3.5, 0);
-  for (const s of [-1, 1]) { const p = new THREE.Mesh(post, dark); p.position.set(0, 0, s * 9.5); p.castShadow = true; gantry.add(p); }
-  const chk = canvasTex(128, (ctx, s) => { for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { ctx.fillStyle = (x + y) % 2 ? '#06101c' : '#2ee6ff'; ctx.fillRect(x * 16, y * 16, 16, 16); } });
-  chk.repeat.set(12, 1);
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.4, 19.5), new THREE.MeshStandardMaterial({ map: chk, emissiveMap: chk, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.7 }));
-  beam.position.y = 7.2; beam.castShadow = true; gantry.add(beam);
-  const lineTex = canvasTex(64, (ctx, s) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { ctx.fillStyle = (x + y) % 2 ? '#06101c' : '#8ff4ff'; ctx.fillRect(x * 16, y * 16, 16, 16); } });
+  const post = new THREE.BoxGeometry(1.6, 11, 1.6).translate(0, 5.5, 0);
+  for (const sg of [-1, 1]) { const p = new THREE.Mesh(post, dark); p.position.set(0, 0, sg * 12.4); p.castShadow = true; gantry.add(p); const strip = new THREE.Mesh(new THREE.BoxGeometry(0.1, 10.6, 0.25), neonMat); strip.position.set(-0.85, 5.5, sg * 12.4); gantry.add(strip); }
+  const BW = 24, BH = 6.2, BY = 9.4;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.8, BH + 0.8, BW + 1.0), dark); back.position.set(0.3, BY, 0); back.castShadow = true; gantry.add(back);
+  for (const sy of [-1, 1]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, BW + 1.0), neonMat); e.position.set(-0.16, BY + sy * (BH / 2 + 0.36), 0); gantry.add(e); }
+  const bcv = document.createElement('canvas'); bcv.width = 2048; bcv.height = 528; const bctx = bcv.getContext('2d');
+  const btex = new THREE.CanvasTexture(bcv); btex.encoding = THREE.sRGBEncoding; btex.anisotropy = maxAniso;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), new THREE.MeshBasicMaterial({ map: btex, toneMapped: false }));
+  screen.position.set(-0.12, BY, 0); screen.rotation.y = -Math.PI / 2; gantry.add(screen);   // faces the cars coming up to the line
+  // LED dot mask, drawn once
+  const mask = document.createElement('canvas'); mask.width = 2048; mask.height = 528; { const mc = mask.getContext('2d'); mc.fillStyle = '#000'; mc.fillRect(0, 0, 2048, 528); mc.globalCompositeOperation = 'destination-out'; for (let y = 4; y < 528; y += 8) for (let x = 4; x < 2048; x += 8) { mc.beginPath(); mc.arc(x, y, 3.1, 0, Math.PI * 2); mc.fill(); } }
+  const lineTex = canvasTex(64, (ctx, sz) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { ctx.fillStyle = (x + y) % 2 ? '#06101c' : '#8ff4ff'; ctx.fillRect(x * 16, y * 16, 16, 16); } });
   lineTex.repeat.set(1, 12);
   const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
   gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); scene.add(gantry);
+  const PERIOD = 15;   // 0–8 s the words, 8–15 s the COREZ clip
+  let bannerTick = 0;
+  window.__bannerAnimate = now => {
+    const t = now / 1000, ph = t % PERIOD, vid = document.getElementById('revuelto-poster-video');
+    const clip = ph >= 8 && vid && vid.readyState >= 2 && vid.videoWidth;
+    if (!clip && now - bannerTick < 66) return; bannerTick = now;
+    const W = bcv.width, H = bcv.height, c = bctx;
+    c.globalCompositeOperation = 'source-over'; c.fillStyle = '#02050c'; c.fillRect(0, 0, W, H);
+    if (clip) {
+      const fade = Math.min(1, (ph - 8) / 0.8, (PERIOD - ph) / 0.8);
+      const r = Math.min(W / vid.videoWidth, H / vid.videoHeight), iw = vid.videoWidth * r, ih = vid.videoHeight * r;
+      c.globalAlpha = fade; c.drawImage(vid, (W - iw) / 2, (H - ih) / 2, iw, ih); c.globalAlpha = 1;
+    } else {
+      const fadeIn = smoothstep(0, 1.2, ph), fade2 = smoothstep(2.2, 3.4, ph), out = 1 - smoothstep(7.2, 8, ph);
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      // sweeping shimmer across the top line
+      const sx = ((ph * 0.28) % 1.3 - 0.15) * W;
+      c.globalAlpha = fadeIn * out; c.shadowColor = '#2ee6ff'; c.shadowBlur = 36;
+      c.fillStyle = '#eafcff'; c.font = '900 168px Orbitron, Bahnschrift, "Arial Black", sans-serif';
+      c.fillText('CORE FOCUS PRODUCTIONS', W / 2, H * 0.34);
+      const gr = c.createLinearGradient(sx - 260, 0, sx + 260, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      c.globalCompositeOperation = 'source-atop'; c.fillStyle = gr; c.fillRect(sx - 260, 0, 520, H * 0.6); c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = fade2 * out; c.shadowColor = '#ff7a00'; c.shadowBlur = 24; c.fillStyle = '#ffb060';
+      c.font = '700 118px "Barlow Condensed", Orbitron, "Arial Narrow", sans-serif';
+      const blink = Math.floor(ph * 2) % 2 === 0 || ph < 5.5;
+      c.fillText('LAMBORGHINI REVUELTO SIM' + (blink ? '  ·  GOOD LUCK' : ''), W / 2, H * 0.76);
+      c.shadowBlur = 0; c.globalAlpha = 1;
+    }
+    c.drawImage(mask, 0, 0);   // the LED matrix
+    btex.needsUpdate = true;
+  };
 }
 // ---------------------------------------------------------------- signage: large animated screens on slim pylons, facing oncoming traffic
 const signs = [];
@@ -6239,12 +6278,16 @@ function syncPose() {
 // SOLO is the open track. TIME TRIAL is a standing start and a lap count. VERSUS adds three AI Lamborghinis on a grid
 // with full contact: shoves, tailgating and a badly judged hit that spins whoever got it wrong.
 const GAME = { mode: 'solo', laps: 3, diff: 1, state: 'free', cd: 0, cdShown: -1, startT: 0, finishT: null, lapTimes: [], resultsAt: 0, order: [] };
-const DIFFS = [   // rival pace: cornering and straight-line multipliers, the rubber band's reach, and how hard they lean on you
-  { name: 'EASY', skill: 0.86, vmax: 86, band: [0.84, 1.03] },
-  { name: 'MEDIUM', skill: 0.95, vmax: 92, band: [0.90, 1.07] },
-  { name: 'HARD', skill: 1.02, vmax: 96, band: [0.95, 1.10] },
-  { name: 'IMPOSSIBLE', skill: 1.12, vmax: 101, band: [1.0, 1.16] },
+// difficulty: rival pace (cornering and top-speed multipliers, the rubber band's reach), aggression (how often they come for
+// you), rival NOS, how often they make a mistake, and the player's own car: more power and sharper steering up the levels so
+// it is harder to handle, and a NOS tank that drains faster and charges slower
+const DIFFS = [
+  { name: 'EASY', skill: 0.88, vmax: 88, band: [0.84, 1.03], aggr: 0, nosAI: false, mistake: [16, 36], player: { power: 1.0, grip: 1.0, steer: 1.0 }, nos: { drain: 0.65, charge: 1.8 } },
+  { name: 'MEDIUM', skill: 1.12, vmax: 97, band: [0.97, 1.14], aggr: 0.45, nosAI: true, mistake: [40, 80], player: { power: 1.08, grip: 1.02, steer: 1.12 }, nos: { drain: 1.0, charge: 1.0 } },
+  { name: 'HARD', skill: 1.20, vmax: 100, band: [1.0, 1.18], aggr: 0.75, nosAI: true, mistake: [70, 140], player: { power: 1.16, grip: 1.05, steer: 1.22 }, nos: { drain: 1.2, charge: 0.75 } },
+  { name: 'IMPOSSIBLE', skill: 1.30, vmax: 104, band: [1.04, 1.25], aggr: 1.0, nosAI: true, mistake: [140, 300], player: { power: 1.25, grip: 1.08, steer: 1.32 }, nos: { drain: 1.35, charge: 0.6 } },
 ];
+const diffNow = () => GAME.mode === 'versus' ? DIFFS[GAME.diff] : DIFFS[1];
 const RIVALS = [
   { name: 'MANTIS', hex: 0x30d21c, skill: 0.985, lane: -1 },   // Verde Mantis
   { name: 'INTI', hex: 0xffc400, skill: 0.965, lane: 1 },      // Giallo Inti
@@ -6340,7 +6383,7 @@ function buildRivalVisual(a) {
 }
 function makeRival(R) {
   const a = { name: R.name, hex: R.hex, skill: R.skill, lane: R.lane, s: 0, d: 0, u: 0, dv: 0, psi: 0, spinT: 0, spinDir: 1, crossings: 0, lastP: 0, finishT: null, lapStart: null, best: null,
-    boostT: 0, boostCd: 0, glow: 0, hitT: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(), idx: 0, grp: null, body: null, wheels: [], snd: null };
+    boostT: 0, boostCd: 0, glow: 0, hitT: 0, nos: 1, nosOn: false, attackT: 0, attack: 0, errT: 20 + Math.random() * 30, mistake: null, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(), idx: 0, grp: null, body: null, wheels: [], snd: null };
   buildRivalVisual(a); return a;
 }
 function rivalPose(a) {
@@ -6359,18 +6402,40 @@ function rivalStep(a, dt, now) {
   // rubber band on the player's progress: chase harder when behind, ease off when well ahead. Keeps it a fight
   const gap = progressOf(st) - progressOf(a);
   const D = DIFFS[GAME.diff], rubber = clamp(1 + gap / 3500, D.band[0], D.band[1]);
-  const target = go ? Math.min(D.vmax, VLIM[i] * a.skill * D.skill * rubber) : 0;
+  let target = go ? Math.min(D.vmax, VLIM[i] * a.skill * D.skill * rubber) : 0;
+  const dsP = fwdGap(st.s, a.s);                                                     // player ahead of this rival by
+  // rival NOS (not on Easy): a straight ahead, a full tank, the player within reach, and it goes
+  if (D.nosAI && go && a.spinT <= 0) {
+    const look2 = (i + Math.round(clamp(a.u * 2.5, 60, 250) / (trackLen / N))) % N;
+    if (!a.nosOn && a.nos > 0.99 && Math.abs(KAPPA[look2]) < 1 / 500 && VLIM[i] > 55 && Math.abs(dsP) < 260 && Math.random() < dt * 0.6) a.nosOn = true;
+    if (a.nosOn) { a.nos -= dt / 4; if (a.nos <= 0 || VLIM[i] < a.u * 0.85) a.nosOn = false; target = Math.min(D.vmax * 1.06, target * 1.15); a.glow = 1; }
+    else a.nos = Math.min(1, a.nos + dt / 28);
+  } else a.nosOn = false;
+  // mistakes: every so often (rarer up the levels) a rival runs wide into the wall, brakes far too early, or loses it
+  a.errT -= dt;
+  if (a.errT <= 0 && go && a.spinT <= 0 && !a.mistake) {
+    const r = Math.random(); a.errT = D.mistake[0] + Math.random() * (D.mistake[1] - D.mistake[0]);
+    if (r < 0.55) a.mistake = { type: 'wide', t: 1.5, side: a.d >= 0 ? 1 : -1 }; else if (r < 0.85) a.mistake = { type: 'brake', t: 1.3 }; else { a.spinT = 0.9; a.spinDir = Math.random() < 0.5 ? 1 : -1; }
+  }
+  if (a.mistake) { a.mistake.t -= dt; if (a.mistake.type === 'brake') target *= 0.55; if (a.mistake.t <= 0) a.mistake = null; }
+  // aggression (Medium and up): now and then, with the player in reach, a rival lines up to shunt or squeeze
+  a.attackT -= dt;
+  if (a.attackT <= 0) { a.attackT = 4 + Math.random() * 5; if (D.aggr > 0 && go && dsP > -30 && dsP < 25 && Math.random() < D.aggr) a.attack = 2.5 + D.aggr; }
+  if (a.attack > 0) { a.attack -= dt; if (dsP > 1 && dsP < 25) target = Math.max(target, Math.abs(st.u) + 6 + 4 * D.aggr); }
   if (a.spinT > 0) { a.spinT -= dt; a.psi += a.spinDir * 5.5 * dt; a.u = Math.max(0, a.u - 9 * dt); a.dv *= Math.max(0, 1 - 2 * dt); }
   else {
     a.psi = damp(a.psi, Math.atan2(a.dv, Math.max(a.u, 4)), 6, dt);
-    if (a.u < target) { const acc = Math.min(10.5, CAR.powerW * CAR.drivelineEff * 0.9 / (CAR.mass * Math.max(a.u, 4))) * (a.boostT > 0 ? 1.7 : 1); a.u = Math.min(target, a.u + acc * dt); }
+    if (a.u < target) { const acc = Math.min(10.5, CAR.powerW * CAR.drivelineEff * 0.9 / (CAR.mass * Math.max(a.u, 4))) * (a.boostT > 0 ? 1.7 : 1) * (a.nosOn ? 1.8 : 1); a.u = Math.min(target, a.u + acc * dt); }
     else a.u = Math.max(target, a.u - 13 * dt);
     // the line: inside of the next corner, own lane on the straights, and round whatever is in the way
     const look = (i + Math.round(clamp(a.u * 1.8, 40, 200) / (trackLen / N))) % N;
     let dT = -Math.sign(KAPPA[look]) * clamp(Math.abs(KAPPA[look]) * 900, 0, 2.8) + a.lane * 1.6;
-    const cars = [{ s: st.s, d: st.d, u: st.u }]; for (const o of ai) if (o !== a) cars.push(o);
+    const attacking = a.attack > 0 && dsP > -8 && dsP < 25;
+    const cars = attacking ? [] : [{ s: st.s, d: st.d, u: st.u }]; for (const o of ai) if (o !== a) cars.push(o);
     for (const o of cars) { const ds = fwdGap(o.s, a.s); if (ds > -6 && ds < 26 + a.u * 0.35 && Math.abs(o.d - a.d) < 2.9 && o.u <= a.u + 8) { dT = (o.d > a.d || (o.d === a.d && a.lane >= 0)) ? o.d - 3.4 : o.d + 3.4; break; } }
-    dT = clamp(dT, -(ROAD_HALF - 1.1), ROAD_HALF - 1.1);
+    if (attacking) dT = dsP > 5 ? st.d : st.d + (a.d > st.d ? -1.4 : 1.4);                         // line up behind, or lean on the door
+    if (a.mistake && a.mistake.type === 'wide') dT = a.mistake.side * (ROAD_HALF + 1.6);            // ...and sometimes it all goes wrong
+    dT = clamp(dT, -(ROAD_HALF + 2), ROAD_HALF + 2);
     const dvT = clamp((dT - a.d) * 1.4, -1, 1) * Math.min(6.5, 0.16 * a.u + 1);
     a.dv = damp(a.dv, dvT, 3.5, dt);
   }
@@ -6394,7 +6459,7 @@ function rivalStep(a, dt, now) {
   const steer = a.spinT > 0 ? 0 : clamp(a.dv * 0.08, -0.35, 0.35);
   for (const w of a.wheels) { if (w.custom) { w.node.rotation.x += a.u * dt / 0.35; w.node.rotation.y = w.front ? steer : 0; } else { w.spin.rotation.z -= a.u * dt / w.r; w.node.rotation.y = w.front ? steer : 0; } }
   a.body.rotation.z = damp(a.body.rotation.z, 0, 8, dt); a.body.rotation.x = damp(a.body.rotation.x, a.dv * 0.02, 8, dt);
-  a.glowDisc.material.opacity = 0.45 + 0.5 * a.glow;
+  a.glowDisc.material.opacity = 0.45 + 0.5 * a.glow; a.glowDisc.material.color.setHex(a.nosOn ? 0xa64dff : a.hex);
 }
 // car-to-car contact, on momentum. Both cars are 4.95 × 2.03 m boxes in track coordinates and the shallower overlap
 // picks the contact normal. Along it the closing speed is exchanged as an impulse (equal masses, restitution 0.35) with a
@@ -6910,7 +6975,7 @@ const rpmForGear = (u, g) => Math.abs(u) * 3.6 / CAR.gearTopKmh[g] * CAR.redline
 function step(dt) {
   const m = MODES[st.mode];
   // input shaping
-  const rate = Math.abs(inp.steer) > Math.abs(st.steer) ? 5.5 : 9.0;   // quicker steering response
+  const DS = diffNow().player.steer, rate = (Math.abs(inp.steer) > Math.abs(st.steer) ? 5.5 : 9.0) * DS;   // quicker steering response; sharper up the levels
   st.steer += clamp(inp.steer - st.steer, -rate * dt, rate * dt);
   st.throttle += clamp(inp.throttle - st.throttle, -10 * dt, 7 * dt);
   st.brake = inp.brake; st.hand = inp.hand;
@@ -6943,11 +7008,12 @@ function step(dt) {
   const driftBoost = st.nosOn && st.driftBoostT > 0;
   if (driftBoost && !st.driftBoostOn) { flash('DRIFT BOOST', 900, '#b48cff'); audio.beep(1760, 0.18); }
   st.driftBoostOn = driftBoost;
-  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
-  else { const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30; st.nos = Math.min(1, st.nos + dt * charge); }
-  const nosMul = driftBoost ? 2.0 : st.nosOn ? 1.5 : 1;
-  const Pe = CAR.powerW * CAR.drivelineEff * m.power * nosMul;
-  const Ftrac = CAR.mass * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1) * (st.nosOn ? 1.35 : 1);
+  const DN = diffNow().nos;
+  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5 * DN.drain); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
+  else { const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30; st.nos = Math.min(1, st.nos + dt * charge * DN.charge); }
+  const nosMul = driftBoost ? 2.0 : st.nosOn ? 1.5 : 1, DP = diffNow().player;
+  const Pe = CAR.powerW * CAR.drivelineEff * m.power * nosMul * DP.power;
+  const Ftrac = CAR.mass * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1) * (st.nosOn ? 1.35 : 1) * DP.grip;
   let F = 0;
   if (!st.reverse) {
     F = st.throttle * Math.min(Ftrac, Pe / Math.max(v, 2.5)) * (m.ev ? 1 : torqueFactor(st.rpm));
@@ -6973,9 +7039,9 @@ function step(dt) {
   if (v < 0.05 && Math.abs(F) < 1) st.u = 0;
   if (GAME.state === 'countdown') { st.u = 0; st.w = 0; }                           // on the grid: rev it, but the lights are red
   // lateral / yaw
-  let mu = m.grip * (st.offroad ? 0.42 : 1); if (st.hand) mu *= 0.45;
+  let mu = m.grip * DP.grip * (st.offroad ? 0.42 : 1); if (st.hand) mu *= 0.45;
   const dmax = Math.min(0.70, Math.atan(CAR.wheelbase * 2.3 * mu * G / Math.max(st.u * st.u, 1)));   // more lock at speed: sharper turn-in, the tyres decide when it slides
-  st.delta = st.steer * dmax;
+  st.delta = st.steer * Math.min(0.78, dmax * DS);
   let wTarget = st.u / CAR.wheelbase * Math.tan(st.delta);
   const slipAng = Math.atan2(st.w, Math.abs(st.u) + 0.5);
   // drifting: the handbrake, or power-oversteer in Sport / Corsa (hard throttle + steering at 30–150 km/h), or an
@@ -7203,6 +7269,7 @@ function frame(now) {
   trailUpdate();
   gridMat.uniforms.uCar.value.copy(car.position); gridMat.uniforms.uTime.value = now / 1000;
   if (window.__signAnimate) window.__signAnimate(now);
+  if (window.__bannerAnimate) window.__bannerAnimate(now);
   if ((frames & 1) === 0) { car.visible = false; mirror.visible = false; for (const a of ai) a.grp.visible = a.pos.distanceToSquared(st.pos) < 45 * 45; cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); car.visible = true; mirror.visible = true; for (const a of ai) a.grp.visible = true; }
   bodyGroup.rotation.z = damp(bodyGroup.rotation.z, st.aLong * 0.004, 8, dt);
   bodyGroup.rotation.x = damp(bodyGroup.rotation.x, st.aLat * 0.006, 8, dt);

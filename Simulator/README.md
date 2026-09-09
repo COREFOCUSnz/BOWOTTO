@@ -46,10 +46,24 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   more than half a second the nose swings round on its own (TURNING AROUND).
   `R` still resets to the track. The HUD's top-left has click buttons for
   the music track and sound alongside the B and V keys.
-- **Difficulty** for Versus, remembered between sessions: Easy, Medium, Hard,
-  Impossible scale the rivals' cornering speed (0.86 / 0.95 / 1.02 / 1.12),
-  top speed (310 / 331 / 346 / 364 km/h) and how far the rubber band lets
-  them fall back or pull ahead; on Impossible they never slow for you.
+- **Difficulty** for Versus, remembered between sessions. Easy, Medium, Hard
+  and Impossible scale the rivals' cornering speed (0.88 / 1.12 / 1.20 /
+  1.30) and top speed (317 / 349 / 360 / 374 km/h), how far the rubber band
+  lets them fall back or pull ahead (from Medium up they never slow for
+  you), how aggressive they are (never / 45 % / 75 % / always: with you in
+  reach a rival lines up behind to shunt or leans on your door), whether
+  they use NOS (not on Easy: a full tank on a straight with you within
+  260 m, 1.15× target speed for four seconds, purple underglow), and how
+  often one of them messes up (a wall-scraping run wide, a far-too-early
+  brake, or a spin, every 16–36 s on Easy down to every 140–300 s on
+  Impossible). Your own car scales too: power 1.0 / 1.08 / 1.16 / 1.25,
+  grip up to 1.08, steering response and lock up to 1.32×, so it is faster
+  and twitchier up the levels. NOS economy per level: Easy drains at 0.65×
+  and charges at 1.8×; Impossible drains at 1.35× and charges at 0.6×.
+- **Start gantry.** Two 11 m towers and a 24 × 6 m LED banner over the line:
+  CORE FOCUS PRODUCTIONS sweeps in, LAMBORGHINI REVUELTO SIM · GOOD LUCK
+  blinks under it, and every 15 s it cross-fades to the COREZ clip, all
+  through an LED dot matrix.
 - **Drive modes** Città (EV only, 180 CV), Strada, Sport (looser rear),
   Corsa (full power, most grip). `M` or `1`–`4`.
 - **Circuit** 19.4 km on The Grid, in three dimensions: a 1.2 km main

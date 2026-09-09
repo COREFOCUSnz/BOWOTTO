@@ -81,7 +81,9 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #lapsel,#diffsel{display:flex;gap:8px;align-items:center;margin:10px 0 6px;pointer-events:auto;font-size:12px;letter-spacing:.3em;color:var(--dim)}
 #lapsel.hidden{visibility:hidden}
 #diffsel.hidden{display:none}
-#diffsel button{width:auto;padding:0 12px;font-size:13px;letter-spacing:.2em}
+#diffsel{flex-direction:column;align-items:center;gap:6px}
+#diffsel span{margin-bottom:2px}
+#diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
 #lapsel button,#diffsel button{font:inherit;font-size:16px;font-weight:700;width:46px;height:36px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--hud);border-radius:4px;cursor:pointer}
 #lapsel button.on,#diffsel button.on{border-color:var(--amber);background:rgba(46,230,255,.16)}
 #race{position:absolute;left:0;right:0;top:16px;pointer-events:none}
@@ -126,3 +128,4 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #settings .cred{font-size:11px;letter-spacing:.16em;color:var(--dim);line-height:1.8;margin:0 0 16px}
 #settings .cred a{color:var(--amber);text-decoration:none}
 #settings .btns button{font:inherit;font-size:13px;letter-spacing:.26em;font-weight:700;padding:8px 22px;border-radius:4px;border:0;background:var(--amber);color:#02121a;cursor:pointer}
+#diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
