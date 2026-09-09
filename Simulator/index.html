@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Revuelto Sim</title>
+<title>LAMBO SIM · Lamborghini Revuelto</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2306060a'/%3E%3Cpath d='M10 40h44l-6-12H22l-6 6z' fill='%232ee6ff'/%3E%3Ccircle cx='20' cy='44' r='5' fill='%23f4f1ea'/%3E%3Ccircle cx='46' cy='44' r='5' fill='%23f4f1ea'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="sim.css">
@@ -53,7 +54,7 @@
       <span><kbd>M</kbd> drive mode</span><span><kbd>C</kbd> camera</span>
       <span><kbd>P</kbd> paint</span><span><kbd>T</kbd> auto / manual · <kbd>Q E</kbd> shift</span>
       <span><kbd>R</kbd> reset to track · <kbd>ESC</kbd> menu</span><span><kbd>B</kbd> music (downtempo 100 · dark drive 120 · off) · <kbd>L</kbd> light trail · <kbd>G</kbd> bloom · <kbd>F</kbd> quality · <kbd>V</kbd> sound · <kbd>H</kbd> hide</span>
-      <span style="grid-column:1/3;opacity:.7">drop a .glb to swap the car model · drop a picture or a clip onto the page for the COREZ board · gamepad supported · model: "Lamborghini Revuelto" by DRIVER-FIRE, CC BY 4.0</span>
+      <span style="grid-column:1/3;opacity:.7">drop a .glb to swap the car model · drop a picture or a clip onto the page for the COREZ board · gamepad supported · <kbd>ESC</kbd> menu → settings &amp; credits</span>
     </div>
     <div id="touch">
       <div class="tbtn" id="t-left" data-k="left">◀</div>
@@ -81,7 +82,23 @@
     <div id="lapsel" class="hidden"><span>LAPS</span><button data-l="3" class="on">3</button><button data-l="5">5</button><button data-l="10">10</button></div>
     <div id="diffsel" class="hidden"><span>RIVALS</span><button data-d="0">EASY</button><button data-d="1" class="on">MEDIUM</button><button data-d="2">HARD</button><button data-d="3">IMPOSSIBLE</button></div>
     <button id="start-btn">START ENGINE</button>
-    <p class="credit">CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0</p>
+    <p class="credit"><button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
+  </div>
+  <div id="settings" class="hidden">
+    <h2>SETTINGS</h2>
+    <div class="rows">
+      <div><span>QUALITY</span><button data-set="quality">HIGH</button></div>
+      <div><span>BLOOM</span><button data-set="bloom">ON</button></div>
+      <div><span>SOUND</span><button data-set="sound">ON</button></div>
+      <div><span>MUSIC</span><button data-set="music">DOWNTEMPO · 100</button></div>
+      <div><span>LIGHT TRAIL</span><button data-set="trail">OFF</button></div>
+      <div><span>ANNOUNCER</span><button data-set="voice">ON</button></div>
+    </div>
+    <h2>CREDITS</h2>
+    <p class="cred">CORE FOCUS PRODUCTIONS · COREY FRIEDLANDER<br>
+    CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
+    3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
+    <div class="btns"><button id="settings-close">CLOSE</button></div>
   </div>
 </div>
 <script src="vendor/three.min.js"></script>

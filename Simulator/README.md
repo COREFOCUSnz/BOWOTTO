@@ -86,6 +86,25 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
 
+## Hosting it (Firebase)
+
+`python3 Simulator/build.py` also writes `Simulator/dist/hosting/`: the page as
+`index.html` with `revuelto.glb` and `poster.webm` as separate files the
+browser caches (the model and the clip are ignored by git; the build copies
+them from `models/`). `Simulator/firebase.json` points Firebase Hosting at
+that folder with sensible cache headers. To deploy:
+
+```
+npm install -g firebase-tools
+cd Simulator
+python3 build.py
+firebase login
+firebase use <your-project-id>        # the LAMBO SIM project
+firebase deploy --only hosting
+```
+
+Any other static host (GitHub Pages, Netlify) can serve the same folder.
+
 ## The COREZ board
 
 The poster board near the start shows whatever sits in `models/` as

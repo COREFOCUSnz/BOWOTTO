@@ -1195,8 +1195,9 @@ function startRace(mode, laps) {
 const announcer = {
   voice: null,
   pick() { try { const vs = speechSynthesis.getVoices(); this.voice = vs.find(v => /^en/i.test(v.lang) && /male|daniel|david|mark|george|ryan|guy|james/i.test(v.name)) || vs.find(v => /^en[-_](GB|AU|NZ)/i.test(v.lang)) || vs.find(v => /^en/i.test(v.lang)) || null; } catch (e) {} },
+  on: true,
   say(text, rate = 1, pitch = 0.8) {
-    if (!st.sound || !window.speechSynthesis) return;
+    if (!this.on || !st.sound || !window.speechSynthesis) return;
     try { if (!this.voice) this.pick(); const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = pitch; u.volume = 1; if (this.voice) u.voice = this.voice; speechSynthesis.speak(u); } catch (e) {}
   },
   stop() { try { speechSynthesis.cancel(); } catch (e) {} },
@@ -1298,7 +1299,7 @@ window.addEventListener('keydown', e => {
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
   keys[e.code] = true;
   if (!$('start').classList.contains('hidden')) { if (e.code !== 'Escape') startGame(); }
-  if (e.code === 'Escape') { toMenu(); return; }
+  if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; } toMenu(); return; }
   switch (e.code) {
     case 'KeyM': setMode(st.mode + 1); break;
     case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': setMode(+e.code.slice(-1) - 1); break;
@@ -1341,6 +1342,26 @@ function audioBtns() {
 }
 $('btn-music').addEventListener('click', e => { e.stopPropagation(); flash(music.cycle(), 1000); audioBtns(); });
 $('btn-sound').addEventListener('click', e => { e.stopPropagation(); st.sound = !st.sound; flash(st.sound ? 'SOUND ON' : 'SOUND OFF', 700); audioBtns(); });
+// settings & credits panel (start screen link, or ESC in the menu)
+function settingsRefresh() {
+  const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF' };
+  document.querySelectorAll('#settings [data-set]').forEach(b => { b.textContent = v[b.dataset.set]; });
+}
+document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListener('click', e => {
+  e.stopPropagation();
+  switch (b.dataset.set) {
+    case 'quality': hiQ = !hiQ; resize(); break;
+    case 'bloom': bloomOn = !bloomOn; break;
+    case 'sound': st.sound = !st.sound; break;
+    case 'music': music.cycle(); break;
+    case 'trail': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); break;
+    case 'voice': announcer.on = !announcer.on; break;
+  }
+  settingsRefresh(); audioBtns();
+}));
+$('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
+$('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
+$('settings').addEventListener('click', e => e.stopPropagation());
 let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {

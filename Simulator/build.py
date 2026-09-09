@@ -6,6 +6,7 @@
 
 writes  Simulator/dist/revuelto.html           full page (open it directly in a browser)
         Simulator/dist/revuelto.artifact.html  body fragment used for claude.ai Artifact publishing
+        Simulator/dist/hosting/                index.html + revuelto.glb + poster.webm for Firebase Hosting / any static host
 """
 import base64
 import os
@@ -56,6 +57,25 @@ def main():
     os.makedirs(DIST, exist_ok=True)
     with open(os.path.join(DIST, "revuelto.html"), "w", encoding="utf-8") as f:
         f.write(full)
+    # hosting build (Firebase Hosting, GitHub Pages, any static host): the page as index.html with the model and the
+    # poster clip as separate cached files instead of inline text
+    import shutil
+    host = os.path.join(DIST, "hosting")
+    os.makedirs(host, exist_ok=True)
+    hpage = inline(src)
+    if os.path.exists(model):
+        shutil.copyfile(model, os.path.join(host, "revuelto.glb"))
+    if posters:
+        ext = posters[0].rsplit(".", 1)[1].lower()
+        shutil.copyfile(posters[0], os.path.join(host, "poster." + ext))
+        if ext in ("webm", "mp4"):
+            hptag = '<video id="revuelto-poster-video" hidden muted loop playsinline preload="auto" src="poster.%s"></video>\n' % ext
+        else:
+            hptag = '<img id="revuelto-poster" hidden alt="" src="poster.%s">\n' % ext
+        hpage = hpage.replace("<div id=\"app\">", hptag + "<div id=\"app\">", 1)
+    with open(os.path.join(host, "index.html"), "w", encoding="utf-8") as f:
+        f.write(hpage)
+    print("wrote %s (index.html %d KB + revuelto.glb + poster)" % (host, len(hpage.encode()) // 1024))
     head = re.search(r"<head>(.*?)</head>", full, re.S).group(1)
     body = re.search(r"<body>(.*?)</body>", full, re.S).group(1)
     keep = [line for line in head.splitlines() if not line.strip().startswith("<meta")]
