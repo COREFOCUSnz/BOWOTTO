@@ -120,7 +120,8 @@ branch `claude/lamborghini-revuelto-simulator-l7n9gt`, published as a claude.ai
 Artifact (https://claude.ai/code/artifact/c6dfe008-2876-449b-8c7c-da3e23312c06)
 and packaged for Firebase Hosting (`Simulator/firebase.json`, build output in
 `Simulator/dist/hosting/`). Everything is documented in `Simulator/README.md`:
-six worlds, Solo / Time Trial / Versus with three AI rivals and four
+eight worlds (Grid, Matrix, Red Mesa, Supersonic, Timberline, Deep Blue,
+Whiteout, Stratos), Solo / Time Trial / Versus with three AI rivals and four
 difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
 Supersonic rings, the COREZ clips, volume buses. `python3 Simulator/build.py`
 rebuilds the single-file page, the artifact fragment and the hosting folder;

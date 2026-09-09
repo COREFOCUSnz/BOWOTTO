@@ -121,7 +121,7 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 - **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
 
-## Seven worlds
+## Eight worlds
 
 Picked on the start screen (the page rebuilds itself for the choice, which
 is remembered). Each is a Catmull-Rom loop of control points with its own
@@ -156,6 +156,13 @@ walls and dressing.
   surface shimmering 200 m above. Deep blue fog.
 - **WHITEOUT** (alpine, 11.3 km): overcast, snowing around the car, snowy
   pines, a ski lift crossing the mountain, red poles at the five jumps.
+- **STRATOS** (monorail, 13.6 km): a rail 700 m up between two cloud decks,
+  cumulus drifting past on both sides, holders and a neon strip under the
+  road. Five jumps, four LED tunnels each in its own colour (cyan, magenta,
+  green, orange: lit seams, fins and lamps in that colour), and **five super
+  pads** (the big magenta arrows) worth **+40 % speed** on the spot, capped
+  at 425 km/h, one every two seconds. **The walls are soft**: they keep you
+  on the rail with a tick and a nudge but never take your speed.
 
 Terrain colours are per vertex (height bands, slope-exposed rock, dirt
 beside the road) over a fractal of rolling hills and ridges; a bucketed

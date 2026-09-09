@@ -149,11 +149,11 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #tracksel button:hover{background:rgba(255,255,255,.1)}
 #tracksel button.on{border-color:var(--amber);background:rgba(46,230,255,.16);box-shadow:0 0 18px rgba(46,230,255,.25)}
 #tracksel button::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
-#tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}#tracksel button.ocean::before{background:#4fe3ff}
+#tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}#tracksel button.ocean::before{background:#4fe3ff}#tracksel button.sky::before{background:#ffffff}
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
 #loading.hidden{display:none}
 @media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
-body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}
+body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
 body.outdoor #top-left .presents{text-shadow:0 1px 6px rgba(0,0,0,.9)}
 body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
 #laps div.hidden{display:none}
@@ -5474,9 +5474,26 @@ const TRACKS = {
       [-1400, -1800, 40], [-1400, -1700, 40], [-1400, -1575, 40], [-1400, -1450, 40], [-1400, -1350, 40],
       [-1300, -1100, 34], [-1450, -850, 26], [-1300, -600, 18], [-1400, -350, 14], [-1200, -100, 16], [-1000, 0, 20],
     ] },
+  sky: { name: 'STRATOS', sub: 'MONORAIL ABOVE THE CLOUDS · LED TUNNELS', theme: 'sky', km: 13.6, softWalls: true,
+    loops: [], rolls: [],
+    jumps: [{ from: V3(800, 760, -1000), to: V3(600, 738, -1035) }, { from: V3(600, 740, -2600), to: V3(400, 718, -2625) }, { from: V3(-1300, 768, -1500), to: V3(-1410, 746, -1335) },
+            { from: V3(-900, 762, 200), to: V3(-707, 740, 252) }, { from: V3(-500, 706, 60), to: V3(-700, 690, 48) }],
+    tunnels: [{ from: V3(300, 730, -1100), to: V3(-150, 715, -1450), hex: 0x2ee6ff }, { from: V3(-100, 712, -2650), to: V3(-650, 730, -2450), hex: 0xff3af0 },
+              { from: V3(-1500, 740, -1100), to: V3(-1450, 740, -700), hex: 0x3aff5a }, { from: V3(-650, 740, 255), to: V3(-250, 725, 170), hex: 0xff8a2a }],
+    superPads: [V3(600, 700, 0), V3(-100, 718, -1700), V3(1100, 755, -2400), V3(-1450, 738, -950), V3(-300, 725, 150)],
+    pads: [],
+    ctrl: lp => [
+      [-300, 0, 700], [900, 0, 700], [1300, -150, 712], [1500, -500, 730], [1400, -800, 740], [1100, -950, 748], [800, -1000, 760],
+      [600, -1035, 738], [300, -1100, 730], [0, -1250, 720], [-200, -1550, 715], [0, -1800, 720], [350, -1900, 730], [700, -1850, 745], [1000, -2000, 752], [1200, -2300, 760],
+      [1000, -2550, 750], [600, -2600, 740],
+      [400, -2625, 718], [0, -2650, 712], [-400, -2600, 720], [-700, -2400, 732], [-900, -2100, 745], [-1100, -1800, 760], [-1300, -1500, 768],
+      [-1410, -1335, 746], [-1500, -1100, 740], [-1400, -850, 735], [-1500, -600, 742], [-1350, -350, 748], [-1400, -100, 752], [-1200, 120, 758], [-900, 200, 762],
+      [-707, 252, 740], [-450, 250, 732], [-200, 150, 722], [-150, 80, 712], [-500, 60, 706],
+      [-700, 48, 690], [-950, 25, 694], [-1250, 0, 700],
+    ] },
 };
 const TRACK_ID = (() => { try { const t = localStorage.getItem('revuelto.track'); if (t && TRACKS[t]) return t; } catch (e) {} return 'grid'; })();
-const TRACK = TRACKS[TRACK_ID], THEME = TRACK.theme, DAY = THEME === 'desert' || THEME === 'sonic', OUTDOOR = !(THEME === 'tron' || THEME === 'matrix');
+const TRACK = TRACKS[TRACK_ID], THEME = TRACK.theme, DAY = THEME === 'desert' || THEME === 'sonic' || THEME === 'sky', OUTDOOR = !(THEME === 'tron' || THEME === 'matrix');
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const LOOPS = TRACK.loops;
 for (const L of LOOPS) { L.rt = new THREE.Vector3().crossVectors(L.dir, WORLD_UP).normalize(); L.C = L.E.clone().add(new THREE.Vector3(0, L.R, 0)); }
@@ -5492,6 +5509,7 @@ const THEMES = {
   sonic:  { bg: 0x62b8ff, fog: [0xbfe4ff, 1100, 7500], neon: 0xffd54d, line: '#f4f1ea', line2: '#ffd54d', sun: [0xffffff, 1.3], hemi: [0x8fd0ff, 0x3f8a2a, 0.5], exposure: 0.82, verge: 0x8a6a3a },
   woods:  { bg: 0x2b1a3a, fog: [0x3a2440, 220, 2800], neon: 0xff8a3a, line: '#f4f1ea', line2: '#ffd34d', sun: [0xffa060, 1.1], hemi: [0x5a3a6a, 0x101a0c, 0.55], exposure: 0.85, verge: 0x3a2a1a },
   ocean:  { bg: 0x03203a, fog: [0x03213a, 110, 1250], neon: 0x4fe3ff, line: '#8ff4ff', line2: '#4fe3ff', sun: [0x8fc8ff, 0.6], hemi: [0x1e5a90, 0x04131f, 0.75], exposure: 0.8, verge: 0x0e2733 },
+  sky:    { bg: 0x5fb2ff, fog: [0xcfe6ff, 1600, 8500], neon: 0x2ee6ff, line: '#f4f1ea', line2: '#2ee6ff', sun: [0xffffff, 1.5], hemi: [0x9fd0ff, 0xdfeeff, 0.7], exposure: 0.85, verge: 0x1a2230 },
   snow:   { bg: 0xdfe6ee, fog: [0xe4eaf0, 160, 2200], neon: 0xff3b3b, line: '#f4f1ea', line2: '#3b7bff', sun: [0xe8eeff, 0.9], hemi: [0xdde8f5, 0xbfc8d0, 0.7], exposure: 0.78, verge: 0xdfe6ee },
 };
 const TH = THEMES[THEME];
@@ -5535,7 +5553,7 @@ const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 9000);
 scene.background = new THREE.Color(TH.bg);
 const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - (DAY ? 48 : THEME === 'woods' ? 12 : THEME === 'snow' ? 30 : 55)), THREE.MathUtils.degToRad(35));
 {
-  const domeCols = { tron: [0x01020a, 0x0a2a55], matrix: [0x000000, 0x03200a], woods: [0x140a26, 0xff6a2a], snow: [0xb8c4d0, 0xf0f4f8], desert: [0x2a66c0, 0xe2caa8], sonic: [0x1f78e6, 0xbfe6ff], ocean: [0x0a4a86, 0x03182c] }[THEME];
+  const domeCols = { tron: [0x01020a, 0x0a2a55], matrix: [0x000000, 0x03200a], woods: [0x140a26, 0xff6a2a], snow: [0xb8c4d0, 0xf0f4f8], desert: [0x2a66c0, 0xe2caa8], sonic: [0x1f78e6, 0xbfe6ff], ocean: [0x0a4a86, 0x03182c], sky: [0x1a62d6, 0xe8f3ff] }[THEME];
   if (DAY) { const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(140, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false, toneMapped: false })); sunDisc.position.copy(sunDir).multiplyScalar(7800); sunDisc.position.y -= 200; scene.add(sunDisc); }
   if (false) {
     const sky = new THREE.Sky(); sky.scale.setScalar(400000); scene.add(sky);
@@ -5683,12 +5701,13 @@ for (let i = 0; i < N; i++) {   // signed in-plane curvature (positive = turning
 for (let i = 0; i < N; i++) if (Math.abs(KAPPA[i]) > 1 / 190 && LOOP[i] < 0 && ROLL[i] < 0) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
 const SPECIAL = i => LOOP[i] >= 0 || ROLL[i] >= 0 || JUMP[i];
 // booster pads: arrows on the road; run-up to each jump, the start of the main straight, the back straight before the loops
-const BOOST = new Array(N).fill(false), PADS = [];
+const BOOST = new Array(N).fill(false), PADS = [], BOOST2 = new Array(N).fill(false), PADS2 = [];
 {
   const addPads = (from, count, step) => { for (let k = 0; k < count; k++) { const i = (from + k * step + N) % N; PADS.push(i); for (let q = -1; q <= 1; q++) BOOST[(i + q + N) % N] = true; } };
   for (const J of JUMPS) addPads(J.i0 - 40, 6, 6);
   addPads(30, 4, 8);
   for (const P of TRACK.pads) addPads(nearest(P) - 30, 5, 7);
+  if (TRACK.superPads) for (const P of TRACK.superPads) { const i = nearest(P); PADS2.push(i); for (let q = -2; q <= 2; q++) BOOST2[(i + q + N) % N] = true; }
 }
 const trackDistSq = (x, z) => { let best = 1e18, bi = 0; for (let i = 0; i < N; i++) { const dx = S[i].x - x, dz = S[i].z - z, d = dx * dx + dz * dz; if (d < best) { best = d; bi = i; } } return { d2: best, i: bi }; };
 const basisQuat = (t, n) => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(t, n, new THREE.Vector3().crossVectors(t, n)));
@@ -5735,7 +5754,9 @@ function trackDist(x, z) {
 // nearest road sample (20 m cells, bucketed search) drives the carving. Neon worlds keep the flat grid and the mirror.
 const NEAR = { x0: -3600, z0: -3800, cell: 20, n: 370, y: null, d: null, cave: null };
 const CAVE = new Array(N).fill(false);
+const CAVE_HEX = new Array(N).fill(0);
 if (TRACK.caves) for (const C of TRACK.caves) { const a = nearest(C.from), b = nearest(C.to); for (let i = Math.min(a, b); i <= Math.max(a, b); i++) CAVE[i] = true; }
+if (TRACK.tunnels) for (const C of TRACK.tunnels) { const a = nearest(C.from), b = nearest(C.to); for (let i = Math.min(a, b); i <= Math.max(a, b); i++) { CAVE[i] = true; CAVE_HEX[i] = C.hex; } }
 if (OUTDOOR) {
   const B = 100, bx = {}, key = (i, j) => i + ',' + j;
   for (let k = 0; k < N; k += 2) { const kk = key(Math.floor(S[k].x / B), Math.floor(S[k].z / B)); (bx[kk] = bx[kk] || []).push(k); }
@@ -5753,13 +5774,14 @@ function nearField(x, z) {
   const bl = (A) => lerp(lerp(A[k], A[k + 1], u), lerp(A[k + NEAR.n], A[k + NEAR.n + 1], u), v);
   return { d: bl(NEAR.d), y: bl(NEAR.y), cave: bl(NEAR.cave) };
 }
-const TERRAIN = { desert: { amp: 260, base: 20, cliff: 26, freq: 0.00075 }, sonic: { amp: 60, base: 8, cliff: 0, freq: 0.0011 }, woods: { amp: 300, base: 90, cliff: 14, freq: 0.0007 }, snow: { amp: 240, base: 100, cliff: 10, freq: 0.0008 }, ocean: { amp: 70, base: -22, cliff: 0, freq: 0.0012 } }[THEME];
+const TERRAIN = THEME === 'sky' ? { amp: 0, base: -3000, cliff: 0, freq: 0.001 } : { desert: { amp: 260, base: 20, cliff: 26, freq: 0.00075 }, sonic: { amp: 60, base: 8, cliff: 0, freq: 0.0011 }, woods: { amp: 300, base: 90, cliff: 14, freq: 0.0007 }, snow: { amp: 240, base: 100, cliff: 10, freq: 0.0008 }, ocean: { amp: 70, base: -22, cliff: 0, freq: 0.0012 } }[THEME];
 function rawH(x, z) {
   const T = TERRAIN, n = fbm(x * T.freq + 3.1, z * T.freq + 7.7, 5), r = 1 - Math.abs(fbm(x * T.freq * 2.1 + 11, z * T.freq * 2.1 + 5, 3) * 2 - 1);   // rolling + ridges
   return T.base + T.amp * ((n - 0.42) * 1.5 + r * 0.55);
 }
 function terrainH(x, z) {
   if (!OUTDOOR) return 0;
+  if (THEME === 'sky') return -3000;
   const f = nearField(x, z), T = TERRAIN, raw = rawH(x, z);
   if (THEME === 'ocean') return f.d < 50 ? Math.min(raw, f.y - 5 - (50 - f.d) * 0.16) : raw;   // the sea floor dips under the tube, never through it
   if (f.d > 220) return raw;
@@ -5847,6 +5869,13 @@ const ground = (() => {
     const g = new THREE.PlaneGeometry(8000, 8000, 64, 64); g.rotateX(-Math.PI / 2); g.translate(0, 0, -450);
     const m = new THREE.Mesh(g, gridMat); m.receiveShadow = false; scene.add(m); return m;
   }
+  if (THEME === 'sky') {
+    // cloud decks: a soft cumulus layer below the rail and a thin high veil, drawn from noise
+    const cloudTex = canvasTex(1024, (ctx, sz) => { const img = ctx.createImageData(sz, sz), d = img.data; for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) { const k = (y * sz + x) * 4, n = fbm(x / 90, y / 90, 5); const a = smoothstep(0.42, 0.72, n); d[k] = 255; d[k + 1] = 255; d[k + 2] = 255; d[k + 3] = 255 * a; } ctx.putImageData(img, 0, 0); }, 6);
+    const deck = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000, 1, 1), new THREE.MeshStandardMaterial({ map: cloudTex, transparent: true, roughness: 1, color: 0xffffff, emissive: 0xdde8ff, emissiveIntensity: 0.25, depthWrite: false, side: THREE.DoubleSide })); deck.rotation.x = -Math.PI / 2; deck.position.set(0, 430, -800); scene.add(deck);
+    const deck2 = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000, 1, 1), new THREE.MeshBasicMaterial({ color: 0xeaf2ff, transparent: true, opacity: 0.96, fog: true })); deck2.rotation.x = -Math.PI / 2; deck2.position.set(0, 330, -800); scene.add(deck2);
+    return deck;
+  }
   const RES = 400, SZ = 8000, g = new THREE.PlaneGeometry(SZ, SZ, RES, RES); g.rotateX(-Math.PI / 2); g.translate(0, 0, -600);
   const P = g.attributes.position, col = new Float32Array(P.count * 3), c = new THREE.Color();
   for (let k = 0; k < P.count; k++) P.setY(k, terrainH(P.getX(k), P.getZ(k)));
@@ -5913,6 +5942,7 @@ function ribbon(inner, outer, texScaleV, yOff, filter, tex, color, glow) {
 const roadMesh = ribbon(-ROAD_HALF, ROAD_HALF, 12, 0.04, null, roadTex, 0xffffff, roadGlow);
 ribbon(ROAD_HALF, ROAD_HALF + 1.1, 2, 0.07, i => KERB[i], kerbTex, 0xffffff, OUTDOOR ? null : kerbTex);
 ribbon(ROAD_HALF + 1.1, D_WALL, 12, 0.03, null, null, TH.verge); // verge out to the wall
+if (THEME === 'sky') { ribbon(-1.6, 1.6, 12, -0.9, null, null, 0x1a2230); ribbon(-D_WALL, D_WALL, 12, -0.35, null, null, 0x11161f); }   // the monorail beam and the underside of the deck
 
 // scenery -------------------------------------------------------------
 const scenery = new THREE.Group(); scene.add(scenery);
@@ -5983,15 +6013,31 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
     }
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
-  const tunnel = new THREE.Mesh(g, shellMatT); tunnel.receiveShadow = !TUBE; if (TUBE) tunnel.renderOrder = 5; scene.add(tunnel);
+  if (THEME !== 'sky') { const tunnel = new THREE.Mesh(g, shellMatT); tunnel.receiveShadow = !TUBE; if (TUBE) tunnel.renderOrder = 5; scene.add(tunnel); }
   const path = new THREE.CatmullRomCurve3(arc.map(q => new THREE.Vector3(0, q[1] + 0.12, q[0])));   // fins live in the (right, up) plane; instances carry the full road frame
   const finGeo = new THREE.TubeGeometry(path, 48, 0.09, 6, false), portalGeo = new THREE.TubeGeometry(path, 48, 0.35, 8, false);
   finGeo.applyMatrix4(new THREE.Matrix4().set(1, 0.32, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));   // rake: lean the fin forward with height
+  if (THEME === 'sky') {
+    // LED tunnels: each range gets its own colour, panels dark with lit seams, and fins in that colour
+    for (const [i0, i1] of TUNNELS) {
+      const hex = CAVE_HEX[Math.floor((i0 + i1) / 2)] || TH.neon, hx = '#' + hex.toString(16).padStart(6, '0');
+      const tex = canvasTex(512, (ctx, sz) => { ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 0, sz, sz); ctx.strokeStyle = '#1a2030'; ctx.lineWidth = 2; for (let x = 0; x < sz; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, sz); ctx.stroke(); } ctx.fillStyle = hx; for (const u of [0.15, 0.35, 0.65, 0.85]) ctx.fillRect(u * sz - 3, 0, 6, sz); ctx.fillStyle = '#ffffff'; ctx.fillRect(0.5 * sz - 2, 0, 4, sz); });
+      const pos2 = [], uv2 = [];
+      for (let i = i0; i < Math.min(i1, N - 2); i++) { const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 12;
+        for (let k = 0; k < SEG; k++) { const p = (f, q) => f.p.clone().addScaledVector(f.b, q[0]).addScaledVector(f.n, q[1]); const a = p(A, arc[k]), b = p(A, arc[k + 1]), c = p(B, arc[k + 1]), d = p(B, arc[k]); pos2.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z); const u0 = k / SEG, u1 = (k + 1) / SEG; uv2.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1); } }
+      const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(pos2, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(uv2, 2)); g2.computeVertexNormals();
+      scene.add(new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.9, color: 0x6b7a8c, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide })));
+      const fins2 = []; for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins2.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+      instanced(finGeo, new THREE.MeshBasicMaterial({ color: hex, toneMapped: false }), fins2, false);
+      for (let i = i0 + 30; i < i1 - 10; i += 90) { const m = frameAt(i), l = new THREE.PointLight(hex, 1.3, 110, 1.5); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); }
+    }
+  }
   const fins = [], portals = [];
   for (const [i0, i1] of TUNNELS) {
     for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
     for (const i of [i0, i1]) { const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
-    if (TUBE) { for (let i = i0 + 100; i < i1 - 50; i += 230) { const m = frameAt(i), l = new THREE.PointLight(0x7fe8ff, 1.1, 120, 1.4); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); } }
+    if (THEME === 'sky') {}
+    else if (TUBE) { for (let i = i0 + 100; i < i1 - 50; i += 230) { const m = frameAt(i), l = new THREE.PointLight(0x7fe8ff, 1.1, 120, 1.4); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); } }
     else if (OUTDOOR) { for (let i = i0 + 25; i < i1 - 10; i += 50) { const m = frameAt(i), l = new THREE.PointLight(0xffb070, 1.4, 90, 1.5); l.position.copy(m.p).addScaledVector(m.n, 5); scene.add(l); } }
     else { const m = frameAt(Math.floor((i0 + i1) / 2)), l = new THREE.PointLight(0x9fe8ff, 1.2, 160, 1.6); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); }
   }
@@ -6010,6 +6056,7 @@ const BOOST_HUE = (() => { const c = new THREE.Color(TH.neon), h = {}; c.getHSL(
   const geo = new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2).translate(-2.6, 0.08, 0);
   const items = PADS.map(i => { const f = frameAt(i); return { x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }; });
   instanced(geo, boostMat, items, false);
+  if (PADS2.length) { const big = new THREE.ShapeGeometry(sh).rotateX(-Math.PI / 2).translate(-2.6, 0.09, 0).scale(1.9, 1, 1.9); const it2 = []; for (const i of PADS2) for (const k of [-4, 0, 4]) { const f = frameAt((i + k + N) % N); it2.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); } instanced(big, new THREE.MeshBasicMaterial({ color: 0xff3af0, toneMapped: false, transparent: true, opacity: 0.95 }), it2, false); }
 }
 if (CANYON.length) { // canyon on the approach to the main straight: tall dark walls with vertical light seams and a lit top edge
   const wallTex = canvasTex(256, (ctx, s) => { ctx.fillStyle = '#060a12'; ctx.fillRect(0, 0, s, s); ctx.fillStyle = '#2ee6ff'; ctx.fillRect(0, 0, s, 5); for (let x = 0; x < s; x += 64) { ctx.globalAlpha = 0.9; ctx.fillRect(x + 30, 0, 3, s); } });
@@ -6147,6 +6194,15 @@ const rainMat = THEME === 'matrix' ? new THREE.ShaderMaterial({
       const poles = []; for (const J of JUMPS) for (const i of [J.i0 - 30, J.i0 - 15, J.i1 + 8, J.i1 + 20]) for (const sd of [1, -1]) { const f = frameAt((i + N) % N), q = f.p.clone().addScaledVector(f.b, sd * (ROAD_HALF + 1.6)); poles.push({ x: q.x, y: q.y, z: q.z }); }
       instanced(new THREE.CylinderGeometry(0.08, 0.08, 2.4, 6).translate(0, 1.2, 0), new THREE.MeshStandardMaterial({ color: 0xff3b3b, roughness: 0.5 }), poles, false);
     }
+  }
+  if (THEME === 'sky') {
+    // cumulus puffs around the rail (flattened spheres, soft white), and the monorail beam with holders under the road
+    const puffs = []; for (let k = 0; k < 2600; k++) { const i = Math.floor(rnd() * N), f = frameAt(i), side = rnd() < 0.5 ? -1 : 1; const s0 = 14 + rnd() * rnd() * 70, off = 26 + s0 * 1.15 + rnd() * rnd() * 700, p = f.p.clone().addScaledVector(f.b, side * off).addScaledVector(f.t, (rnd() - 0.5) * 80); p.y += (rnd() - 0.55) * 160; puffs.push({ x: p.x, y: p.y, z: p.z, s: s0, rot: rnd() * 6.28 }); }
+    puffs.forEach(it => { it.sy = it.s * (0.45 + rnd() * 0.3); });
+    instanced(new THREE.IcosahedronGeometry(1, 2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xf0f6ff, emissiveIntensity: 0.25, roughness: 1, transparent: true, opacity: 0.9, depthWrite: false }), puffs, false);
+    const holders = []; for (let i = 0; i < N; i += 9) { if (JUMP[i]) continue; const f = frameAt(i); holders.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+    instanced(new THREE.BoxGeometry(0.8, 1.6, 2 * ROAD_HALF + 4).translate(0, -1.2, 0), new THREE.MeshStandardMaterial({ color: 0x1a2230, metalness: 0.7, roughness: 0.4 }), holders, false);
+    instanced(new THREE.BoxGeometry(0.8, 0.12, 2 * ROAD_HALF + 4.2).translate(0, -2.0, 0), neonMat, holders, false);
   }
   if (THEME === 'ocean') {
     // legs under the tube, rocks, coral, seaweed, a shoal of fish on lazy circles, bubbles round the car, the surface far above
@@ -6673,7 +6729,7 @@ function trailUpdate() {
 const st = {
   s: 0, d: 0, psi: 0, u: 0, w: 0, yaw: 0,             // track coordinates: distance along, offset right, heading vs tangent; body-frame velocity
   x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
-  hits: 0, hitT: 0, crossings: 0, lapsDone: 0, spinT: 0, spinW: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
+  hits: 0, hitT: 0, boost2Cd: 0, crossings: 0, lapsDone: 0, spinT: 0, spinW: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -7556,6 +7612,8 @@ function step(dt) {
   if (st.boostT > 0) { st.boostT -= dt; F += CAR.mass * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
   if (st.nosOn) F += CAR.mass * (driftBoost ? 7.0 : 3.0);                            // the shove you feel in the seat; a drift boost is a kick
   if (BOOST[fr0.i] && !st.air && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
+  if (BOOST2[fr0.i] && !st.air && st.boost2Cd <= 0 && st.u > 2) { st.u = Math.min(st.u * 1.4, 118); st.boost2Cd = 2.0; st.glow = 1; st.shake = Math.max(st.shake || 0, 0.5); audio.boost(); audio.record(); flash('SUPER BOOST +40%', 900, '#ff3af0'); }
+  if (st.boost2Cd > 0) st.boost2Cd -= dt;
   let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
   st.u += du;
   const bDecel = st.air ? 0 : Fb / CAR.mass * dt;
@@ -7645,8 +7703,8 @@ function step(dt) {
   if (st.hitT > 0) st.hitT -= dt;
   if (Math.abs(st.d) > D_HIT) {
     const sideW = Math.sign(st.d), vn = Math.abs(dDot), phi = Math.atan2(vn, Math.abs(st.u) + 0.1);
-    const retain = clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);
-    if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); audio.crunch(k); if (k > 0.25) flash('WALL', 500); st.shake = Math.max(st.shake || 0, k); }
+    const retain = TRACK.softWalls ? 1 : clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);   // soft walls (STRATOS) keep you on the rail without taking speed
+    if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); if (TRACK.softWalls) audio.beep(440, 0.05); else { audio.crunch(k); if (k > 0.25) flash('WALL', 500); } st.shake = Math.max(st.shake || 0, TRACK.softWalls ? k * 0.3 : k); }
     st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
     st.d = sideW * (D_HIT - 0.02);
   }
@@ -7816,7 +7874,7 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
 
 </script>
