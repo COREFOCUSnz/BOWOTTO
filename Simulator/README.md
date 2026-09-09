@@ -34,6 +34,13 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   offset rear-end shunt spins the car in front. Both cars scrub 12 % of the
   impulse as speed. A metallic crack, a crunch, camera shake and the hit
   counter fire on every contact. `ESC` returns to the menu.
+- **NOS charges from drifting.** The tank fills at up to 0.30/s while
+  sliding (slip angle and speed weighted) with only a 0.012/s trickle
+  otherwise, so a lap of clean driving is not a full tank. Once a drift is
+  under way it holds: the slip threshold drops from 0.22 to 0.09 rad, the
+  state decays at 1.6/s instead of 3/s, and staying on the power keeps the
+  rotation going. NOS in a drift is a **DRIFT BOOST**: 2× power and a 7 m/s²
+  shove instead of 1.5× and 3 m/s², with a bigger purple flare.
 - **After a spin** you are never stranded: under power the car can pivot on
   the spot, and if it is stopped facing backwards with the throttle down for
   more than half a second the nose swings round on its own (TURNING AROUND).
