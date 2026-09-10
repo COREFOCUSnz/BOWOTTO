@@ -191,7 +191,7 @@ read and write only their own record. Two one-time console steps for the
 cloud save: Authentication -> Sign-in method -> Google -> Enable, and Build ->
 Firestore Database -> Create database.
 
-## Eight worlds
+## Eighteen worlds
 
 Picked on the start screen (the page rebuilds itself for the choice, which
 is remembered). Each is a Catmull-Rom loop of control points with its own
@@ -226,6 +226,42 @@ walls and dressing.
   surface shimmering 200 m above. Deep blue fog.
 - **WHITEOUT** (alpine, 11.3 km): overcast, snowing around the car, snowy
   pines, a ski lift crossing the mountain, red poles at the five jumps.
+- **NEON CITY** (night streets, 10.9 km): towers with lit windows on both sides,
+  taller away from the road, neon signs by the kerb, street lamps, and the wet
+  street is a mirror. Ninety-degree blocks, two lit underpasses, and a flyover
+  you jump off. The return road ducks under the start straight.
+- **VOLCANO** (black rock, 9.8 km): a spiral up the cone through two caves,
+  over the crater rim at 195 m with a jump across the crater's lip, and down
+  the far flank. Lava fills every low place and the crater floor, embers rise
+  past the car, the sky is ember-red at the horizon.
+- **ICE LAKE** (frozen lake, 10.3 km): flat pale ice with cracks, mountains
+  round the rim, pines on the far shore, aurora curtains drifting overhead and
+  light snow. **Grip is 62 %** of normal for the player and the rivals alike,
+  so every corner is a slide and the brakes are weak. Wide sweepers on purpose.
+- **THE DOCKS** (container port, 8.9 km): coloured container stacks, six cranes,
+  concrete slabs, lamps along the quay, the water beyond. The road climbs onto
+  the deck of one ship, jumps the gap to the second, and drops back to the quay.
+- **SPACE STATION** (ring corridor, 13.1 km): the whole lap runs inside a lit
+  corridor with window bands, and through them the stars and Earth turning
+  slowly below. Solar wings and masts outside, two airlock gaps you jump, soft
+  walls, two super pads.
+- **RIVIERA** (harbour streets, 8.7 km): pastel houses with tiled roofs up the
+  hill, palms along the front, seventy yachts in the harbour, a hairpin up the
+  hill and a warm-lit tunnel along the water. Golden afternoon light.
+- **TOUGE** (mountain pass, 11.3 km): a night descent from 300 m through a
+  chain of hairpins under a moon, dense pines, warm lamps on the guard rail
+  every hundred metres, one cave, then the long climb home. Built for drifting.
+- **SALT FLATS** (flat out, 16.2 km): white crust with polygon cracks to the
+  horizon, mountains round the edge, two straights of nearly three kilometres,
+  course markers every 400 m, timing towers, three super pads. The top-speed
+  world.
+- **MARS** (red planet, 10.9 km): rust terrain with four craters and raised
+  rims, red dust drifting past, three habitat domes with airlock rings, rovers.
+  **Gravity is 45 %** of Earth's in the air, so the four jumps sail: a fast
+  car flies three hundred metres.
+- **JUNGLE** (rainforest, 9.5 km): nine thousand canopy trees, ferns, a river
+  in the valley with a jump across it, three waterfalls scrolling down the
+  cliffs, a cave, and a six-step stone temple beside the road.
 - **STRATOS** (monorail, 14.9 km): a rail 700 m up between two cloud decks,
   cumulus drifting past on both sides, holders and a neon strip under the
   road. Five jumps, four LED tunnels each in its own colour (cyan, magenta,
@@ -239,6 +275,11 @@ walls and dressing.
   drop back in (DROP IN). The lap ends on **THE STAIRCASE**: a turn and a
   half down round a tower, 80 m radius, 20 m a turn, with four super pads
   down it and out, in place of what used to be a hairpin.
+
+Every world is a theme record (sky, fog, accent, sun, terrain, rock, walls,
+flags for day, indoor, stars, water, craters, a mountain rim, a shoreline),
+a loop of control points, and one dressing function, so a new one is data
+plus scenery. A world can also set its own grip and gravity.
 
 Terrain colours are per vertex (height bands, slope-exposed rock, dirt
 beside the road) over a fractal of rolling hills and ridges; a bucketed

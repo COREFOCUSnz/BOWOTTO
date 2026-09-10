@@ -120,8 +120,11 @@ branch `claude/lamborghini-revuelto-simulator-l7n9gt`, published as a claude.ai
 Artifact (https://claude.ai/code/artifact/c6dfe008-2876-449b-8c7c-da3e23312c06)
 and packaged for Firebase Hosting (`Simulator/firebase.json`, build output in
 `Simulator/dist/hosting/`). Everything is documented in `Simulator/README.md`:
-eight worlds (Grid, Matrix, Red Mesa, Supersonic, Timberline, Deep Blue,
-Whiteout, Stratos with landable tunnel roofs and a spiral staircase), phone
+eighteen worlds (Grid, Matrix, Red Mesa, Supersonic, Timberline, Deep Blue,
+Whiteout, Stratos with landable tunnel roofs and a spiral staircase, then
+Neon City, Volcano, Ice Lake at 62 % grip, The Docks, Space Station, Riviera,
+Touge, Salt Flats, Mars at 45 % gravity, Jungle; themes are flag records and
+new worlds are data plus one dressing function), phone
 steering as a rotatable Revuelto wheel (Settings, default) or the old arrows,
 Solo / Time Trial / Versus with three AI rivals and four
 difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
