@@ -167,7 +167,7 @@ body.touch .touchonly{display:flex!important}
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
 #loading.hidden{display:none}
 @media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
-body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
+body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud,body.theme-salt #hud,body.theme-ice #hud,body.theme-docks #hud,body.theme-riviera #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
 body.outdoor #top-left .presents{text-shadow:0 1px 6px rgba(0,0,0,.9)}
 body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
 #laps div.hidden{display:none}

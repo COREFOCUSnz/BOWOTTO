@@ -279,7 +279,7 @@ const TRACKS = {
       [-1080, -160, 672], [-850, -135, 680], [-600, -80, 690],
     ] },
   city: { name: 'NEON CITY', sub: 'NIGHT STREETS · UNDERPASSES · THE FLYOVER', theme: 'city', km: 10.9, loops: [], rolls: [],
-    jumps: [{ from: V3(-40, 12, -170), to: V3(160, 10, -170) }], tunnels: [{ from: V3(300, -7, -1300), to: V3(-100, -7, -1300), hex: 0xff2ad8 }, { from: V3(800, -4, -140), to: V3(830, -4, 180), hex: 0x2ee6ff }], pads: [V3(1060, 0, -700), V3(-980, 0, -900)],
+    jumps: [{ from: V3(-40, 12, -170), to: V3(100, 7, -170) }], tunnels: [{ from: V3(300, -7, -1300), to: V3(-100, -7, -1300), hex: 0xff2ad8 }, { from: V3(800, -4, -140), to: V3(830, -4, 180), hex: 0x2ee6ff }], pads: [V3(1060, 0, -700), V3(-980, 0, -900)],
     ctrl: lp => [
       [-300, 0, 0], [900, 0, 0], [1030, -60, 0], [1060, -200, 0], [1060, -1100, 0], [1030, -1240, 0], [900, -1300, 0],
       [450, -1300, 0], [300, -1300, -7], [100, -1300, -8], [-100, -1300, -7], [-250, -1300, 0], [-800, -1300, 0], [-940, -1250, 0],
@@ -290,10 +290,10 @@ const TRACKS = {
       [-500, 1060, 0], [-640, 1020, 0], [-680, 900, 0], [-680, 300, 0], [-640, 160, 0], [-520, 100, 0], [-400, 60, 0],
     ] },
   volcano: { name: 'VOLCANO', sub: 'BLACK ROCK · LAVA · UP THE CONE', theme: 'volcano', km: 9.8, loops: [], rolls: [],
-    jumps: [{ from: V3(1080, 188, -2240), to: V3(1230, 193, -2205) }], caves: [{ from: V3(1200, 56, -850), to: V3(1050, 78, -1100) }, { from: V3(-1100, 28, -1000), to: V3(-1300, 18, -800) }], pads: [V3(1250, 36, -550), V3(-300, 66, -1350)],
+    jumps: [{ from: V3(1060, 187, -2245), to: V3(1180, 184, -2220) }], caves: [{ from: V3(1200, 56, -850), to: V3(1050, 78, -1100) }, { from: V3(-1100, 28, -1000), to: V3(-1300, 18, -800) }], pads: [V3(1250, 36, -550), V3(-300, 66, -1350)],
     ctrl: lp => [
       [-300, 0, 0], [700, 0, 0], [950, -60, 6], [1150, -250, 18], [1250, -550, 36], [1200, -850, 56], [1050, -1100, 78],
-      [850, -1300, 100], [650, -1550, 122], [600, -1850, 145], [750, -2100, 168], [1000, -2250, 185], [1300, -2200, 195], [1500, -1950, 190],
+      [850, -1300, 100], [650, -1550, 122], [600, -1850, 145], [750, -2100, 168], [1000, -2250, 188], [1300, -2200, 183], [1500, -1950, 190],
       [1350, -1700, 180], [1100, -1500, 168], [850, -1620, 155], [450, -1650, 140], [200, -1800, 122], [-50, -1880, 104], [-250, -1700, 88],
       [-320, -1400, 70], [-500, -1100, 50], [-800, -950, 38], [-1100, -1000, 28], [-1300, -800, 18], [-1250, -500, 10], [-1050, -300, 4],
       [-800, -200, 0], [-550, -150, 0], [-450, -60, 0],
@@ -307,7 +307,7 @@ const TRACKS = {
       [-650, 450, 0], [-500, 150, 0], [-420, 20, 0],
     ] },
   docks: { name: 'THE DOCKS', sub: 'CONTAINERS · CRANES · SHIP TO SHIP', theme: 'docks', km: 8.9, loops: [], rolls: [],
-    jumps: [{ from: V3(960, 8, -1455), to: V3(960, 6, -1610) }], pads: [V3(960, 0, -896), V3(20, 0, -2253)],
+    jumps: [{ from: V3(960, 8, -1455), to: V3(960, 5, -1590) }], pads: [V3(960, 0, -896), V3(20, 0, -2253)],
     ctrl: lp => [
       [-300, 0, 0], [700, 0, 0], [880, -40, 0], [960, -180, 0], [960, -768, 0], [960, -1024, 3], [960, -1216, 8],
       [960, -1446, 8], [960, -1619, 6], [960, -1920, 8], [960, -2099, 4], [940, -2278, 0], [860, -2406, 0], [700, -2458, 0],
@@ -316,11 +316,11 @@ const TRACKS = {
       [-1220, -350, 0], [-1180, -100, 0], [-1120, 150, 0], [-980, 280, 0], [-780, 300, 0], [-580, 220, 0], [-440, 80, 0],
     ] },
   station: { name: 'SPACE STATION', sub: 'RING CORRIDOR · AIRLOCK JUMPS · EARTH BELOW', theme: 'station', km: 13.1, loops: [], rolls: [],
-    jumps: [{ from: V3(470, 0, -1290), to: V3(300, 0, -1190) }, { from: V3(-380, 0, -1880), to: V3(-200, 0, -1900) }], pads: [V3(1350, 14, -650)], superPads: [V3(1250, 0, -2050), V3(700, 0, 550)], softWalls: true,
+    jumps: [{ from: V3(470, 3, -1290), to: V3(360, 0, -1215) }, { from: V3(-380, 3, -1880), to: V3(-255, 0, -1895) }], pads: [V3(1350, 14, -650)], superPads: [V3(1250, 0, -2050), V3(700, 0, 550)], softWalls: true,
     ctrl: lp => [
       [-300, 0, 0], [700, 0, 0], [1000, -60, 4], [1250, -300, 10], [1350, -650, 14], [1300, -1000, 10], [1100, -1250, 4],
-      [800, -1350, 0], [500, -1300, 0], [250, -1150, 0], [100, -900, 0], [-100, -800, 0], [-450, -850, 0], [-700, -1050, 0],
-      [-800, -1350, 0], [-700, -1650, 0], [-450, -1850, 0], [-100, -1900, 0], [250, -1800, 0], [550, -1900, 0], [850, -2050, 0],
+      [800, -1350, 0], [500, -1300, 3], [250, -1150, 0], [100, -900, 0], [-100, -800, 0], [-450, -850, 0], [-700, -1050, 0],
+      [-800, -1350, 0], [-700, -1650, 0], [-450, -1850, 3], [-100, -1900, 0], [250, -1800, 0], [550, -1900, 0], [850, -2050, 0],
       [1250, -2050, 0], [1550, -1850, 0], [1650, -1500, 0], [1750, -1200, 10], [1950, -950, 20], [2100, -650, 20], [2050, -300, 10],
       [1850, -100, 0], [1650, 150, 0], [1350, 250, 0], [1050, 350, 0], [700, 550, 0], [300, 650, 0], [-100, 600, 0],
       [-400, 450, 0], [-550, 250, 0], [-480, 60, 0],
@@ -365,7 +365,7 @@ const TRACKS = {
       [-400, -750, 14], [-700, -800, 12], [-950, -650, 10], [-1100, -400, 8], [-1000, -150, 4], [-800, -50, 2], [-550, -40, 0],
     ] },
   jungle: { name: 'JUNGLE', sub: 'RAINFOREST · WATERFALLS · THE TEMPLE', theme: 'jungle', km: 9.5, loops: [], rolls: [],
-    jumps: [{ from: V3(520, 30, -2340), to: V3(350, 25, -2470) }], caves: [{ from: V3(1250, 50, -1370), to: V3(1230, 46, -1600) }], pads: [V3(-250, 16, -2257)],
+    jumps: [{ from: V3(520, 30, -2340), to: V3(400, 24, -2440) }], caves: [{ from: V3(1250, 50, -1370), to: V3(1230, 46, -1600) }], pads: [V3(-250, 16, -2257)],
     ctrl: lp => [
       [-300, 0, 20], [700, 0, 20], [900, -60, 24], [1050, -250, 32], [1000, -450, 40], [850, -550, 46], [650, -520, 50],
       [550, -650, 54], [600, -850, 58], [800, -1159, 60], [1050, -1159, 58], [1250, -1342, 52], [1250, -1647, 46], [1100, -1830, 42],
@@ -396,19 +396,19 @@ const THEMES = {
             sunEl: 30, dome: [0xb8c4d0, 0xf0f4f8], pw: 3.0, terrain: { amp: 240, base: 100, cliff: 10, freq: 0.0008 }, rock: [150, 155, 165], wallHex: '#e8ecf0' },
   // ---- the ten new worlds
   city:    { bg: 0x05060f, fog: [0x070a18, 260, 2600], neon: 0xff2ad8, line: '#f4f1ea', line2: '#ff2ad8', sun: [0x8fa8ff, 0.5], hemi: [0x2a2a55, 0x05050c, 0.5], exposure: 0.85, verge: 0x10121a,
-             indoor: true, sunEl: 40, dome: [0x03040c, 0x2a1848], pw: 6.0, floor: 'asphalt', beacons: false, mirror: 0x0c0f18, envGlow: 0xff2ad8, envStrip: 0x8020a0, wallLow: '#6a0a5a', glowK: 0.9 },
+             indoor: true, sunEl: 40, dome: [0x03040c, 0x2a1848], pw: 6.0, floor: 'asphalt', beacons: false, mirror: 0x0c0f18, envGlow: 0xff2ad8, envStrip: 0x8020a0, wallLow: '#6a0a5a', glowK: 0.55 },
   volcano: { bg: 0x1a0806, fog: [0x2a0c08, 220, 2600], neon: 0xff6a1a, line: '#f4f1ea', line2: '#ff6a1a', sun: [0xff8040, 0.9], hemi: [0x5a2010, 0x1a0806, 0.6], exposure: 0.85, verge: 0x1a1412,
-             sunEl: 18, dome: [0x0a0304, 0xff4a10], pw: 5.0, stars: true, starN: 700, terrain: { amp: 220, base: 20, cliff: 22, freq: 0.0008 }, craters: [[1050, -1850, 330, 70]], rock: [40, 32, 30], wallHex: '#3a3436', glowK: 0.7 },
+             sunEl: 18, dome: [0x0a0304, 0xff4a10], pw: 5.0, stars: true, starN: 700, terrain: { amp: 220, base: 20, cliff: 22, freq: 0.0008 }, craters: [[1050, -1850, 330, 70]], rock: [40, 32, 30], wallHex: '#3a3436', glowK: 0.45 },
   ice:     { bg: 0x0b1a33, fog: [0x14284a, 500, 5200], neon: 0x7ff0ff, line: '#f4f1ea', line2: '#7ff0ff', sun: [0xcfe4ff, 0.7], hemi: [0x3a5a8a, 0x1a2a3a, 0.7], exposure: 0.85, verge: 0xdfeeff,
              sunEl: 14, dome: [0x05102a, 0x6a9ad0], pw: 3.5, stars: true, terrain: { amp: 3, base: -0.6, cliff: 0, freq: 0.002 }, rim: [1500, 2800, 420], rock: [150, 155, 165], wallHex: '#dfeeff', glowK: 0.6 },
   docks:   { bg: 0x9aa6b4, fog: [0xb8c2cc, 400, 4200], neon: 0xffb020, line: '#f4f1ea', line2: '#ffb020', sun: [0xe8ecf2, 0.9], hemi: [0xb8c4d2, 0x50565c, 0.6], exposure: 0.8, verge: 0x6a6c70,
              day: true, sunEl: 42, dome: [0x6f8299, 0xc8d0d8], pw: 3.0, terrain: { amp: 2, base: 1.2, cliff: 0, freq: 0.002 }, shore: [420, 760, 14], water: -3, waterCol: 0x2e4a5a, wallHex: '#8a8c90' },
   station: { bg: 0x000000, fog: [0x03050a, 400, 3000], neon: 0x9fd8ff, line: '#eaf6ff', line2: '#9fd8ff', sun: [0xffffff, 0.9], hemi: [0x203040, 0x000000, 0.5], exposure: 0.8, verge: 0x1a2028,
-             indoor: true, stars: true, sunEl: 55, dome: [0x000000, 0x000000], pw: 9.0, floor: 'none', beacons: false, allTunnel: true, tunnelBig: true, envGlow: 0x9fd8ff, envStrip: 0x6aa0d0, wallLow: '#3a6a90', glowK: 0.8 },
+             indoor: true, stars: true, sunEl: 55, dome: [0x000000, 0x000000], pw: 9.0, floor: 'none', beacons: false, allTunnel: true, tunnelBig: true, envGlow: 0x9fd8ff, envStrip: 0x6aa0d0, wallLow: '#3a6a90', glowK: 0.6 },
   riviera: { bg: 0x7fb8ea, fog: [0xd8e6f2, 900, 6500], neon: 0xffd27a, line: '#f4f1ea', line2: '#ffd27a', sun: [0xfff0d8, 1.4], hemi: [0x9fc8ff, 0x6a5a48, 0.55], exposure: 0.85, verge: 0x8a8478,
              day: true, sunEl: 35, dome: [0x2a6ac8, 0xf0d8b8], pw: 4.0, terrain: { amp: 160, base: 6, cliff: 8, freq: 0.0009 }, sea: [220, 520, 40], water: -1.5, waterCol: 0x1f7fb8, rock: [150, 120, 90] },
   touge:   { bg: 0x050a18, fog: [0x070d1e, 180, 2000], neon: 0xffa040, line: '#f4f1ea', line2: '#ffa040', sun: [0x9fb8ff, 0.5], hemi: [0x1a2a4a, 0x05080e, 0.5], exposure: 0.85, verge: 0x1a1a14,
-             sunEl: 50, dome: [0x02040c, 0x142446], pw: 6.0, stars: true, terrain: { amp: 330, base: 60, cliff: 16, freq: 0.0007 }, rock: [70, 66, 60], glowK: 0.9 },
+             sunEl: 50, dome: [0x02040c, 0x142446], pw: 6.0, stars: true, terrain: { amp: 330, base: 60, cliff: 16, freq: 0.0007 }, rock: [70, 66, 60], glowK: 0.4 },
   salt:    { bg: 0xa8d0ff, fog: [0xe6eef8, 1500, 9000], neon: 0xff3b3b, line: '#e8e8e8', line2: '#ff3b3b', sun: [0xffffff, 1.6], hemi: [0xbfe0ff, 0xe8e8e8, 0.8], exposure: 0.78, verge: 0xf2f2f0,
              day: true, sunEl: 60, dome: [0x2f7fe0, 0xf4f6ff], pw: 4.0, terrain: { amp: 0.6, base: -0.3, cliff: 0, freq: 0.003 }, rim: [2900, 4300, 520], wallHex: '#e8e8e4' },
   mars:    { bg: 0xc97a4a, fog: [0xd9925f, 700, 6000], neon: 0x2ee6ff, line: '#f4f1ea', line2: '#2ee6ff', sun: [0xffe0c0, 1.1], hemi: [0xd9a070, 0x6a3018, 0.55], exposure: 0.85, verge: 0x7a3a22,
@@ -2874,9 +2874,9 @@ function step(dt) {
       st.d = clamp(st.d, -D_HIT + 0.1, D_HIT - 0.1); st.shake = Math.max(st.shake || 0, clamp(-st.vel.y / 25, 0.15, 1)); audio.crunch(clamp(-st.vel.y / 40, 0.05, 0.5)); flash(st.roof ? 'ON THE ROOF' : 'LANDED', 700); syncPose();
     } else if (missed || gone || (!over && st.pos.y < roadY - 3 && st.airT > 0.6)) {
       // missed the landing (or fell through the gap): straight back to the run-up. Never let it keep falling
-      // back to a standing start 350 m before the kicker so the attempt can be repeated with a full run-up
+      // back to a standing start 480 m before the kicker so the attempt can be repeated with a full run-up
       let back = frB.i, bestD = 1e9; for (const J of JUMPS) { const dI = ((frB.i - J.i0) % N + N) % N; if (dI < 260 && dI < bestD) { bestD = dI; back = J.i0; } }   // the kicker this flight left from
-      back = (back - Math.round(350 / (trackLen / N)) + N) % N;
+      back = (back - Math.round(480 / (trackLen / N)) + N) % N;   // 480 m: enough run-up from a standstill to clear any gap in the game
       placeOnTrack(back); st.resets++; st.hits++; flash('RESET · RUN IT AGAIN', 1400); audio.crunch(0.8); st.shake = 1;
     }
     st.offroad = false; st.slip = 0;
