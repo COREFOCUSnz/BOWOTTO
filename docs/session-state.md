@@ -123,8 +123,9 @@ and packaged for Firebase Hosting (`Simulator/firebase.json`, build output in
 eighteen worlds (Grid, Matrix, Red Mesa, Supersonic, Timberline, Deep Blue,
 Whiteout, Stratos with landable tunnel roofs and a spiral staircase, then
 Neon City, Volcano, Ice Lake at 62 % grip, The Docks, Space Station, Riviera,
-Touge, Salt Flats, Mars at 45 % gravity, Jungle; themes are flag records and
-new worlds are data plus one dressing function), phone
+Touge, Salt Flats, Mars at 55 % gravity, Jungle; themes are flag records and
+new worlds are data plus one dressing function; every world laps clean under
+the autopilot, including all eight originals after the refactor), phone
 steering as a rotatable Revuelto wheel (Settings, default) or the old arrows,
 Solo / Time Trial / Versus with three AI rivals and four
 difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
