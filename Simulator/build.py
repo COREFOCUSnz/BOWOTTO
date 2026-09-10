@@ -59,6 +59,17 @@ def main():
         else:
             ptags += '<img id="revuelto-poster%s" hidden alt="" src="data:%s;base64,%s">\n' % (suffix, MIMES[ext], pb64)
         print("embedded poster%s %s (%d KB)" % (suffix, os.path.basename(path), len(pb64) // 1024))
+    # bird's-eye previews (Tools: scratch prev.js) and the loading-car strip, small WebPs: inline here, files on the host
+    prevs = sorted(glob.glob(os.path.join(HERE, "previews", "*.webp")))
+    ptot = 0
+    for q in prevs:
+        stem = os.path.basename(q)[:-5]
+        with open(q, "rb") as f:
+            b = base64.b64encode(f.read()).decode("ascii")
+        ptot += len(b)
+        ptags += '<img id="%s" hidden alt="" src="data:image/webp;base64,%s">\n' % ("carspin" if stem == "carspin" else "prev-" + stem, b)
+    if prevs:
+        print("embedded %d previews (%d KB)" % (len(prevs), ptot // 1024))
     if ptags:
         full = full.replace("<div id=\"app\">", ptags + "<div id=\"app\">", 1)
     os.makedirs(DIST, exist_ok=True)
@@ -91,6 +102,12 @@ def main():
             htags += '<video id="revuelto-poster-video%s" hidden muted loop playsinline preload="auto" src="poster%s.%s"></video>\n' % (suffix, suffix, ext)
         else:
             htags += '<img id="revuelto-poster%s" hidden alt="" src="poster%s.%s">\n' % (suffix, suffix, ext)
+    if prevs:
+        os.makedirs(os.path.join(host, "previews"), exist_ok=True)
+        for q in prevs:
+            stem = os.path.basename(q)[:-5]
+            shutil.copyfile(q, os.path.join(host, "previews", stem + ".webp"))
+            htags += '<img id="%s" hidden alt="" src="previews/%s.webp">\n' % ("carspin" if stem == "carspin" else "prev-" + stem, stem)
     if htags:
         hpage = hpage.replace("<div id=\"app\">", htags + "<div id=\"app\">", 1)
     with open(os.path.join(host, "index.html"), "w", encoding="utf-8") as f:

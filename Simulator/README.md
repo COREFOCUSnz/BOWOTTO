@@ -144,6 +144,17 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
+- **The lobby.** The page opens on LOADING ALL MAPS while the bird's-eye
+  previews decode (eighteen small WebPs rendered from the worlds themselves,
+  in `previews/`), then the map list comes up with the chosen world's
+  bird's-eye behind it. Click a map to see it, press NEXT to load it: nothing
+  heavy is built until then. The loading screen shows the Revuelto in the
+  CORE FOCUS livery turning on the spot (a 24-frame strip, also in
+  `previews/`) with a tip underneath: controls, the money and the mods, the
+  worlds. Tips run in a fixed cycle that survives reloads, so the same tip
+  does not come up twice in a row. Previews and the strip are rendered by
+  scratch scripts (`prev.js`, `sprite.js`) against the built page; rerun
+  them when a world changes shape.
 - **Menu and saving.** The menu (gear button on desktop, **☰ MENU** top-right
   on a phone) holds settings, volume, credits and two career buttons:
   **SAVE GAME** writes the career record to this device and, when signed in

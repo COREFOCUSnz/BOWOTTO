@@ -149,7 +149,13 @@ UNIQUE ACCOUNT NAME (2 to 16 chars, modal over the start screen, keys blocked
 while open; uniqueness enforced via Firestore `names/{key}` only when signed
 in on the hosted site; CHANGE NAME in the garage). Menu has SAVE GAME and
 BACK TO MENU; phones get a ☰ MENU button top-right, buttons pinned to the
-top of the panel, NOS at index-finger height on the left. Still to come: the 3D garage
+top of the panel, NOS at index-finger height on the left. Lobby: LOADING ALL
+MAPS → map list with bird's-eye previews (`Simulator/previews/*.webp`,
+rendered headless by scratch prev.js) → NEXT builds the world behind a
+spinning CORE FOCUS Revuelto strip (carspin.webp) and 39 cycling tips. Course
+changes reload with `#go=<id>` (a storage write 60 ms before reload was lost
+in headless Chromium). Page is 16.1 MB of the 16 MiB artifact cap: the next
+big asset must come out of the posters or the model. Still to come: the 3D garage
 with Corey's environment render and part anchors, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps

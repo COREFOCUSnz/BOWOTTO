@@ -167,17 +167,33 @@ body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hid
 #settings .btns button{font:inherit;font-size:13px;letter-spacing:.26em;font-weight:700;padding:8px 22px;border-radius:4px;border:0;background:var(--amber);color:#02121a;cursor:pointer}
 #diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
 
-#tracksel{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px;pointer-events:auto;max-width:900px}
+#tracksel{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 8px;margin:6px 0 10px;pointer-events:auto;width:min(96vw,960px)}
 #tracksel button{font:inherit;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:var(--hud);border-radius:6px;padding:8px 12px;min-width:138px;cursor:pointer;text-align:left;transition:border-color .15s,background .15s;position:relative;overflow:hidden}
 #tracksel button b{display:block;font-size:15px;letter-spacing:.2em;font-weight:700}
-#tracksel button span{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);margin-top:3px}
+#tracksel button span{display:block;font-size:9px;letter-spacing:.14em;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:820px){#tracksel{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:480px){#tracksel{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #tracksel button:hover{background:rgba(255,255,255,.1)}
 #tracksel button.on{border-color:var(--amber);background:rgba(46,230,255,.16);box-shadow:0 0 18px rgba(46,230,255,.25)}
 #tracksel button::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
 #tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}#tracksel button.ocean::before{background:#4fe3ff}#tracksel button.sky::before{background:#ffffff}#tracksel button.city::before{background:#ff2ad8}#tracksel button.volcano::before{background:#ff6a1a}#tracksel button.ice::before{background:#7ff0ff}#tracksel button.docks::before{background:#ffb020}#tracksel button.station::before{background:#9fd8ff}#tracksel button.riviera::before{background:#ffd27a}#tracksel button.touge::before{background:#ffa040}#tracksel button.salt::before{background:#f4f4dc}#tracksel button.mars::before{background:#d9622a}#tracksel button.jungle::before{background:#8aff3a}
-#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
+#loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(ellipse at 50% 45%,#0a1a30,#02040a 70%);color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9;padding:24px;text-align:center}
 #loading.hidden{display:none}
+/* the loading car: a 24-frame strip of the Revuelto in the CORE FOCUS livery turning on the spot */
+#load-car{width:144px;height:88px;transform:scale(1.6);margin:30px 0 24px;filter:brightness(1.15) drop-shadow(0 6px 10px rgba(0,0,0,.6));background-repeat:no-repeat;background-size:3456px 88px;animation:carspin 1.6s steps(24) infinite}
+@keyframes carspin{from{background-position:0 0}to{background-position:-3456px 0}}
+#load-text{animation:loadpulse 1.2s ease-in-out infinite alternate}
+@keyframes loadpulse{from{opacity:.55}to{opacity:1}}
+#load-tip{position:absolute;left:24px;right:24px;bottom:34px;font-size:13px;letter-spacing:.16em;color:var(--hud);line-height:1.7;max-width:760px;margin:0 auto}
+#load-tip b{color:var(--amber);font-weight:700}
+#load-tip:empty{display:none}
+/* the lobby: the bird's-eye of the chosen world behind the map list */
+#lobby-bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:4;filter:saturate(1.1)}
+#lobby-bg.hidden{display:none}
+#start.peek{background:linear-gradient(rgba(2,4,10,.72),rgba(2,4,10,.45) 30%,rgba(2,4,10,.45) 70%,rgba(2,4,10,.8))}
+@media (max-width:480px){#load-tip{font-size:11px;bottom:22px}#loading{font-size:20px}}
 @media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
+@media (max-height:480px){#tracksel{gap:3px 6px;margin:2px 0 6px}#tracksel button{padding:2px 7px}#tracksel button b{font-size:11px;letter-spacing:.14em}#tracksel button span{font-size:7.5px;margin-top:0}#start>p{display:none}#start h1{display:none}#step-track h2{margin:0 0 4px;font-size:12px}}
 body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud,body.theme-salt #hud,body.theme-ice #hud,body.theme-docks #hud,body.theme-riviera #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
 body.outdoor #top-left .presents{text-shadow:0 1px 6px rgba(0,0,0,.9)}
 body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}

@@ -259,7 +259,7 @@ const TRACKS = {
       [-850, -550, 52], [-700, -400, 44], [-750, -200, 34], [-650, -50, 26], [-500, 20, 22],
     ] },
 };
-const TRACK_ID = (() => { try { const t = localStorage.getItem('revuelto.track'); if (t && TRACKS[t]) return t; } catch (e) {} return 'grid'; })();
+let TRACK_ID = (() => { try { const t = localStorage.getItem('revuelto.track'); if (t && TRACKS[t]) return t; } catch (e) {} return 'grid'; })();
 // look of each world: background, fog, the accent that lights walls and lines, sun and sky light, exposure, plus the flags
 // that used to be scattered checks: day, indoor (grid floor and mirror), stars, sun elevation, sky dome, terrain, rock, walls
 const THEMES = {
@@ -301,11 +301,104 @@ const THEMES = {
   jungle:  { bg: 0x6fa86a, fog: [0xa9d4a0, 260, 3000], neon: 0x8aff3a, line: '#f4f1ea', line2: '#8aff3a', sun: [0xfff4d8, 1.2], hemi: [0xa8d8a0, 0x2a4a20, 0.6], exposure: 0.85, verge: 0x4a5a2a,
              day: true, sunEl: 55, dome: [0x3a80c8, 0xd8e8c0], pw: 4.0, terrain: { amp: 140, base: 24, cliff: 10, freq: 0.001 }, water: 8, waterCol: 0x3a6a50, rock: [90, 80, 60] },
 };
-const TRACK = TRACKS[TRACK_ID], THEME = TRACK.theme, TH = THEMES[THEME], DAY = !!TH.day, OUTDOOR = !TH.indoor;
-{ const L = $('loading'); if (L) { L.textContent = 'LOADING ' + TRACK.name + ' …'; L.classList.remove('hidden'); } }
-// everything below builds the world and decodes the car, several seconds of solid work: it starts one tick later so the
-// loading screen is on screen first
-setTimeout(function boot() {
+let TRACK, THEME, TH, DAY, OUTDOOR;
+function chooseTrack(id) { TRACK_ID = id; TRACK = TRACKS[id]; THEME = TRACK.theme; TH = THEMES[THEME]; DAY = !!TH.day; OUTDOOR = !TH.indoor; }
+chooseTrack(TRACK_ID);
+// a course change from inside the game reloads with #go=<id>: the hash survives the reload even when a storage write
+// made a moment earlier has not been committed yet (seen in headless Chromium), so it is the authority
+let GO_ID = ''; try { const m = location.hash.match(/go=([a-z]+)/); if (m && TRACKS[m[1]]) { GO_ID = m[1]; chooseTrack(GO_ID); localStorage.setItem('revuelto.track', GO_ID); localStorage.setItem('revuelto.step', '2'); history.replaceState(null, '', location.pathname + location.search); } } catch (e) {}
+
+// ------------------------------------------------------------------ LOADING ALL MAPS → the lobby → NEXT builds one world
+// The page opens on LOADING ALL MAPS while the bird's-eye previews decode, then the map list comes up with the chosen
+// world's bird's-eye behind it. Nothing heavy happens until NEXT: that shows LOADING <WORLD> (the little Revuelto in the
+// CORE FOCUS livery turning, a tip underneath) and builds the world. A course change from inside the game reloads the
+// page with revuelto.step = 2, which skips the lobby and loads that world straight away.
+const TIPS = [
+  // controls
+  '<b>W / ↑</b> THROTTLE · <b>S / ↓</b> BRAKE AND REVERSE · <b>A D / ← →</b> STEER',
+  '<b>SPACE</b> IS THE HANDBRAKE · FLICK IT INTO A CORNER TO START A DRIFT',
+  '<b>SHIFT</b> OR <b>N</b> FIRES THE NOS · THE BAR UNDER THE DRIVE MODE IS YOUR TANK',
+  'NOS CHARGES WHILE YOU DRIFT · NOS IN THE MIDDLE OF A DRIFT IS A BOOST',
+  '<b>C</b> CHANGES CAMERA · FIVE VIEWS, INCLUDING THE BONNET AND THE PHOTO CAM',
+  '<b>M</b> OR <b>1 2 3 4</b> CHANGES DRIVE MODE · CORSA IS THE FULL 1015 CV',
+  '<b>T</b> SWITCHES TO MANUAL · <b>Q</b> AND <b>E</b> SHIFT · HOLD A GEAR THROUGH A CORNER',
+  '<b>R</b> PUTS YOU BACK ON THE TRACK · <b>ESC</b> OPENS THE MENU',
+  '<b>P</b> CYCLES YOUR PAINTS · <b>L</b> TURNS ON THE LIGHT TRAIL',
+  '<b>B</b> CHANGES THE MUSIC · <b>V</b> MUTES · <b>H</b> HIDES THE HELP CARD',
+  'GAMEPAD · LEFT STICK STEERS · TRIGGERS ARE THROTTLE AND BRAKE · BUMPERS SHIFT · A IS THE HANDBRAKE',
+  'ON A PHONE, REST A THUMB ON THE WHEEL AND TURN IT · LEFT THUMB ON THE PEDALS, INDEX FINGER ON NOS',
+  'SETTINGS · PHONE STEERING SWITCHES THE WHEEL FOR LEFT / RIGHT BUTTONS',
+  // money and mods
+  'FIRST PLACE ON IMPOSSIBLE OVER 10 LAPS PAYS $25,000 · THE FASTEST WAY TO FUND THE GARAGE',
+  'SAVE UP · A TIER 3 PART BEATS THREE TIER 1 PARTS, AND THE TIERS STACK ON EACH OTHER',
+  'SPEED COMES FROM THE <b>VOLTA</b> ENGINE AND <b>LEGGERA</b> AERO · HANDLING FROM <b>OSSA</b> TYRES AND <b>ALTA</b> SUSPENSION',
+  '<b>FERRO</b> BRAKES SHORTEN THE STOPPING DISTANCE BY SIX METRES AT TIER 3 · LATE BRAKING WINS RACES',
+  '<b>AZOTO</b> NOS DOUBLES THE TANK AND RECHARGES FASTER · TIER 3 IS TEN SECONDS OF BOOST',
+  'TYRES FIRST · GRIP HELPS THE LAUNCH, THE CORNERS AND THE BRAKING, ALL AT ONCE',
+  'PAINT IS FOR SHOW · PARTS ARE FOR SPEED · BUY THE PARTS FIRST',
+  'EVERY TIME TRIAL LAP PAYS $1,500 · A NEW BEST LAP PAYS $5,000 ON TOP',
+  'A PODIUM ON MEDIUM PAYS MORE THAN A WIN ON EASY · MOVE UP WHEN YOU CAN',
+  'YOUR CAREER SAVES AFTER EVERY RACE AND PURCHASE · SAVE GAME IN THE MENU ANY TIME',
+  'SIGN IN ON THE HOSTED SITE AND YOUR CAREER FOLLOWS YOU TO ANY DEVICE',
+  'CHANGE YOUR DRIVER NAME IN THE GARAGE · CAREER TAB',
+  // driving
+  'THE BLUE PADS GIVE A BOOST · THE PURPLE ARROWS GIVE A SUPER BOOST',
+  'OVERSHOOTING A JUMP? LIFT OFF BEFORE THE KICKER · THE LANDING IS WHERE THE GAP ENDS',
+  'IN THE AIR THE CAR FOLLOWS THE ROAD · A LITTLE STEER KEEPS IT ON THE LINE',
+  'LAND ON TOP OF A TUNNEL IN STRATOS AND KEEP DRIVING · YOU CAN DROP IN LATER',
+  'ICE LAKE HAS 62% GRIP · SMOOTH HANDS AND EARLY BRAKING',
+  'MARS HAS HALF THE GRAVITY · JUMPS FLY TWICE AS FAR',
+  'VERSUS IS FULL CONTACT · THE AI WILL LEAN ON YOU IN THE CORNERS',
+  'YOUR BEST LAP IS SAVED PER WORLD · BEAT IT FOR THE $5,000 BONUS',
+  'DRIFT THROUGH THE HAIRPINS · THE NOS BAR FILLS WHILE YOU ARE SIDEWAYS',
+  'A LONG STRAIGHT IS WHERE THE NOS PAYS · SAVE IT FOR THE RUN TO THE LINE',
+  'THE PHOTO CAM (CAMERA 5) IS THE GARAGE CAMERA · FIND YOUR ANGLE',
+  'THE MINIMAP TOP-RIGHT SHOWS THE WHOLE WORLD · THE DOT IS YOU',
+  'HITS COUNT ON THE HUD · CLEAN LAPS ARE FAST LAPS',
+  'THE CORE FOCUS LIVERY IS $15,000 IN THE GARAGE · STICKERS ALL OVER A GRAPHITE BASE',
+];
+// every load shows the next tip in a fixed cycle that survives reloads, so the same tip is not repeated
+function tipNext() { let i = 0; try { i = +localStorage.getItem('revuelto.tip') || 0; } catch (e) {} const t = TIPS[i % TIPS.length]; try { localStorage.setItem('revuelto.tip', String((i + 1) % TIPS.length)); } catch (e) {} return t; }
+let tipTimer = 0;
+function loadShow(text) {
+  $('load-text').textContent = text; $('loading').classList.remove('hidden');
+  const car = $('load-car'), strip = $('carspin'); if (strip && !car.style.backgroundImage) car.style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
+  const tip = $('load-tip'); tip.innerHTML = tipNext(); clearInterval(tipTimer); tipTimer = setInterval(() => { tip.innerHTML = tipNext(); }, 5000);
+}
+function loadHide() { $('loading').classList.add('hidden'); clearInterval(tipTimer); }
+const LOBBY = { sel: TRACK_ID, booted: false };
+function previewOf(id) { const im = $('prev-' + id); return im ? im.getAttribute('src') : ''; }
+function lobbyPick(id) {
+  LOBBY.sel = id; const T = TRACKS[id];
+  document.querySelectorAll('#tracksel button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  $('start-sub').textContent = T.name + ' · ' + T.sub + ' · ' + T.km + ' KM';
+  const src = previewOf(id), show = !!src && (!LOBBY.booted || id !== TRACK_ID);   // once a world is built it is its own backdrop
+  $('lobby-bg').style.backgroundImage = src ? 'url("' + src + '")' : ''; $('lobby-bg').classList.toggle('hidden', !show); $('start').classList.toggle('peek', show);
+}
+function lobbyHideBg() { $('lobby-bg').classList.add('hidden'); $('start').classList.remove('peek'); }
+function lobbyNext() {
+  const id = LOBBY.sel, T = TRACKS[id]; try { localStorage.setItem('revuelto.track', id); } catch (e) {}
+  if (!LOBBY.booted) { chooseTrack(id); try { localStorage.setItem('revuelto.step', '2'); } catch (e) {} lobbyHideBg(); loadShow('LOADING ' + T.name + ' …'); setTimeout(boot, 60); }   // boot lands on the mode step
+  else if (id === TRACK_ID) window.startShow(2);
+  else { try { localStorage.setItem('revuelto.step', '2'); } catch (e) {} loadShow('LOADING ' + T.name + ' …'); location.hash = 'go=' + id; setTimeout(() => location.reload(), 80); }
+}
+{
+  const tp = $('tracksel');
+  for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme; b.dataset.id = id; b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`; b.addEventListener('click', e => { e.stopPropagation(); lobbyPick(id); }); tp.appendChild(b); }
+  $('next-btn').addEventListener('click', e => { e.stopPropagation(); if (!LOBBY.booted) lobbyNext(); else window.startNav(1); });
+  let straight = !!GO_ID; try { straight = straight || localStorage.getItem('revuelto.step') === '2'; } catch (e) {}
+  if (!document.getElementById('revuelto-glb') && location.protocol !== 'file:') window.__glbFetch = fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);   // hosted: the car starts downloading now
+  if (straight) { loadShow('LOADING ' + TRACK.name + ' …'); setTimeout(boot, 60); }
+  else {
+    loadShow('LOADING ALL MAPS');
+    const imgs = [...document.querySelectorAll('img[id^="prev-"], #carspin')];
+    Promise.all(imgs.map(i => (i.decode ? i.decode() : Promise.resolve()).catch(() => {}))).then(() => { loadHide(); lobbyPick(TRACK_ID); $('next-btn').classList.remove('hidden'); });
+  }
+}
+window.__lobby = { LOBBY, lobbyPick, lobbyNext, TIPS, tipNext, loadShow, loadHide };
+
+function boot() {
+LOBBY.booted = true;
 // ------------------------------------------------------------------ career: money, parts, paints
 // Prize money for finishing, spent in the garage on parts that change the real physics numbers (power, grip, brakes,
 // steering rate, drag, mass, the NOS tank and its recharge) and on paints. Brands are invented; the part language is
@@ -1793,7 +1886,7 @@ window.addEventListener('drop', e => {
   if (emb) { try { const b64 = emb.textContent.trim(); const bin = atob(b64); let u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
     if (!(u8[0] === 0x67 && u8[1] === 0x6c && u8[2] === 0x54 && u8[3] === 0x46) && window.fflate) u8 = fflate.unzlibSync(u8);   // deflated by build.py
     loadGLBBuffer(u8.buffer, 'embedded'); } catch (e) { console.error(e); } }
-  else if (location.protocol !== 'file:') fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
+  else if (location.protocol !== 'file:') (window.__glbFetch || fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null)).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
 }
 
 // ------------------------------------------------------------------ light trail (light-cycle ribbon behind the car)
@@ -2376,10 +2469,11 @@ function toMenu() {
   const showStep = n => {
     step = n; ['track', 'mode', 'diff'].forEach((k, i) => $('step-' + k).classList.toggle('hidden', i + 1 !== n));
     const last = n === 3 || (n === 2 && GAME.mode !== 'versus');
-    $('back-btn').classList.toggle('hidden', n === 1); $('next-btn').classList.toggle('hidden', last || n === 1); $('start-btn').classList.toggle('hidden', !last);
+    $('back-btn').classList.toggle('hidden', n === 1); $('next-btn').classList.toggle('hidden', last); $('start-btn').classList.toggle('hidden', !last);
+    if (n === 1) lobbyPick(LOBBY.sel); else lobbyHideBg();
     $('start-btn').textContent = GAME.mode === 'versus' ? 'START RACE' : GAME.mode === 'time' ? 'START TIME TRIAL' : 'START ENGINE';
   };
-  window.startNav = d => { if (d < 0 && step > 1) showStep(step - 1); else if (d > 0) showStep(step + 1); };
+  window.startNav = d => { if (d < 0 && step > 1) showStep(step - 1); else if (d > 0 && step === 1) lobbyNext(); else if (d > 0) showStep(step + 1); };
   window.startShow = showStep;
   const setModeBtn = m => { GAME.mode = m; lsSet('revuelto.mode', m); document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('lapsel').classList.toggle('hidden', m === 'solo'); showStep(2); };
   document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); setModeBtn(b.dataset.m); }));
@@ -2387,14 +2481,10 @@ function toMenu() {
   const diffBtns = document.querySelectorAll('#diffsel button');
   diffBtns.forEach(b => { b.classList.toggle('on', +b.dataset.d === GAME.diff); b.addEventListener('click', e => { e.stopPropagation(); GAME.diff = +b.dataset.d; diffBtns.forEach(x => x.classList.toggle('on', x === b)); lsSet('revuelto.diff', String(GAME.diff)); }); });
   $('back-btn').addEventListener('click', e => { e.stopPropagation(); startNav(-1); });
-  $('next-btn').addEventListener('click', e => { e.stopPropagation(); startNav(1); });
   $('res-again').addEventListener('click', e => { e.stopPropagation(); startRace(GAME.mode, GAME.laps); });
   $('res-menu').addEventListener('click', e => { e.stopPropagation(); toMenu(); });
   $('results').addEventListener('click', e => e.stopPropagation());
-  // track tiles: the current one just moves on; another one rebuilds the page and comes back to the mode screen
-  const tp = $('tracksel');
-  for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme + (id === TRACK_ID ? ' on' : ''); b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`;
-    b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) { showStep(2); return; } lsSet('revuelto.track', id); lsSet('revuelto.step', '2'); $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
+  lobbyPick(TRACK_ID);   // the tiles were built before the world; the built world is now the backdrop
   hudLineOK = true; hudCarLine();
   for (const id of ['start-ver', 'cred-ver']) { const e = $(id); if (e) e.textContent = 'V' + VERSION; }   // one source of truth for the version
   $('start-sub').textContent = TRACK.name + ' · ' + TRACK.sub + ' · ' + TRACK.km + ' KM';
@@ -3128,7 +3218,7 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-$('loading').classList.add('hidden');   // the start screen is ready
-window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
-}, 40);
+loadHide();   // the start screen is ready
+window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+}
 })();
