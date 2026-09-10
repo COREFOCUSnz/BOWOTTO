@@ -2850,9 +2850,9 @@ function step(dt) {
     // the gap's road bends: the flight follows most of that bend (a clean, straight take-off lands on line at any speed
     // that clears the gap) and the stick has a little real authority. Angled take-offs and short flights still miss
     const frA = sampleAt(st.s), hv = st.vel.clone(); hv.y = 0;
-    const lowG = (TRACK.gravity || 1) < 1, sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * (lowG ? 1.0 : 0.9) + st.steer * 0.35 * dt;   // low gravity: long flights, so they track the road's bend fully
+    const lowG = (TRACK.gravity || 1) < 1, sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt + st.steer * 0.35 * dt;   // the flight tracks the road's bend fully: a straight take-off lands on line however long the gap
     if (turn) { const c = Math.cos(turn), sn = Math.sin(turn), vx = st.vel.x, vz = st.vel.z; st.vel.x = vx * c + vz * sn; st.vel.z = -vx * sn + vz * c; hv.set(st.vel.x, 0, st.vel.z); }
-    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * (lowG ? 2.4 : 1.2)))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
+    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * (lowG ? 2.4 : 1.6)))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
     st.pos.addScaledVector(st.vel, dt);
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
@@ -2865,7 +2865,18 @@ function step(dt) {
     const gone = st.pos.y < roadY - 30 || st.airT > 9 || Math.abs(st.d) > D_WALL + 40;
     if (st.airT > 90) flash('MISSED · RESET', 1400);
     const missed = over && st.pos.y <= surfY + 0.1 && st.vel.y <= 0 && Math.abs(st.d) > landW + 2.2;   // came down beyond the verge: that is a miss (the verge itself is a landing, with a nudge back)
-    if (!missed && over && st.pos.y <= surfY + 0.1 && st.vel.y <= 0) {
+    // just short: in the last 40 m of the gap, no more than 6 m under the lip and on line, you clip the edge and scramble on
+    let clipped = false;
+    if (!over && st.vel.y <= 0 && st.airT > 0.5 && Math.abs(st.d) < landW + 2.2) {
+      const J = JUMPS.find(J => frB.i >= J.i0 && frB.i <= J.i1);
+      if (J && frB.i >= J.i1 - 12 && st.pos.y >= roadY - 6) {
+        st.s = CUM[(J.i1 + 2) % N]; const fr2 = sampleAt(st.s), cpC = Math.cos(st.psi), spC = Math.sin(st.psi), fwdC = fr2.t.clone().multiplyScalar(cpC).addScaledVector(fr2.b, spC);
+        st.u = Math.max(8, st.vel.dot(fwdC) * 0.6); st.w = 0; st.air = false; st.roof = false; st.roofIn = false; st.psi *= 0.5;
+        st.d = clamp(st.d, -(landW - 0.5), landW - 0.5); st.shake = 1; audio.crunch(0.7); flash('CLIPPED THE EDGE', 900); syncPose(); clipped = true;
+      }
+    }
+    if (clipped) {}
+    else if (!missed && over && st.pos.y <= surfY + 0.1 && st.vel.y <= 0) {
       // touchdown: keep the along-road speed, drop the rest
       const cpB = Math.cos(st.psi), spB = Math.sin(st.psi), fwdB = frB.t.clone().multiplyScalar(cpB).addScaledVector(frB.b, spB);
       st.u = st.vel.dot(fwdB); st.w = st.vel.dot(new THREE.Vector3().crossVectors(fwdB, frB.n)) * 0.5; st.air = false;
