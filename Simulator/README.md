@@ -1,8 +1,15 @@
 # REVUELTO SIM
 
+**Version 1.0.0.** Live at https://lambo-sim.web.app
+
 A browser driving simulator of the Lamborghini Revuelto (LB744), built next to
 THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
 (Chrome / Edge / Safari / Firefox), press START ENGINE, turn the volume up.
+
+The version is set by hand in one place, `VERSION` at the top of `sim.js`, and
+painted from there onto the start screen, the HUD header and the Settings
+credits. Bump it only when Corey says so, and give every bump a changelog
+entry below.
 
 ## What is in it
 
@@ -268,6 +275,28 @@ model is present (`build.py --no-model`). To swap in a different mesh:
 Blender is a modelling and offline renderer, not a real-time engine. For a
 true photoreal *playable* sim the next step up is Unreal Engine 5 or Unity
 with the same GLB; this repo's physics constants transfer directly.
+
+## Changelog
+
+### v1.0.0
+First numbered release, and the first that is publicly hosted.
+
+- **Eight worlds**: The Grid, The Source, Red Mesa, Supersonic, Timberline,
+  Deep Blue, Whiteout and Stratos, each a spline circuit with its own theme,
+  terrain, dressing, loops, jumps, corkscrews, caves and tunnels.
+- **Three modes**: Solo, Time Trial and Versus against three AI Lamborghinis,
+  over 1, 3, 5 or 10 laps, with four difficulty levels and momentum-based
+  contact that spins whoever judged the hit badly.
+- **The car**: a 505k-triangle Revuelto, four drive modes, eight official
+  paints plus the Core Focus livery and an animated TRON paint, five cameras.
+- **NOS** charged by drifting, a drift boost that holds as long as the slide
+  does, and Supersonic's rings that arm it instead.
+- **Phone steering** as a rotatable Revuelto wheel or the original arrows,
+  plus touch controls, gamepad support and the full keyboard set.
+- **Four generated music tracks**, a generated engine, a spoken announcer and
+  separate volume buses for cars, effects and music.
+- Packaged three ways: a single-file page, a claude.ai Artifact and a Firebase
+  Hosting folder.
 
 ## Credits
 

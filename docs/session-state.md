@@ -128,7 +128,7 @@ difficulty levels, momentum-based contact, drift-charged NOS and drift boost,
 Supersonic rings, the COREZ clips, volume buses. `python3 Simulator/build.py`
 rebuilds the single-file page, the artifact fragment and the hosting folder;
 tests are Playwright scripts (headless Chromium on SwiftShader) kept in the
-session scratchpad. **Live at https://lambo-sim.web.app** (Firebase project
+session scratchpad. **v1.0.0, live at https://lambo-sim.web.app** (Firebase project
 `lambo-sim`, pinned in `Simulator/.firebaserc`); the whole `dist/hosting/`
 folder including the .glb and the two .webm clips is committed, so deploying
 is `git pull` then `firebase deploy --only hosting` in a clone of the branch,

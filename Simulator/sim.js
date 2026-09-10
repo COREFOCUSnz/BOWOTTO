@@ -5,6 +5,8 @@
 (() => {
 'use strict';
 
+const VERSION = '1.0.0';   // bumped by hand, only when Corey says so. Painted in the HUD, the start screen and Settings
+
 // ------------------------------------------------------------------ config
 const CAR = {
   mass: 1900, wheelbase: 2.779, length: 4.947, width: 2.033, height: 1.16,
@@ -1957,7 +1959,8 @@ function toMenu() {
   const tp = $('tracksel');
   for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme + (id === TRACK_ID ? ' on' : ''); b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`;
     b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) { showStep(2); return; } lsSet('revuelto.track', id); lsSet('revuelto.step', '2'); $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
-  document.querySelector('#top-left .sub span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP';
+  document.querySelector('#top-left .sub span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP · V' + VERSION;
+  for (const id of ['start-ver', 'cred-ver']) { const e = $(id); if (e) e.textContent = 'V' + VERSION; }   // one source of truth for the version
   $('start-sub').textContent = TRACK.name + ' · ' + TRACK.sub + ' · ' + TRACK.km + ' KM';
   if (RING_AT) $('ringrow').classList.remove('hidden');
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === GAME.mode)); $('lapsel').classList.toggle('hidden', GAME.mode === 'solo');
@@ -2619,5 +2622,5 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();
