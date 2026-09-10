@@ -1775,11 +1775,11 @@ function updateRaceHUD() {
 placeOnTrack(20);
 
 // ------------------------------------------------------------------ input
-const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0, nos: 0 };
+const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0, nos: 0, wheel: 0 };   // wheel is analogue, -1 .. 1
 const inp = { steer: 0, throttle: 0, brake: 0, hand: false, nos: false, shiftUp: false, shiftDown: false };
 function readInput() {
   const k = c => keys[c] ? 1 : 0;
-  inp.steer = k('ArrowLeft') + k('KeyA') - k('ArrowRight') - k('KeyD') + touch.left - touch.right;
+  inp.steer = k('ArrowLeft') + k('KeyA') - k('ArrowRight') - k('KeyD') + touch.left - touch.right + touch.wheel;
   inp.throttle = Math.max(k('ArrowUp'), k('KeyW'), touch.gas);
   inp.brake = Math.max(k('ArrowDown'), k('KeyS'), touch.brake);
   inp.hand = !!(keys.Space || touch.hand);
@@ -1796,6 +1796,7 @@ function readInput() {
     if (bt(5) > 0.5 && !gp._u) { gp._u = true; shiftManual(1); } else if (bt(5) < 0.5) gp._u = false;
     if (bt(4) > 0.5 && !gp._d) { gp._d = true; shiftManual(-1); } else if (bt(4) < 0.5) gp._d = false;
   }
+  wheelTick();                                                       // the wheel springs back on the game's own clock
   inp.steer = clamp(inp.steer, -1, 1);
 }
 window.addEventListener('keydown', e => {
@@ -1830,7 +1831,48 @@ document.querySelectorAll('.tbtn').forEach(b => {
   const off = e => { e.preventDefault(); touch[k] = 0; b.classList.remove('down'); };
   b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
 });
-if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) $('touch').classList.add('on');
+const TOUCH_DEV = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (TOUCH_DEV) { $('touch').classList.add('on'); document.body.classList.add('touch'); }
+// phone steering: WHEEL (a real wheel you rotate with one finger) or LEFT / RIGHT (the two arrows). Wheel is the default
+let steerMode = 'wheel';
+try { const sm = localStorage.getItem('revuelto.steer'); if (sm === 'wheel' || sm === 'arrows') steerMode = sm; } catch (e) {}
+function applySteerMode() {
+  $('touch').classList.toggle('wheel', steerMode === 'wheel');
+  document.body.classList.toggle('wheelsteer', steerMode === 'wheel');   // the tach shares the wheel's corner: it stands down on a phone
+  touch.wheel = 0; wheelReset();                                     // never leave a stale lock behind when switching
+  try { localStorage.setItem('revuelto.steer', steerMode); } catch (e) {}
+}
+let wheelReset = () => {}, wheelTick = () => {}, wheelState = () => ({});
+{ // the wheel: grab it anywhere, the angle of your finger about its centre turns it. Full lock at 120 degrees
+  // The spring back to centre runs off readInput (the game loop), not its own frame callback: a throttled
+  // browser must never leave the wheel latched at full lock with no finger on it
+  const el = $('t-wheel'), svg = el.firstElementChild, MAX = Math.PI * 2 / 3, DEAD = 26;
+  let ang = 0, pid = null, last = 0, tPrev = 0;
+  const paint = () => { svg.style.transform = 'rotate(' + (ang * 180 / Math.PI).toFixed(1) + 'deg)'; touch.wheel = clamp(-ang / MAX, -1, 1); };
+  const at = e => { const r = el.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2); return { a: Math.atan2(dy, dx), r: Math.hypot(dx, dy) }; };
+  wheelReset = () => { pid = null; ang = 0; tPrev = 0; el.classList.remove('grab'); paint(); };
+  wheelTick = () => {
+    if (pid !== null || ang === 0) { tPrev = 0; return; }
+    const now = performance.now(), dt = tPrev ? Math.min(0.1, (now - tPrev) / 1000) : 0; tPrev = now;
+    ang += -ang * (1 - Math.exp(-dt * 14));                            // eases to centre in about a quarter second
+    if (Math.abs(ang) < 0.005) ang = 0;
+    paint();
+  };
+  el.addEventListener('pointerdown', e => {
+    if (pid !== null) return; e.preventDefault();
+    pid = e.pointerId; last = at(e).a; tPrev = 0; el.classList.add('grab'); try { el.setPointerCapture(pid); } catch (err) {}
+  });
+  el.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return; e.preventDefault();
+    const p = at(e); if (p.r < DEAD) { last = p.a; return; }            // near the hub atan2 is all noise: follow, do not turn
+    let d = p.a - last; if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI;
+    last = p.a; ang = clamp(ang + d, -MAX, MAX); paint();
+  });
+  const release = e => { if (e.pointerId !== pid) return; pid = null; tPrev = 0; el.classList.remove('grab'); };
+  el.addEventListener('pointerup', release); el.addEventListener('pointercancel', release);
+  wheelState = () => ({ ang: +ang.toFixed(3), pid, steer: +touch.wheel.toFixed(3) });
+}
+applySteerMode();
 $('start-btn').addEventListener('click', startGame);
 { // colour bar: five quick picks (the fifth is the animated TRON paint); P still cycles the full list
   const bar = $('paints'), picks = PAINTS.map((_, i) => i).filter(i => i > 0);
@@ -1847,7 +1889,7 @@ $('btn-sound').addEventListener('click', e => { e.stopPropagation(); st.sound = 
 $('btn-settings').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
 // settings & credits panel (start screen link, or ESC in the menu)
 function settingsRefresh() {
-  const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF' };
+  const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF', steer: steerMode === 'wheel' ? 'WHEEL' : 'LEFT / RIGHT' };
   document.querySelectorAll('#settings [data-set]').forEach(b => { b.textContent = v[b.dataset.set]; });
   document.querySelectorAll('#settings input[data-vol]').forEach(r => { r.value = Math.round(audio.vol[r.dataset.vol] * 100); r.nextElementSibling.textContent = r.value + '%'; });
 }
@@ -1860,6 +1902,7 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
     case 'music': music.cycle(); break;
     case 'trail': trailOn = !trailOn; trailMesh.visible = trailOn; if (trailOn) trailReset(); break;
     case 'voice': announcer.on = !announcer.on; break;
+    case 'steer': steerMode = steerMode === 'wheel' ? 'arrows' : 'wheel'; applySteerMode(); break;
   }
   settingsRefresh(); audioBtns();
 }));
@@ -2576,5 +2619,5 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();

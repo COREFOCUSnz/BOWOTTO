@@ -123,8 +123,20 @@ THE BOWOTTO as a side project. Open `dist/revuelto.html` in any modern browser
   paint with clearcoat lit by a PMREM of the procedural sky, ACES tone
   mapping, soft shadows, bloom on the Y-signature lights. `G` toggles bloom.
   `C` cycles chase / close / bonnet / bumper / photo (orbiting) cameras.
-- **Controls** keyboard, touch (on-screen buttons on phones/tablets) and
+- **Controls** keyboard, touch (on-screen controls on phones/tablets) and
   gamepad (stick steer, triggers throttle/brake, bumpers shift, A handbrake).
+- **Phone steering** has two settings, in Settings under PHONE STEERING, and
+  the choice is remembered. The row only appears on a touch device.
+  - **WHEEL** (the default) puts a Revuelto wheel bottom-right: flat top and
+    flat bottom, carbon rim with grips at 9 and 3, three spokes, the gold
+    shield on the hub, the red starter cover, and a yellow marker at 12 so
+    you can see the angle at a glance. Rest one thumb anywhere on it and
+    turn: the wheel follows the angle of your thumb about its centre, full
+    lock at 120 degrees, and it springs back to centre when you let go.
+    Steering is analogue, so a small turn is a small correction. Right thumb
+    steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
+    tach shares that corner, so it stands down in this mode.
+  - **LEFT / RIGHT** is the original pair of arrow buttons.
 
 ## Eight worlds
 
