@@ -1,0 +1,75 @@
+name: Deploy LAMBO SIM
+
+# Publishes Simulator/dist/hosting to Firebase Hosting (project lambo-sim,
+# https://lambo-sim.web.app) so the live site updates itself on every push.
+# No terminal work: the deploy folder is committed, so this only has to
+# check the repo out and hand it to Firebase.
+#
+# One-time setup, done through two web consoles, no typing:
+#   1. Firebase console -> Project settings -> Service accounts ->
+#      "Generate new private key". A .json file downloads.
+#   2. GitHub -> this repo -> Settings -> Secrets and variables -> Actions ->
+#      "New repository secret", named FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM,
+#      with the whole contents of that .json pasted in as the value.
+# After that this runs by itself. It can also be started by hand from the
+# Actions tab with the "Run workflow" button.
+
+on:
+  push:
+    branches:
+      - main
+      - claude/lamborghini-revuelto-simulator-l7n9gt
+    paths:
+      - 'Simulator/**'
+      - '.github/workflows/deploy-lambo-sim.yml'
+  workflow_dispatch:
+
+# One deploy at a time; a newer push supersedes one still queued.
+concurrency:
+  group: deploy-lambo-sim
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to lambo-sim.web.app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Check the deploy folder is complete
+        run: |
+          cd Simulator/dist/hosting
+          missing=0
+          for f in index.html revuelto.glb poster.webm poster2.webm; do
+            if [ ! -s "$f" ]; then echo "::error::missing or empty: $f"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || { echo "::error::deploy folder incomplete, refusing to publish a broken site"; exit 1; }
+          echo "All four files present:"; ls -lh
+
+      # Until the key is added this finishes green with a note, rather than
+      # mailing out a red failure for a setup step that has not happened yet.
+      - name: Is the Firebase key set up yet?
+        id: key
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nothing deployed: the FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM secret is not set. Add it under Settings -> Secrets and variables -> Actions and pushes will deploy from then on."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Firebase Hosting
+        if: steps.key.outputs.ready == 'true'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM }}
+          projectId: lambo-sim
+          channelId: live
+          entryPoint: ./Simulator
+
+      - name: Say where it went
+        if: steps.key.outputs.ready == 'true'
+        run: echo "::notice::Deployed to https://lambo-sim.web.app"

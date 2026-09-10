@@ -229,6 +229,23 @@ git pull
 firebase deploy --only hosting
 ```
 
+### Or let it deploy itself
+
+`.github/workflows/deploy-lambo-sim.yml` publishes the site on every push
+that touches `Simulator/`, so no terminal is needed at all. It checks all
+four files are present before publishing, and refuses rather than putting a
+broken site up. It needs one secret, set up through two web consoles:
+
+1. Firebase console -> Project settings -> Service accounts -> **Generate new
+   private key**. A `.json` file downloads.
+2. GitHub -> the repo -> Settings -> Secrets and variables -> Actions -> **New
+   repository secret**, named `FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM`, with the
+   whole contents of that file pasted as the value.
+
+Until that secret exists the workflow finishes green and deploys nothing,
+with a note saying why. It can also be run on demand from the Actions tab
+with the **Run workflow** button.
+
 Any other static host (GitHub Pages, Netlify) can serve the same folder.
 
 ## The COREZ board
