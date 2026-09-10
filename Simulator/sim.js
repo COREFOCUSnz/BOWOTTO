@@ -2325,6 +2325,7 @@ $('btn-settings').addEventListener('click', e => { e.stopPropagation(); settings
 function settingsRefresh() {
   const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF', steer: steerMode === 'wheel' ? 'WHEEL' : 'LEFT / RIGHT' };
   document.querySelectorAll('#settings [data-set]').forEach(b => { b.textContent = v[b.dataset.set]; });
+  $('set-menu').classList.toggle('hidden', !$('start').classList.contains('hidden')); $('set-saved').textContent = '';
   document.querySelectorAll('#settings input[data-vol]').forEach(r => { r.value = Math.round(audio.vol[r.dataset.vol] * 100); r.nextElementSibling.textContent = r.value + '%'; });
 }
 document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListener('click', e => {
@@ -2343,6 +2344,9 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
 document.querySelectorAll('#settings input[data-vol]').forEach(r => { const upd = () => { audio.setVolume(r.dataset.vol, r.value / 100); r.nextElementSibling.textContent = r.value + '%'; }; r.addEventListener('input', upd); r.addEventListener('change', upd); r.addEventListener('click', e => e.stopPropagation()); });
 $('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
 $('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
+$('t-menu').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
+$('set-menu').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); toMenu(); });
+$('set-save').addEventListener('click', e => { e.stopPropagation(); careerSave(); const where = (cloud.ok && cloud.user) ? 'SAVED · LOCAL + CLOUD' : 'SAVED ON THIS DEVICE'; $('set-saved').textContent = where + ' · ' + new Date().toLocaleTimeString(); flash('GAME SAVED', 1200, '#ffd21f'); });
 $('settings').addEventListener('click', e => e.stopPropagation());
 let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }

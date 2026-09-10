@@ -144,6 +144,15 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
+- **Menu and saving.** The menu (gear button on desktop, **☰ MENU** top-right
+  on a phone) holds settings, volume, credits and two career buttons:
+  **SAVE GAME** writes the career record to this device and, when signed in
+  on the hosted site, to the cloud, and shows when it last saved; **BACK TO
+  MENU** ends the current race and returns to the start screen. The game
+  also saves by itself after every race and purchase. On a phone the menu's
+  buttons sit at the top of the panel and the music / sound buttons move
+  inside it. In wheel steering the NOS button sits high on the left side, at
+  index-finger height, so the thumb can stay on the gas and brake.
 
 ## Career: prize money, the garage, parts and paints
 

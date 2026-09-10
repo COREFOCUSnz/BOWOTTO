@@ -147,7 +147,9 @@ Google sign-in with a Firestore record per player, newest copy wins). Corey's
 decisions: Firebase sign-in, invented brands. First run asks CREATE YOUR
 UNIQUE ACCOUNT NAME (2 to 16 chars, modal over the start screen, keys blocked
 while open; uniqueness enforced via Firestore `names/{key}` only when signed
-in on the hosted site; CHANGE NAME in the garage). Still to come: the 3D garage
+in on the hosted site; CHANGE NAME in the garage). Menu has SAVE GAME and
+BACK TO MENU; phones get a ☰ MENU button top-right, buttons pinned to the
+top of the panel, NOS at index-finger height on the left. Still to come: the 3D garage
 with Corey's environment render and part anchors, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps

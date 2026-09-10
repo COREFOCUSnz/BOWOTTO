@@ -61,7 +61,7 @@ html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"
 #touch.wheel #t-left,#touch.wheel #t-right{display:none}
 #touch.wheel #t-brake{right:auto;left:16px;bottom:28px}
 #touch.wheel #t-gas{right:auto;left:16px;bottom:112px}
-#touch.wheel #t-nos{right:auto;left:16px;bottom:196px}
+#touch.wheel #t-nos{right:auto;left:16px;bottom:300px}
 #touch.wheel #t-hand{right:auto;left:110px;bottom:28px}
 /* the wheel takes the bottom-right, the pedals the bottom-left: the tach gives way, the readout centres,
    and the drive-mode block lifts clear of the wheel */
@@ -70,10 +70,14 @@ body.touch.wheelsteer #cluster{left:112px;transform:none}
 body.touch.wheelsteer #mode{bottom:212px}
 body.touch.wheelsteer #mode-sub,body.touch.wheelsteer #paint-name{display:none}
 /* landscape phone: only ~390px tall, so the left hand gets a 2x2 pad and the readout takes the middle */
-@media (max-height:480px){#t-wheel{width:150px;height:150px;bottom:12px}#touch.wheel #t-brake{left:16px;bottom:14px}#touch.wheel #t-gas{left:16px;bottom:104px}#touch.wheel #t-nos{left:106px;bottom:104px}#touch.wheel #t-hand{left:106px;bottom:14px}body.touch.wheelsteer #cluster{left:50%;transform:translateX(-50%)}body.touch.wheelsteer #mode{bottom:18px;right:180px}body.touch.wheelsteer #mode-name{font-size:22px}}
+@media (max-height:480px){#t-wheel{width:150px;height:150px;bottom:12px}#touch.wheel #t-brake{left:16px;bottom:14px}#touch.wheel #t-gas{left:16px;bottom:104px}#touch.wheel #t-nos{left:16px;bottom:auto;top:120px}#touch.wheel #t-hand{left:106px;bottom:14px}body.touch.wheelsteer #cluster{left:50%;transform:translateX(-50%)}body.touch.wheelsteer #mode{bottom:18px;right:180px}body.touch.wheelsteer #mode-name{font-size:22px}}
 #t-wheel svg{width:100%;height:100%;display:block;filter:drop-shadow(0 2px 10px rgba(0,0,0,.55))}
 #t-wheel.grab .rim{stroke:rgba(255,210,31,.85)}
 .touchonly{display:none!important}
+/* phone: the menu lives top-right (Corey), the lap box drops under it */
+#t-menu{position:absolute;top:12px;right:12px;z-index:6;font:inherit;font-size:12px;letter-spacing:.2em;font-weight:700;color:var(--hud);background:var(--panel);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:9px 16px;pointer-events:auto;cursor:pointer;align-items:center}
+body.touch #top-right{top:56px;transform:scale(.72);transform-origin:top right}
+body.touch #audiobtns{display:none}   /* music / sound / gear live in the phone menu */
 body.touch .touchonly{display:flex!important}
 #t-nos{left:72px;bottom:218px;width:84px;height:64px;border-radius:32px;font-size:18px;letter-spacing:.2em;font-weight:700;border-color:rgba(166,77,255,.7);background:rgba(166,77,255,.22)}
 #t-nos:active,#t-nos.down{background:rgba(166,77,255,.6)}
@@ -99,7 +103,7 @@ body.touch .touchonly{display:flex!important}
 #paints button.livery{background:linear-gradient(135deg,#15181f 0 40%,#2ee6ff 40% 50%,#ff7a00 50% 55%,#15181f 55%)}
 #paints button.tron{background:conic-gradient(from 0deg,#0a2a6a,#2ee6ff,#7a3cff,#0a2a6a,#2ee6ff);animation:tronspin 3s linear infinite}
 @keyframes tronspin{to{filter:hue-rotate(360deg)}}
-@media (max-width:480px){#top-left{transform:scale(.76);transform-origin:top left}#t-wheel{width:150px;height:150px;right:10px;bottom:20px}#top-right{top:98px}#touch.wheel #t-hand{left:16px;bottom:284px}body.touch.wheelsteer #spd{font-size:36px}body.touch.wheelsteer #gear{font-size:30px}}   /* the badge is 405px wide: scale the whole block so it fits a 390px phone */
+@media (max-width:480px){#top-left{transform:scale(.76);transform-origin:top left}#t-wheel{width:150px;height:150px;right:10px;bottom:20px}#top-right{top:98px}#touch.wheel #t-hand{left:16px;bottom:204px}#touch.wheel #t-nos{bottom:300px}body.touch #top-right{top:96px;transform:scale(.72)}body.touch.wheelsteer #spd{font-size:36px}body.touch.wheelsteer #gear{font-size:30px}}   /* the badge is 405px wide: scale the whole block so it fits a 390px phone */
 @media (max-width:820px){#paints{right:8px;bottom:120px;transform:scale(.8);transform-origin:bottom right}}
 
 #nos{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:11px;letter-spacing:.3em;color:var(--dim)}
@@ -163,6 +167,13 @@ body.touch .touchonly{display:flex!important}
 #settings .rows button:hover{border-color:var(--amber)}
 #settings .cred{font-size:11px;letter-spacing:.16em;color:var(--dim);line-height:1.8;margin:0 0 16px}
 #settings .cred a{color:var(--amber);text-decoration:none}
+#settings .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#settings .btns button.alt{background:rgba(255,255,255,.08);color:var(--hud);border:1px solid rgba(255,255,255,.2)}
+#settings .btns button.hidden{display:none}
+#set-saved{margin:10px 0 0!important;color:var(--amber)}
+#set-saved:empty{display:none}
+/* phone: the panel is taller than the screen, so SAVE / BACK TO MENU / CLOSE sit at the top, no scrolling to find them */
+body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hidden{display:none}body.touch #settings>h2:first-child{order:-3}body.touch #settings .btns{order:-2;margin-bottom:6px}body.touch #settings #set-saved{order:-1;margin:0 0 14px!important}
 #settings .btns button{font:inherit;font-size:13px;letter-spacing:.26em;font-weight:700;padding:8px 22px;border-radius:4px;border:0;background:var(--amber);color:#02121a;cursor:pointer}
 #diffsel button{width:240px;height:34px;padding:0 12px;font-size:13px;letter-spacing:.24em;white-space:nowrap}
 
@@ -268,6 +279,7 @@ body.garage #start,body.garage #hud{display:none}   /* the garage is the car and
       <div id="modeline">SOLO · CHASE CAM</div>
       <div id="audiobtns"><button id="btn-music" title="change music (B)">♪ DOWNTEMPO · 100</button><button id="btn-sound" title="sound on / off (V)">SOUND ON</button><button id="btn-settings" title="settings">⚙</button></div>
     </div>
+    <button id="t-menu" class="touchonly" title="menu">☰ MENU</button>
     <div id="top-right">
       <div id="laps">
         <div><span>LAP</span><b id="lap-cur" class="digits">--:--.---</b></div>
@@ -401,7 +413,8 @@ body.garage #start,body.garage #hud{display:none}   /* the garage is the car and
     <p class="cred">LAMBO SIM <span id="cred-ver">V1.0.0</span> · CORE FOCUS PRODUCTIONS · COREY FRIEDLANDER<br>
     CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
-    <div class="btns"><button id="settings-close">CLOSE</button></div>
+    <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
+    <p id="set-saved" class="cred"></p>
   </div>
 </div>
 <script>
@@ -7783,6 +7796,7 @@ $('btn-settings').addEventListener('click', e => { e.stopPropagation(); settings
 function settingsRefresh() {
   const v = { quality: hiQ ? 'HIGH' : 'LOW', bloom: bloomOn ? 'ON' : 'OFF', sound: st.sound ? 'ON' : 'OFF', music: music.on ? music.tracks[music.track].name : 'OFF', trail: trailOn ? 'ON' : 'OFF', voice: announcer.on ? 'ON' : 'OFF', steer: steerMode === 'wheel' ? 'WHEEL' : 'LEFT / RIGHT' };
   document.querySelectorAll('#settings [data-set]').forEach(b => { b.textContent = v[b.dataset.set]; });
+  $('set-menu').classList.toggle('hidden', !$('start').classList.contains('hidden')); $('set-saved').textContent = '';
   document.querySelectorAll('#settings input[data-vol]').forEach(r => { r.value = Math.round(audio.vol[r.dataset.vol] * 100); r.nextElementSibling.textContent = r.value + '%'; });
 }
 document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListener('click', e => {
@@ -7801,6 +7815,9 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
 document.querySelectorAll('#settings input[data-vol]').forEach(r => { const upd = () => { audio.setVolume(r.dataset.vol, r.value / 100); r.nextElementSibling.textContent = r.value + '%'; }; r.addEventListener('input', upd); r.addEventListener('change', upd); r.addEventListener('click', e => e.stopPropagation()); });
 $('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
 $('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
+$('t-menu').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
+$('set-menu').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); toMenu(); });
+$('set-save').addEventListener('click', e => { e.stopPropagation(); careerSave(); const where = (cloud.ok && cloud.user) ? 'SAVED · LOCAL + CLOUD' : 'SAVED ON THIS DEVICE'; $('set-saved').textContent = where + ' · ' + new Date().toLocaleTimeString(); flash('GAME SAVED', 1200, '#ffd21f'); });
 $('settings').addEventListener('click', e => e.stopPropagation());
 let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
