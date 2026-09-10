@@ -341,7 +341,7 @@ const SHOP_KEYS = Object.keys(SHOP);
 const PRIZE = [[8000, 5000, 3000, 1000], [12000, 7000, 4000, 1500], [18000, 11000, 6000, 2000], [25000, 15000, 9000, 3000]];
 const PRIZE_TT_LAP = 1500, PRIZE_TT_BEST = 5000;   // Time Trial: per lap, plus a bonus for a new personal best
 const CAREER_START = 5000;
-const career = { cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
+const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
 const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
 let hudLineOK = false;   // the HUD car line needs the track, which is built later; retune() paints it only once that exists
 function retune() {
@@ -355,6 +355,7 @@ function careerLoad() {
   retune();
 }
 function careerAdopt(j) {   // take a saved record (local or cloud), defensively
+  if (typeof j.name === 'string') career.name = j.name.trim().toUpperCase().slice(0, 16);
   if (typeof j.cash === 'number') career.cash = Math.max(0, j.cash);
   if (j.tiers) for (const k of SHOP_KEYS) career.tiers[k] = Math.min(3, Math.max(0, j.tiers[k] | 0));
   if (Array.isArray(j.paints)) career.paints = [...new Set([0, 1, ...j.paints.filter(i => Number.isInteger(i) && PAINTS[i])])];
@@ -412,13 +413,19 @@ const cloud = {
         careerAdopt(remote); retune(); try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
         if (!ownsPaint(paintIdx)) setPaint(1); paintBarLocks(); flash('CAREER LOADED FROM THE CLOUD', 1400);
       } else this.push();
+      if (career.name && await this.claimName(career.name) === 'TAKEN') { flash('THAT NAME IS TAKEN', 1600); nameOpen(false, 'THAT NAME IS TAKEN · PICK ANOTHER'); }
     } catch (e) { this.status = 'CLOUD ERROR'; }
-    if (typeof garageRefresh === 'function') garageRefresh();
+    nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh();
+  },
+  async claimName(name) {
+    if (!this.ok || !this.user || !name) return 'OK';
+    const key = name.trim().toLowerCase().replace(/\s+/g, ' ');
+    try { const ref = firebase.firestore().collection('names').doc(key), snap = await ref.get(); if (snap.exists && snap.data().uid !== this.user.uid) return 'TAKEN'; if (!snap.exists) await ref.set({ uid: this.user.uid, name, at: Date.now() }); return 'OK'; } catch (e) { return 'OK'; }
   },
   push() {
     if (!this.ok || !this.user) return;
     clearTimeout(this.pending);
-    this.pending = setTimeout(() => this.doc().set({ cash: career.cash, tiers: career.tiers, paints: career.paints, stats: career.stats, updated: career.updated, name: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
+    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
   },
 };
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -2145,7 +2152,7 @@ function raceTick(dt) {
   if (GAME.state === 'finished' && GAME.resultsAt && now > GAME.resultsAt) { GAME.resultsAt = 0; showResults(); }
 }
 function standings() {
-  const rows = [{ me: true, name: 'YOU', hex: PAINTS[paintIdx].hex, prog: progressOf(st), u: Math.abs(st.u), finishT: GAME.finishT, best: st.lapBest }];
+  const rows = [{ me: true, name: career.name || 'YOU', hex: PAINTS[paintIdx].hex, prog: progressOf(st), u: Math.abs(st.u), finishT: GAME.finishT, best: st.lapBest }];
   for (const a of ai) rows.push({ me: false, name: a.name, hex: a.hex, prog: progressOf(a), u: a.u, finishT: a.finishT, best: a.best });
   rows.sort((p, q) => (p.finishT != null || q.finishT != null) ? ((p.finishT == null ? 1e12 : p.finishT) - (q.finishT == null ? 1e12 : q.finishT)) : q.prog - p.prog);
   return rows;
@@ -2225,6 +2232,7 @@ function readInput() {
   inp.steer = clamp(inp.steer, -1, 1);
 }
 window.addEventListener('keydown', e => {
+  if (!$('namebox').classList.contains('hidden')) return;
   if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
   keys[e.code] = true;
@@ -2389,9 +2397,22 @@ function toMenu() {
   if (RING_AT) $('ringrow').classList.remove('hidden');
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === GAME.mode)); $('lapsel').classList.toggle('hidden', GAME.mode === 'solo');
   showStep(step);
+  $('name-ok').addEventListener('click', e => { e.stopPropagation(); nameSubmit(); }); $('name-cancel').addEventListener('click', e => { e.stopPropagation(); nameClose(); }); $('namebox').addEventListener('click', e => e.stopPropagation());
+  $('name-in').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') nameSubmit(); else if (e.key === 'Escape' && career.name) nameClose(); });
+  nameRefresh(); if (!career.name) nameOpen(true);   // the first visit: create your unique account name
 }
 
 function paintBarLocks() { document.querySelectorAll('#paints button[data-p]').forEach(b => b.classList.toggle('locked', !ownsPaint(+b.dataset.p))); }
+function nameValid(n) { n = n.trim().toUpperCase(); if (n.length < 2) return 'AT LEAST 2 CHARACTERS'; if (n.length > 16) return '16 CHARACTERS AT MOST'; if (!/^[A-Z0-9 ._-]+$/.test(n)) return 'LETTERS, NUMBERS, SPACES, . _ -'; return ''; }
+function nameOpen(first, err) { const box = $('namebox'); box.classList.remove('hidden'); $('name-cancel').classList.toggle('hidden', !!first); $('name-in').value = career.name || ''; $('name-err').textContent = err || ''; setTimeout(() => { try { $('name-in').focus(); $('name-in').select(); } catch (e) {} }, 30); }
+function nameClose() { $('namebox').classList.add('hidden'); }
+async function nameSubmit() {
+  const raw = $('name-in').value, err = nameValid(raw); if (err) { $('name-err').textContent = err; return; }
+  const name = raw.trim().toUpperCase().replace(/\s+/g, ' ');
+  if (cloud.ok && cloud.user && await cloud.claimName(name) === 'TAKEN') { $('name-err').textContent = 'THAT NAME IS TAKEN · PICK ANOTHER'; return; }
+  career.name = name; careerSave(); nameClose(); nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh(); flash('WELCOME, ' + name, 1400, '#ffd21f');
+}
+function nameRefresh() { const d = $('start-driver'); if (!d) return; d.textContent = career.name ? 'DRIVER · ' + career.name : ''; d.classList.toggle('hidden', !career.name); }
 function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(1001 * TUNE.power) + ' HP · V' + VERSION; }
 
 { // the garage: prize money spent on parts and paints, with the car turning on the photo camera behind the panel
@@ -2401,7 +2422,7 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
   const effect = T => { const o = []; if (T.power) o.push('+' + pct(T.power) + ' POWER'); if (T.grip) o.push('+' + pct(T.grip) + ' GRIP'); if (T.brake) o.push('+' + pct(T.brake) + ' BRAKING'); if (T.steer) o.push('+' + pct(T.steer) + ' STEERING'); if (T.drag) o.push('-' + pct(T.drag) + ' DRAG'); if (T.mass) o.push('-' + Math.round((1 - T.mass) * CAR.mass) + ' KG'); if (T.nosTank) o.push('NOS LASTS ' + T.nosTank + '×'); if (T.nosCharge) o.push('RECHARGE +' + pct(T.nosCharge)); return o.join(' · '); };
   const hex = P => '#' + P.hex.toString(16).padStart(6, '0');
   window.garageRefresh = function () {
-    $('g-cash').textContent = fmtCash(career.cash); $('g-rating').textContent = rating(); $('garage-btn').textContent = 'GARAGE · ' + fmtCash(career.cash);
+    $('g-cash').textContent = fmtCash(career.cash); $('g-rating').textContent = (career.name ? career.name + ' · ' : '') + rating(); $('garage-btn').textContent = 'GARAGE · ' + fmtCash(career.cash);
     const parts = $('g-parts'); parts.innerHTML = '';
     for (const key of SHOP_KEYS) {
       const S = SHOP[key], t = career.tiers[key], cur = t ? S.tiers[t - 1] : null, nxt = t < 3 ? S.tiers[t] : null;
@@ -2415,7 +2436,7 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
     PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
       b.innerHTML = `<i style="background:${P.shader ? 'linear-gradient(135deg,#2ee6ff,#0a3cff)' : P.livery ? 'linear-gradient(135deg,#15181f 50%,#2ee6ff 50%)' : hex(P)}"></i><b>${P.name}</b><span>${on ? 'ON CAR' : owned ? 'OWNED' : fmtCash(P.price)}</span>`; pp.appendChild(b); });
     const st_ = career.stats;
-    $('g-career').innerHTML = [['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
+    $('g-career').innerHTML = [['DRIVER', career.name || '—'], ['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
       .map(([k, v]) => `<div class="g-stat"><span>${k}</span><b>${v}</b></div>`).join('') +
       '<p class="g-note">PRIZE MONEY · VERSUS PAYS BY FINISHING POSITION, MORE ON HARDER RIVALS AND LONGER RACES · TIME TRIAL PAYS PER LAP WITH A BONUS FOR A NEW BEST · SOLO IS FREE PRACTICE</p>';
     $('g-signin').textContent = !cloud.ok ? 'CLOUD SAVE · ON THE HOSTED SITE' : cloud.user ? 'SIGN OUT' : 'SIGN IN · SAVE TO CLOUD';
@@ -2428,6 +2449,7 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
   $('garage-btn').addEventListener('click', e => { e.stopPropagation(); garageOpen(); });
   $('g-close').addEventListener('click', e => { e.stopPropagation(); garageClose(); });
   $('g-signin').addEventListener('click', e => { e.stopPropagation(); cloud.signIn(); });
+  $('g-name').addEventListener('click', e => { e.stopPropagation(); nameOpen(false); });
   gEl.addEventListener('click', e => e.stopPropagation());
   cloud.init(); paintBarLocks(); garageRefresh();
 }
@@ -3103,6 +3125,6 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 $('loading').classList.add('hidden');   // the start screen is ready
-window.__sim = { VERSION, career, SHOP, showResults, cloud, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }, 40);
 })();

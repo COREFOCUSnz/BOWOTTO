@@ -94,6 +94,7 @@
   </div>
   <div id="start">
     <h1><small>LAMBORGHINI</small>REVUELTO<i id="start-ver">V1.0.0</i></h1>
+    <div id="start-driver" class="hidden"></div>
     <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV · 0–100 KM/H 2.5 S · V-MAX 350+ KM/H<br><span id="start-sub">THE GRID</span></p>
     <div class="step" id="step-track">
       <h2>CHOOSE YOUR COURSE</h2>
@@ -121,7 +122,16 @@
     <div id="g-parts" class="g-pane"></div>
     <div id="g-paint" class="g-pane hidden"></div>
     <div id="g-career" class="g-pane hidden"></div>
-    <div class="btns"><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
+    <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
+  </div>
+  <div id="namebox" class="hidden">
+    <div class="card">
+      <h2>CREATE YOUR UNIQUE ACCOUNT NAME</h2>
+      <p>YOUR DRIVER NAME · ON THE GRID, THE RESULTS AND YOUR CAREER</p>
+      <input id="name-in" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="YOUR NAME">
+      <div id="name-err"></div>
+      <div class="btns"><button id="name-cancel" class="ghost hidden">CANCEL</button><button id="name-ok">CONTINUE</button></div>
+    </div>
   </div>
   <div id="settings" class="hidden">
     <h2>SETTINGS</h2>

@@ -181,6 +181,12 @@ difficulty. The HUD's power figure follows the engine tier.
 LEGACY the dearest. Paints you do not own are locked on the in-game colour
 bar and skipped by the P key.
 
+**Your account name.** The first visit asks you to create your unique account
+name (2 to 16 characters). It is your driver name on the grid, in the results
+and in the career, and you can change it from the garage. On the hosted site a
+signed-in player's name is claimed in the cloud, so two players cannot share
+one; a clash sends you back to pick another.
+
 **Saving.** The career is saved in the browser always. On lambo-sim.web.app
 there is also **SIGN IN · SAVE TO CLOUD** (Google) in the garage: the record
 is kept per player in Firestore, newest copy wins between the browser and the

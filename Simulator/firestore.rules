@@ -5,6 +5,12 @@ service cloud.firestore {
     match /players/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+    // account names are unique: a name document is claimed by the first player to create it
+    match /names/{key} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }
