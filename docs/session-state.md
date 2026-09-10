@@ -155,8 +155,12 @@ rendered headless by scratch prev.js) → NEXT builds the world behind a
 spinning CORE FOCUS Revuelto strip (carspin.webp) and 39 cycling tips. Course
 changes reload with `#go=<id>` (a storage write 60 ms before reload was lost
 in headless Chromium). Page is 16.1 MB of the 16 MiB artifact cap: the next
-big asset must come out of the posters or the model. Still to come: the 3D garage
-with Corey's environment render and part anchors, more cars. Balance is
+big asset must come out of the posters or the model. 3D garage SHIPPED 2026-09-10 from Corey's two Sketchfab rooms: STUDIO (Velocity
+Motion corridor, orbit cam) and SHOWROOM (ChristyHsu tron stage, car on the
+turntable); sources in `models/*_src.glb` (gitignored), shipped GLBs
+re-encoded to 1K JPEG by scratch `studio/reenc*.js` + a Python GLB rebuild.
+Artifact now drops the intro poster clip to stay under 16 MiB (16.17 MB).
+Still to come: part anchors on the car, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys

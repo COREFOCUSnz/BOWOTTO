@@ -2,3 +2,5 @@ dist/revuelto.artifact.html
 __pycache__/
 sim.js.bak*
 # dist/hosting binaries are committed on purpose: they are the Firebase Hosting deploy folder
+studio_src.glb
+showroom_src.glb

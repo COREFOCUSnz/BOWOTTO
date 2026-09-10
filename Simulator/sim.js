@@ -2538,8 +2538,8 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
   $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + SHOP[key].tiers[t].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); });
   $('g-paint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } else { const r = buyPaint(i); if (r === 'OK') { setPaint(i); flash('BOUGHT · ' + PAINTS[i].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); } garageRefresh(); });
   document.querySelectorAll('#g-tabs button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('#g-tabs button').forEach(x => x.classList.toggle('on', x === b)); for (const t of ['parts', 'paint', 'career']) $('g-' + t).classList.toggle('hidden', t !== b.dataset.t); }));
-  window.garageOpen = () => { garageRefresh(); document.body.classList.add('garage'); gEl.classList.remove('hidden'); prevCam = st.cam; st.cam = 4; st.snapCam = true; };
-  window.garageClose = () => { document.body.classList.remove('garage'); gEl.classList.add('hidden'); st.cam = prevCam; st.snapCam = true; };
+  window.garageOpen = () => { garageRefresh(); document.body.classList.add('garage'); gEl.classList.remove('hidden'); prevCam = st.cam; st.cam = 4; st.snapCam = true; garageEnter(); };
+  window.garageClose = () => { document.body.classList.remove('garage'); gEl.classList.add('hidden'); st.cam = prevCam; st.snapCam = true; garageLeave(); };
   $('garage-btn').addEventListener('click', e => { e.stopPropagation(); garageOpen(); });
   $('g-close').addEventListener('click', e => { e.stopPropagation(); garageClose(); });
   $('g-signin').addEventListener('click', e => { e.stopPropagation(); cloud.signIn(); });
@@ -3181,10 +3181,82 @@ function updateHUD() {
 
 // ------------------------------------------------------------------ main loop
 const FIXED = 1 / 120; let acc = 0, last = performance.now(), frames = 0;
+// ------------------------------------------------------------------ the 3D garage: two rooms
+// STUDIO: Velocity Motion's "Studio V1 For Car" (Sketchfab, CC BY 4.0), a long lit corridor, slate floor, light bars; the
+// camera orbits the car. SHOWROOM: ChristyHsu's "Scifi Tron Studio | Baked" (Sketchfab, CC BY 4.0), a blue stage with a
+// raised platform: the car turns on it like a turntable in front of a slow camera. Both are baked into the page (textures
+// cut to 1K JPEG: 278 KB and 387 KB), fetched on the hosted site the first time a room opens. The car is moved into the
+// room's scene, the world pauses, and the reflection cube is re-shot in the room so the paint mirrors it.
+// Drag to turn, wheel or pinch to zoom, in either room.
+const ROOMS = {
+  studio:   { id: 'studio-glb', file: 'studio.glb', scale: 2, at: [-0.98, 0, 5.2], baked: false, spin: 0.10, turn: 0, yaw: 2.4, pitch: 0.16, dist: 6.4, lights: true },
+  showroom: { id: 'showroom-glb', file: 'showroom.glb', scale: 1, at: [0, 1.33, -1.0], baked: true, spin: 0.025, turn: 0.30, yaw: 0.55, pitch: 0.14, dist: 7.6, lights: true, carYaw: Math.PI / 2 },
+};
+const garage = { room: 'studio', scenes: {}, cam: new THREE.PerspectiveCamera(36, 1, 0.1, 400), on: false, yaw: 2.4, pitch: 0.16, dist: 6.4, drag: null, at: new THREE.Vector3(), carY: 0, carYaw: 0, turn: 0 };
+try { const r = localStorage.getItem('revuelto.room'); if (r && ROOMS[r]) garage.room = r; } catch (e) {}
+function roomScene(name) {
+  if (garage.scenes[name]) return garage.scenes[name];
+  const R = ROOMS[name], s = new THREE.Scene(); s.background = new THREE.Color(0x000000); s.userData = { loaded: false, loading: false, group: null };
+  s.add(new THREE.HemisphereLight(0xffffff, 0x141418, R.baked ? 0.7 : 0.55)); const d = new THREE.DirectionalLight(0xffffff, R.baked ? 0.9 : 0.8); d.position.set(3, 9, 6); s.add(d);
+  if (!R.baked) for (const [x, z] of [[-2.5, -4], [2.5, -4], [-2.5, 6], [2.5, 6], [0, 11]]) { const pl = new THREE.PointLight(0xffffff, 0.55, 40, 1.6); pl.position.set(R.at[0] + x, 5.4, R.at[2] + z); s.add(pl); }
+  garage.scenes[name] = s; return s;
+}
+function roomLoad(name, cb) {
+  const R = ROOMS[name], s = roomScene(name), u = s.userData;
+  if (u.loaded) { if (cb) cb(); return; } if (u.loading) return; u.loading = true;
+  const done = buf => { try { new THREE.GLTFLoader().parse(buf, '', g => { const grp = g.scene; grp.scale.setScalar(R.scale);
+    grp.traverse(o => { if (!o.isMesh) return; o.material.side = THREE.DoubleSide;
+      if (R.baked) { o.material.color.setHex(0x000000); if (o.material.emissiveMap) { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 1.25; } }   // the light is in the textures: lights only hit the car
+      else if (o.material.name === 'lights') { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 3; o.material.color.setHex(0xffffff); }
+      if (o.name === 'Object_12') o.visible = false; });
+    u.group = grp; s.add(grp); u.loaded = true; u.loading = false; if (cb) cb(); }, e => { console.error(e); u.loading = false; }); } catch (e) { console.error(e); u.loading = false; } };
+  const emb = document.getElementById(R.id);
+  if (emb) { const bin = atob(emb.textContent.trim()), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); done(u8.buffer); }
+  else if (location.protocol !== 'file:') fetch(R.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) done(b); else u.loading = false; }).catch(() => { u.loading = false; });
+  else u.loading = false;
+}
+function garageRoom(name) {
+  if (!ROOMS[name]) return; garage.room = name; try { localStorage.setItem('revuelto.room', name); } catch (e) {}
+  document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
+  if (garage.on) { garage.on = false; garageEnter(); }
+}
+function garageEnter() {
+  if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
+  garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
+  car.position.set(0, 0, 0); car.quaternion.identity(); bodyGroup.rotation.set(0, 0, 0); car.updateMatrixWorld(true);
+  const box = new THREE.Box3(); car.traverse(o => { if (!o.isMesh || o.isSprite || o.isLine) return; const b = new THREE.Box3().setFromObject(o), z = b.getSize(new THREE.Vector3()); if (z.length() < 8 && z.length() > 0.05) box.union(b); });
+  garage.carY = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
+  car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
+  roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
+}
+function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
+function garageLeave() { if (!garage.on) return; garage.on = false; scene.add(car); car.visible = true; }
+function garageFrame(dt, now) {
+  const R = ROOMS[garage.room], s = roomScene(garage.room);
+  if (!garage.drag) garage.yaw += dt * R.spin;
+  garage.turn += dt * R.turn; car.position.set(garage.at.x, garage.carY, garage.at.z); car.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), garage.carYaw + garage.turn);   // the turntable
+  const W = window.innerWidth, H = window.innerHeight, c = garage.cam; c.aspect = W / H;
+  if (W > 820) c.setViewOffset(W, H, Math.round(W * 0.17), 0, W, H); else c.clearViewOffset(); c.updateProjectionMatrix();
+  const cp = Math.cos(garage.pitch), r = garage.dist; c.position.set(garage.at.x + Math.sin(garage.yaw) * r * cp, garage.carY + 0.55 + Math.sin(garage.pitch) * r, garage.at.z + Math.cos(garage.yaw) * r * cp); c.lookAt(garage.at.x, garage.carY + 0.5, garage.at.z);
+  const rp = bloomOn && composer && composer.passes && composer.passes.find(q => q.scene && q.camera);
+  if (rp) { const s0 = rp.scene, c0 = rp.camera; rp.scene = s; rp.camera = c; composer.render(); rp.scene = s0; rp.camera = c0; } else renderer.render(s, c);
+}
+document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageRoom(b.dataset.r); }); });
+{ // orbit with a finger or the mouse, zoom with the wheel or a pinch
+  const cv = renderer.domElement, ptr = {};
+  cv.addEventListener('pointerdown', e => { if (!garage.on) return; ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; garage.drag = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('pointermove', e => { if (!garage.on || !garage.drag) return; const ids = Object.keys(ptr); if (ids.length >= 2 && ptr[e.pointerId]) { const o = ptr[ids[0]], q = ptr[ids[1]], d0 = Math.hypot(o.x - q.x, o.y - q.y); ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; const d1 = Math.hypot(ptr[ids[0]].x - ptr[ids[1]].x, ptr[ids[0]].y - ptr[ids[1]].y); garage.dist = Math.max(3.6, Math.min(9, garage.dist * (d0 / Math.max(1, d1)))); return; }
+    garage.yaw -= (e.clientX - garage.drag.x) * 0.007; garage.pitch = Math.max(0.03, Math.min(0.75, garage.pitch + (e.clientY - garage.drag.y) * 0.004)); garage.drag = { x: e.clientX, y: e.clientY }; if (ptr[e.pointerId]) ptr[e.pointerId] = garage.drag; });
+  const up = e => { delete ptr[e.pointerId]; if (!Object.keys(ptr).length) garage.drag = null; };
+  window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { if (!garage.on) return; e.preventDefault(); garage.dist = Math.max(3.6, Math.min(9, garage.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   readInput();
+  if (garage.on) { garageFrame(dt, now); frames++; return; }   // the world waits while the car is in the studio
   if (st.started) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } raceTick(dt); audio.update(dt); }
   car.position.copy(st.pos); car.quaternion.copy(basisQuat(st.fwd, st.up));
   underglow.position.copy(st.pos).addScaledVector(st.up, 0.25);
@@ -3219,6 +3291,6 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 loadHide();   // the start screen is ready
-window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }
 })();

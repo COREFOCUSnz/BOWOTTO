@@ -144,6 +144,17 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
+- **The 3D garage.** Two rooms, switched at the top of the garage panel and
+  remembered. STUDIO is Velocity Motion's "Studio V1 For Car" (Sketchfab,
+  CC BY 4.0): a long lit corridor with a slate floor and light bars, the
+  camera orbiting the car. SHOWROOM is ChristyHsu's "Scifi Tron Studio |
+  Baked" (Sketchfab, CC BY 4.0): a blue stage with a raised platform that the
+  car turns on like a turntable. Drag to turn the camera, wheel or pinch to
+  zoom. The car is moved into the room, the world pauses, and the reflection
+  cube is re-shot inside the room so the paint mirrors it. The rooms are
+  small GLBs in `models/` (textures cut to 1K JPEG, 278 KB and 387 KB; the
+  Sketchfab originals stay out of git), baked into the page and served as
+  files on the hosted site.
 - **The lobby.** The page opens on LOADING ALL MAPS while the bird's-eye
   previews decode (eighteen small WebPs rendered from the worlds themselves,
   in `previews/`), then the map list comes up with the chosen world's
@@ -430,6 +441,9 @@ First numbered release, and the first that is publicly hosted.
   Hosting folder.
 
 ## Credits
+
+- Garage: "Studio V1 For Car" by Velocity Motion, Sketchfab, CC BY 4.0.
+- Showroom: "Scifi Tron Studio | Baked" by ChristyHsu, Sketchfab, CC BY 4.0.
 
 Car model: **"Lamborghini Revuelto" by DRIVER-FIRE** (https://skfb.ly/pM6pA),
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

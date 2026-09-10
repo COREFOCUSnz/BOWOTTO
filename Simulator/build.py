@@ -70,6 +70,14 @@ def main():
         ptags += '<img id="%s" hidden alt="" src="data:image/webp;base64,%s">\n' % ("carspin" if stem == "carspin" else "prev-" + stem, b)
     if prevs:
         print("embedded %d previews (%d KB)" % (len(prevs), ptot // 1024))
+    rooms = [os.path.join(HERE, "models", r + ".glb") for r in ("studio", "showroom")]   # the garage rooms, small GLBs
+    for room in rooms:
+        if os.path.exists(room):
+            with open(room, "rb") as f:
+                sb64 = base64.b64encode(f.read()).decode("ascii")
+            stem = os.path.basename(room)[:-4]
+            ptags += '<script id="%s-glb" type="application/octet-stream">' % stem + sb64 + "</script>\n"
+            print("embedded models/%s.glb (%d KB base64)" % (stem, len(sb64) // 1024))
     if ptags:
         full = full.replace("<div id=\"app\">", ptags + "<div id=\"app\">", 1)
     os.makedirs(DIST, exist_ok=True)
@@ -92,6 +100,9 @@ def main():
     hpage = hpage.replace(marker, FB + marker, 1)
     if os.path.exists(model):
         shutil.copyfile(model, os.path.join(host, "revuelto.glb"))
+    for room in rooms:
+        if os.path.exists(room):
+            shutil.copyfile(room, os.path.join(host, os.path.basename(room)))
     htags = ""
     for path, suffix in posters:
         if not path:
@@ -115,6 +126,9 @@ def main():
     print("wrote %s (index.html %d KB + revuelto.glb + poster)" % (host, len(hpage.encode()) // 1024))
     head = re.search(r"<head>(.*?)</head>", full, re.S).group(1)
     body = re.search(r"<body>(.*?)</body>", full, re.S).group(1)
+    # the artifact has a 16 MiB cap: it drops the intro clip (poster, banner only; the game falls back to the main clip)
+    body = re.sub(r'<video id="revuelto-poster-video" [^>]*></video>\n', "", body, count=1)
+    body = re.sub(r'<img id="revuelto-poster" [^>]*>\n', "", body, count=1)
     keep = [line for line in head.splitlines() if not line.strip().startswith("<meta")]
     frag = "\n".join(keep).strip() + "\n" + body.strip() + "\n"
     with open(os.path.join(DIST, "revuelto.artifact.html"), "w", encoding="utf-8") as f:
