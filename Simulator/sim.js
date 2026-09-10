@@ -22,14 +22,130 @@ const MODES = [
   { name: 'CORSA',  sub: 'HYBRID · 1015 CV',   power: 1.00, grip: 1.75, stab: 0.8, ev: false, color: '#ff2a2a' },
 ];
 const PAINTS = [   // official Lamborghini names; the bar shows all but the first
-  { name: 'AS DOWNLOADED', hex: 0xff2a03, original: true },
-  { name: 'ARANCIO APODIS', hex: 0xc22e08 }, { name: 'VERDE SCANDAL', hex: 0x22b400 }, { name: 'GIALLO INTI', hex: 0xffd200 },
-  { name: 'NERO HELENE', hex: 0x0a0a0c },    { name: 'BIANCO SIDERALE', hex: 0xf2f2ec }, { name: 'ROSSO MARS', hex: 0xd40015 },
-  { name: 'BLU URANUS', hex: 0x0a3cff },     { name: 'VIOLA PASIFAE', hex: 0x5a2d91 },   { name: 'GRIGIO TELESTO', hex: 0x8b8f94 },
-  { name: 'VERDE MANTIS', hex: 0x30d21c },   { name: 'BLU LE MANS', hex: 0x1d3bb0 },     { name: 'ARANCIO BOREALIS', hex: 0xff7a00 },
-  { name: 'CORE FOCUS LIVERY', hex: 0x15181f, livery: true },
-  { name: 'TRON LEGACY', hex: 0x2ee6ff, shader: true },
+  { name: 'AS DOWNLOADED', hex: 0xff2a03, original: true, price: 0 },
+  { name: 'ARANCIO APODIS', hex: 0xc22e08, price: 0 }, { name: 'VERDE SCANDAL', hex: 0x22b400, price: 6000 }, { name: 'GIALLO INTI', hex: 0xffd200, price: 8000 },
+  { name: 'NERO HELENE', hex: 0x0a0a0c, price: 4000 },  { name: 'BIANCO SIDERALE', hex: 0xf2f2ec, price: 4000 }, { name: 'ROSSO MARS', hex: 0xd40015, price: 8000 },
+  { name: 'BLU URANUS', hex: 0x0a3cff, price: 8000 },   { name: 'VIOLA PASIFAE', hex: 0x5a2d91, price: 12000 }, { name: 'GRIGIO TELESTO', hex: 0x8b8f94, price: 5000 },
+  { name: 'VERDE MANTIS', hex: 0x30d21c, price: 10000 }, { name: 'BLU LE MANS', hex: 0x1d3bb0, price: 12000 }, { name: 'ARANCIO BOREALIS', hex: 0xff7a00, price: 10000 },
+  { name: 'CORE FOCUS LIVERY', hex: 0x15181f, livery: true, price: 15000 },
+  { name: 'TRON LEGACY', hex: 0x2ee6ff, shader: true, price: 20000 },
 ];
+
+// ------------------------------------------------------------------ career: money, parts, paints
+// Prize money for finishing, spent in the garage on parts that change the real physics numbers (power, grip, brakes,
+// steering rate, drag, mass, the NOS tank and its recharge) and on paints. Brands are invented; the part language is
+// real. Saved in the browser always, and to the player's cloud record when signed in (newest copy wins).
+const SHOP = {
+  tyres:  { name: 'TYRES', brand: 'OSSA', tiers: [
+    { name: 'CORSA', sub: 'SEMI-SLICK · SOFT COMPOUND', price: 6000, grip: 1.06 },
+    { name: 'PISTA', sub: 'R-COMPOUND · TREADED SLICK', price: 14000, grip: 1.12 },
+    { name: 'GARA', sub: 'FULL SLICK · QUALIFYING COMPOUND', price: 26000, grip: 1.20 } ] },
+  brakes: { name: 'BRAKES', brand: 'FERRO', tiers: [
+    { name: 'SPORT', sub: 'STEEL 6-POT · BRAIDED LINES', price: 5000, brake: 1.08 },
+    { name: 'CARBON-CERAMIC', sub: '410 MM DISCS · MONOBLOC 8-POT', price: 12000, brake: 1.18 },
+    { name: 'ENDURANCE', sub: 'CARBON-CARBON · RACE PADS', price: 22000, brake: 1.30 } ] },
+  susp:   { name: 'SUSPENSION', brand: 'ALTA', tiers: [
+    { name: 'SPORT COILOVERS', sub: '2-WAY ADJUSTABLE · 20 MM DROP', price: 7000, steer: 1.08, grip: 1.02 },
+    { name: 'ADAPTIVE', sub: 'MAGNETIC DAMPERS · ACTIVE ROLL BARS', price: 15000, steer: 1.16, grip: 1.04 },
+    { name: 'RACE', sub: '3-WAY REMOTE RESERVOIR · SOLID MOUNTS', price: 25000, steer: 1.25, grip: 1.06 } ] },
+  engine: { name: 'ENGINE', brand: 'VOLTA', tiers: [
+    { name: 'STAGE 1', sub: 'ECU MAP · CARBON INTAKE · +80 CV', price: 9000, power: 1.08 },
+    { name: 'STAGE 2', sub: 'TITANIUM EXHAUST · RACE CAMS · +180 CV', price: 18000, power: 1.17 },
+    { name: 'STAGE 3', sub: 'FORGED INTERNALS · E-MOTOR OVERBOOST · +300 CV', price: 30000, power: 1.28 } ] },
+  nos:    { name: 'NOS', brand: 'AZOTO', tiers: [
+    { name: 'STREET', sub: '5 LB BOTTLE · WET KIT', price: 5000, nosTank: 1.25, nosCharge: 1.15 },
+    { name: 'PRO', sub: '10 LB BOTTLE · DIRECT PORT', price: 10000, nosTank: 1.6, nosCharge: 1.35 },
+    { name: 'MAX', sub: 'TWIN 10 LB · PROGRESSIVE CONTROLLER', price: 20000, nosTank: 2.0, nosCharge: 1.6 } ] },
+  aero:   { name: 'AERO & WEIGHT', brand: 'LEGGERA', tiers: [
+    { name: 'CARBON SPLITTER', sub: 'FRONT SPLITTER · DIFFUSER FINS', price: 6000, drag: 0.96, mass: 0.98 },
+    { name: 'GT WING', sub: 'SWAN-NECK WING · CARBON DOORS', price: 15000, drag: 0.92, mass: 0.955, grip: 1.03 },
+    { name: 'FULL CARBON', sub: 'CARBON PANELS · TITANIUM BOLTS · POLYCARBONATE GLASS', price: 28000, drag: 0.88, mass: 0.92, grip: 1.05 } ] },
+};
+const SHOP_KEYS = Object.keys(SHOP);
+// prize money by finishing position, per difficulty, for a three-lap Versus race (scaled by laps / 3)
+const PRIZE = [[8000, 5000, 3000, 1000], [12000, 7000, 4000, 1500], [18000, 11000, 6000, 2000], [25000, 15000, 9000, 3000]];
+const PRIZE_TT_LAP = 1500, PRIZE_TT_BEST = 5000;   // Time Trial: per lap, plus a bonus for a new personal best
+const CAREER_START = 5000;
+const career = { cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
+const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
+let hudLineOK = false;   // the HUD car line needs the track, which is built later; retune() paints it only once that exists
+function retune() {
+  for (const k in TUNE) TUNE[k] = 1;
+  for (const key of SHOP_KEYS) { const t = career.tiers[key]; if (!t) continue; const T = SHOP[key].tiers[t - 1]; for (const k in TUNE) if (T[k] != null) TUNE[k] *= T[k]; }
+  if (hudLineOK) hudCarLine();
+}
+const fmtCash = n => '$' + Math.round(n).toLocaleString('en-US');
+function careerLoad() {
+  try { const j = JSON.parse(localStorage.getItem('revuelto.career') || 'null'); if (j) careerAdopt(j); } catch (e) {}
+  retune();
+}
+function careerAdopt(j) {   // take a saved record (local or cloud), defensively
+  if (typeof j.cash === 'number') career.cash = Math.max(0, j.cash);
+  if (j.tiers) for (const k of SHOP_KEYS) career.tiers[k] = Math.min(3, Math.max(0, j.tiers[k] | 0));
+  if (Array.isArray(j.paints)) career.paints = [...new Set([0, 1, ...j.paints.filter(i => Number.isInteger(i) && PAINTS[i])])];
+  if (j.stats) for (const k in career.stats) if (typeof j.stats[k] === 'number') career.stats[k] = j.stats[k];
+  career.updated = typeof j.updated === 'number' ? j.updated : 0;
+}
+function careerSave() {
+  career.updated = Date.now();
+  try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
+  cloud.push(); paintBarLocks();
+}
+const ownsPaint = i => career.paints.includes(i);
+function buyPart(key) {
+  const t = career.tiers[key]; if (t >= 3) return 'MAXED';
+  const T = SHOP[key].tiers[t]; if (career.cash < T.price) return 'NOT ENOUGH CASH';
+  career.cash -= T.price; career.tiers[key] = t + 1; retune(); careerSave(); return 'OK';
+}
+function buyPaint(i) {
+  const P = PAINTS[i]; if (!P) return 'NO'; if (ownsPaint(i)) return 'OWNED';
+  if (career.cash < P.price) return 'NOT ENOUGH CASH';
+  career.cash -= P.price; career.paints.push(i); careerSave(); return 'OK';
+}
+function prizeFor(mode, pos, laps, diff, newBest) {
+  if (mode === 'versus') return Math.round(PRIZE[diff][Math.min(pos, 4) - 1] * laps / 3 / 100) * 100;
+  if (mode === 'time') return PRIZE_TT_LAP * laps + (newBest ? PRIZE_TT_BEST : 0);
+  return 0;
+}
+function payout(prize, pos) {
+  career.cash += prize; career.stats.races++; career.stats.earned += prize;
+  if (GAME.mode === 'versus') { if (pos === 1) career.stats.wins++; if (pos <= 3) career.stats.podiums++; }
+  careerSave();
+}
+careerLoad();
+const cloud = {
+  // The hosted site (lambo-sim.web.app) loads Firebase from its reserved URLs before this script; the single-file page and
+  // the artifact do not, and stay local-only. Newest record wins between the browser and the cloud.
+  ok: false, user: null, pending: null, status: 'LOCAL SAVE ONLY',
+  init() {
+    try {
+      if (!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth && firebase.firestore)) return;
+      this.ok = true; this.status = 'NOT SIGNED IN';
+      firebase.auth().onAuthStateChanged(u => { this.user = u; this.status = u ? 'SIGNED IN · ' + (u.displayName || u.email || 'PLAYER').toUpperCase() : 'NOT SIGNED IN'; if (u) this.pull(); else if (typeof garageRefresh === 'function') garageRefresh(); });
+    } catch (e) { this.ok = false; }
+  },
+  signIn() {
+    if (!this.ok) { flash('SIGN-IN WORKS ON LAMBO-SIM.WEB.APP', 1600); return; }
+    if (this.user) { firebase.auth().signOut(); flash('SIGNED OUT · SAVING IN THIS BROWSER', 1400); return; }
+    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(() => flash('SIGN-IN FAILED', 1400));
+  },
+  doc() { return firebase.firestore().collection('players').doc(this.user.uid); },
+  async pull() {
+    try {
+      const snap = await this.doc().get(), remote = snap.exists ? snap.data() : null;
+      if (remote && (remote.updated || 0) > (career.updated || 0)) {
+        careerAdopt(remote); retune(); try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
+        if (!ownsPaint(paintIdx)) setPaint(1); paintBarLocks(); flash('CAREER LOADED FROM THE CLOUD', 1400);
+      } else this.push();
+    } catch (e) { this.status = 'CLOUD ERROR'; }
+    if (typeof garageRefresh === 'function') garageRefresh();
+  },
+  push() {
+    if (!this.ok || !this.user) return;
+    clearTimeout(this.pending);
+    this.pending = setTimeout(() => this.doc().set({ cash: career.cash, tiers: career.tiers, paints: career.paints, stats: career.stats, updated: career.updated, name: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
+  },
+};
 const ROAD_HALF = 6.0;      // 12 m wide track
 const G = 9.81;
 
@@ -1411,7 +1527,7 @@ const st = {
   sound: true, started: false, vmax: 0, record: 0, recordPend: false, coins: 0, score: 0, super: false,
   lapStart: null, lapLast: null, lapBest: null, lastP: 0, halfSeen: false, trackIdx: 0,
 };
-try { const b = localStorage.getItem('revuelto.best.' + TRACK_ID); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; const pm = localStorage.getItem('revuelto.paint'); if (pm != null && PAINTS[+pm]) paintIdx = +pm; const dm = localStorage.getItem('revuelto.drive'); if (dm != null && MODES[+dm]) st.mode = +dm; const cm = localStorage.getItem('revuelto.cam'); if (cm != null && +cm >= 0 && +cm < 5) st.cam = +cm; } catch (e) {}   // best lap is per world; paint, drive mode and camera come back too
+try { const b = localStorage.getItem('revuelto.best.' + TRACK_ID); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; const pm = localStorage.getItem('revuelto.paint'); if (pm != null && PAINTS[+pm] && ownsPaint(+pm)) paintIdx = +pm; const dm = localStorage.getItem('revuelto.drive'); if (dm != null && MODES[+dm]) st.mode = +dm; const cm = localStorage.getItem('revuelto.cam'); if (cm != null && +cm >= 0 && +cm < 5) st.cam = +cm; } catch (e) {}   // best lap is per world; paint, drive mode and camera come back too
 function placeOnTrack(idx) {
   const racing = GAME.state === 'racing';
   if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); st.lapsDone = Math.max(0, st.lapsDone - 1); }   // put back behind the line: that crossing is owed again
@@ -1692,6 +1808,7 @@ function startRace(mode, laps) {
   } else if (mode === 'time') placeAtS(trackLen - 20, 0);
   else placeOnTrack(20);
   GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = START_CUES[0].at + 0.01; GAME.cue = 0; announcer.stop();
+  GAME.bestAtStart = st.lapBest; GAME.prize = 0;   // for the payout: a new personal best in a Time Trial pays a bonus
   $('race').classList.toggle('hidden', mode === 'solo');
   $('lap-cur').parentElement.style.display = ''; 
   if (mode === 'versus') flash('VERSUS · ' + DIFFS[GAME.diff].name + ' · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
@@ -1733,6 +1850,8 @@ function standings() {
 function finishRace(now) {
   GAME.state = 'finished'; GAME.finishT = now - GAME.startT; GAME.resultsAt = now + 1800;
   const pos = standings().findIndex(r => r.me) + 1;
+  const newBest = GAME.mode === 'time' && st.lapBest != null && (GAME.bestAtStart == null || st.lapBest < GAME.bestAtStart);
+  GAME.prize = prizeFor(GAME.mode, pos, GAME.laps, GAME.diff, newBest); GAME.prizeBest = newBest; if (GAME.prize > 0) payout(GAME.prize, pos);
   flash(GAME.mode === 'versus' ? (pos === 1 ? 'VICTORY' : 'FINISHED · P' + pos) : 'FINISHED · ' + fmtTime(GAME.finishT), 2200);
   audio.beep(pos === 1 ? 1568 : 988, 0.5); announcer.say(GAME.mode === 'versus' ? (pos === 1 ? 'Victory. You win.' : 'Finished. P' + pos + '.') : 'Time trial complete.', 1, 0.85);
 }
@@ -1743,6 +1862,7 @@ function showResults() {
   $('res-title').textContent = GAME.mode === 'versus' ? (pos === 1 ? 'VICTORY' : 'P' + pos + ' OF ' + rows.length) : 'TIME TRIAL · ' + fmtTime(GAME.finishT);
   const lapsTxt = GAME.laps + (GAME.laps === 1 ? ' LAP' : ' LAPS');
   $('res-sub').textContent = GAME.mode === 'versus' ? DIFFS[GAME.diff].name + ' · ' + lapsTxt + ' · ' + fmtTime(GAME.finishT) : lapsTxt + ' · BEST ' + fmtTime(st.lapBest);
+  $('res-cash').textContent = GAME.prize > 0 ? '+ ' + fmtCash(GAME.prize) + (GAME.prizeBest ? ' · NEW BEST BONUS' : '') + ' · BALANCE ' + fmtCash(career.cash) : '';
   const head = document.createElement('div'); head.className = 'row head'; head.innerHTML = '<b></b><i style="visibility:hidden"></i><span>DRIVER</span><em>BEST LAP</em><b>GAP</b>'; box.appendChild(head);
   rows.forEach((r, k) => {
     const el = document.createElement('div'); el.className = 'row' + (r.me ? ' me' : '');
@@ -1802,6 +1922,7 @@ function readInput() {
   inp.steer = clamp(inp.steer, -1, 1);
 }
 window.addEventListener('keydown', e => {
+  if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
   keys[e.code] = true;
   if (!$('start').classList.contains('hidden')) { if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
@@ -1810,7 +1931,7 @@ window.addEventListener('keydown', e => {
     case 'KeyM': setMode(st.mode + 1); break;
     case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': setMode(+e.code.slice(-1) - 1); break;
     case 'KeyC': st.cam = (st.cam + 1) % 5; flash(['CHASE', 'CLOSE', 'COCKPIT', 'BUMPER', 'PHOTO'][st.cam], 700); try { localStorage.setItem('revuelto.cam', String(st.cam)); } catch (e) {} break;
-    case 'KeyP': setPaint(paintIdx + 1); flash(PAINTS[paintIdx].name, 900); break;
+    case 'KeyP': { let i = paintIdx; do { i = (i + 1) % PAINTS.length; } while (!ownsPaint(i) && i !== paintIdx); setPaint(i); flash(PAINTS[paintIdx].name, 900); } break;
     case 'KeyR': placeOnTrack(trackDistSq(st.x, st.z).i); flash('RESET', 700); break;
     case 'KeyT': st.auto = !st.auto; $('gearlbl').textContent = st.auto ? 'AUTO' : 'MANUAL'; flash(st.auto ? 'AUTOMATIC' : 'MANUAL · Q / E', 900); break;
     case 'KeyE': shiftManual(1); break;
@@ -1878,7 +1999,7 @@ applySteerMode();
 $('start-btn').addEventListener('click', startGame);
 { // colour bar: five quick picks (the fifth is the animated TRON paint); P still cycles the full list
   const bar = $('paints'), picks = PAINTS.map((_, i) => i).filter(i => i > 0);
-  for (const i of picks) { const b = document.createElement('button'); b.dataset.p = String(i); b.title = PAINTS[i].name; b.className = PAINTS[i].shader ? 'tron' : PAINTS[i].livery ? 'livery' : ''; if (!PAINTS[i].shader && !PAINTS[i].livery) b.style.background = '#' + PAINTS[i].hex.toString(16).padStart(6, '0'); b.addEventListener('click', e => { e.stopPropagation(); setPaint(i); }); bar.appendChild(b); }
+  for (const i of picks) { const b = document.createElement('button'); b.dataset.p = String(i); b.title = PAINTS[i].name; b.className = PAINTS[i].shader ? 'tron' : PAINTS[i].livery ? 'livery' : ''; if (!PAINTS[i].shader && !PAINTS[i].livery) b.style.background = '#' + PAINTS[i].hex.toString(16).padStart(6, '0'); b.addEventListener('click', e => { e.stopPropagation(); if (!ownsPaint(i)) { flash('BUY IT IN THE GARAGE · ' + fmtCash(PAINTS[i].price), 1200); return; } setPaint(i); }); bar.appendChild(b); }
 }
 
 function audioBtns() {
@@ -1959,12 +2080,53 @@ function toMenu() {
   const tp = $('tracksel');
   for (const id in TRACKS) { const T = TRACKS[id], b = document.createElement('button'); b.className = 'trk ' + T.theme + (id === TRACK_ID ? ' on' : ''); b.innerHTML = `<b>${T.name}</b><span>${T.sub} · ${T.km} KM</span>`;
     b.addEventListener('click', e => { e.stopPropagation(); if (id === TRACK_ID) { showStep(2); return; } lsSet('revuelto.track', id); lsSet('revuelto.step', '2'); $('loading').textContent = 'LOADING ' + T.name + ' …'; $('loading').classList.remove('hidden'); setTimeout(() => location.reload(), 60); }); tp.appendChild(b); }
-  document.querySelector('#top-left .sub span').textContent = TRACK.name + ' · ' + TRACK.km + ' KM · 1001 HP · V' + VERSION;
+  hudLineOK = true; hudCarLine();
   for (const id of ['start-ver', 'cred-ver']) { const e = $(id); if (e) e.textContent = 'V' + VERSION; }   // one source of truth for the version
   $('start-sub').textContent = TRACK.name + ' · ' + TRACK.sub + ' · ' + TRACK.km + ' KM';
   if (RING_AT) $('ringrow').classList.remove('hidden');
   document.querySelectorAll('#modes button').forEach(b => b.classList.toggle('on', b.dataset.m === GAME.mode)); $('lapsel').classList.toggle('hidden', GAME.mode === 'solo');
   showStep(step);
+}
+
+function paintBarLocks() { document.querySelectorAll('#paints button[data-p]').forEach(b => b.classList.toggle('locked', !ownsPaint(+b.dataset.p))); }
+function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(1001 * TUNE.power) + ' HP · V' + VERSION; }
+
+{ // the garage: prize money spent on parts and paints, with the car turning on the photo camera behind the panel
+  const gEl = $('garage'); let prevCam = 0;
+  const rating = () => { const n = SHOP_KEYS.reduce((a, k) => a + career.tiers[k], 0); return n === 0 ? 'STOCK CAR' : n >= 18 ? 'FULLY BUILT' : 'BUILD ' + Math.round(n / 18 * 100) + '%'; };
+  const pct = x => Math.round(Math.abs(x - 1) * 100) + '%';
+  const effect = T => { const o = []; if (T.power) o.push('+' + pct(T.power) + ' POWER'); if (T.grip) o.push('+' + pct(T.grip) + ' GRIP'); if (T.brake) o.push('+' + pct(T.brake) + ' BRAKING'); if (T.steer) o.push('+' + pct(T.steer) + ' STEERING'); if (T.drag) o.push('-' + pct(T.drag) + ' DRAG'); if (T.mass) o.push('-' + Math.round((1 - T.mass) * CAR.mass) + ' KG'); if (T.nosTank) o.push('NOS LASTS ' + T.nosTank + '×'); if (T.nosCharge) o.push('RECHARGE +' + pct(T.nosCharge)); return o.join(' · '); };
+  const hex = P => '#' + P.hex.toString(16).padStart(6, '0');
+  window.garageRefresh = function () {
+    $('g-cash').textContent = fmtCash(career.cash); $('g-rating').textContent = rating(); $('garage-btn').textContent = 'GARAGE · ' + fmtCash(career.cash);
+    const parts = $('g-parts'); parts.innerHTML = '';
+    for (const key of SHOP_KEYS) {
+      const S = SHOP[key], t = career.tiers[key], cur = t ? S.tiers[t - 1] : null, nxt = t < 3 ? S.tiers[t] : null;
+      const card = document.createElement('div'); card.className = 'g-card' + (nxt ? '' : ' maxed');
+      card.innerHTML = `<div class="g-top"><b>${S.brand} · ${S.name}</b><i>${'●'.repeat(t)}${'○'.repeat(3 - t)}</i></div>` +
+        `<div class="g-fit">FITTED · ${cur ? cur.name + ' <span>· ' + cur.sub + '</span>' : 'STOCK'}</div>` +
+        (nxt ? `<div class="g-next"><b>${nxt.name}</b><span>${nxt.sub}</span><em>${effect(nxt)}</em></div><button data-buy="${key}"${career.cash < nxt.price ? ' disabled' : ''}>BUY · ${fmtCash(nxt.price)}</button>` : '<div class="g-next"><em>FULLY UPGRADED</em></div>');
+      parts.appendChild(card);
+    }
+    const pp = $('g-paint'); pp.innerHTML = '';
+    PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
+      b.innerHTML = `<i style="background:${P.shader ? 'linear-gradient(135deg,#2ee6ff,#0a3cff)' : P.livery ? 'linear-gradient(135deg,#15181f 50%,#2ee6ff 50%)' : hex(P)}"></i><b>${P.name}</b><span>${on ? 'ON CAR' : owned ? 'OWNED' : fmtCash(P.price)}</span>`; pp.appendChild(b); });
+    const st_ = career.stats;
+    $('g-career').innerHTML = [['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
+      .map(([k, v]) => `<div class="g-stat"><span>${k}</span><b>${v}</b></div>`).join('') +
+      '<p class="g-note">PRIZE MONEY · VERSUS PAYS BY FINISHING POSITION, MORE ON HARDER RIVALS AND LONGER RACES · TIME TRIAL PAYS PER LAP WITH A BONUS FOR A NEW BEST · SOLO IS FREE PRACTICE</p>';
+    $('g-signin').textContent = !cloud.ok ? 'CLOUD SAVE · ON THE HOSTED SITE' : cloud.user ? 'SIGN OUT' : 'SIGN IN · SAVE TO CLOUD';
+  };
+  $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + SHOP[key].tiers[t].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); });
+  $('g-paint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } else { const r = buyPaint(i); if (r === 'OK') { setPaint(i); flash('BOUGHT · ' + PAINTS[i].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); } garageRefresh(); });
+  document.querySelectorAll('#g-tabs button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('#g-tabs button').forEach(x => x.classList.toggle('on', x === b)); for (const t of ['parts', 'paint', 'career']) $('g-' + t).classList.toggle('hidden', t !== b.dataset.t); }));
+  window.garageOpen = () => { garageRefresh(); document.body.classList.add('garage'); gEl.classList.remove('hidden'); prevCam = st.cam; st.cam = 4; st.snapCam = true; };
+  window.garageClose = () => { document.body.classList.remove('garage'); gEl.classList.add('hidden'); st.cam = prevCam; st.snapCam = true; };
+  $('garage-btn').addEventListener('click', e => { e.stopPropagation(); garageOpen(); });
+  $('g-close').addEventListener('click', e => { e.stopPropagation(); garageClose(); });
+  $('g-signin').addEventListener('click', e => { e.stopPropagation(); cloud.signIn(); });
+  gEl.addEventListener('click', e => e.stopPropagation());
+  cloud.init(); paintBarLocks(); garageRefresh();
 }
 
 // ------------------------------------------------------------------ audio (synthesized V12)
@@ -2272,9 +2434,9 @@ const music = {
 const torqueFactor = rpm => { const x = rpm / CAR.redline; let t = 0.82 + 0.18 * smoothstep(0.12, 0.72, x); if (x > 0.96) t *= 1 - (x - 0.96) * 5; return t; };   // e-motors fill the low end
 const rpmForGear = (u, g) => Math.abs(u) * 3.6 / CAR.gearTopKmh[g] * CAR.redline;
 function step(dt) {
-  const m = MODES[st.mode];
+  const m = MODES[st.mode], MASS = CAR.mass * TUNE.mass;   // the car as built in the garage
   // input shaping
-  const DS = diffNow().player.steer, rate = (Math.abs(inp.steer) > Math.abs(st.steer) ? 5.5 : 9.0) * DS;   // quicker steering response; sharper up the levels
+  const DS = diffNow().player.steer, rate = (Math.abs(inp.steer) > Math.abs(st.steer) ? 5.5 : 9.0) * DS * TUNE.steer;   // quicker steering response; sharper up the levels
   st.steer += clamp(inp.steer - st.steer, -rate * dt, rate * dt);
   st.throttle += clamp(inp.throttle - st.throttle, -10 * dt, 7 * dt);
   st.brake = inp.brake; st.hand = inp.hand;
@@ -2313,8 +2475,8 @@ function step(dt) {
   st.driftBoostOn = driftBoost;
   const DN = diffNow().nos;
   const charge = 0.012 + (st.drift || 0) * clamp(Math.abs(st.slipAng || 0) / 0.45, 0, 1) * clamp(v / 15, 0, 1) * 0.30;
-  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5 * DN.drain * (driftBoost ? 0.3 : 1) + (driftBoost ? dt * charge * DN.charge * 0.8 : 0)); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
-  else st.nos = Math.min(1, st.nos + dt * charge * DN.charge);
+  if (st.nosOn) { st.nos = Math.max(0, st.nos - dt / 5 * DN.drain / TUNE.nosTank * (driftBoost ? 0.3 : 1) + (driftBoost ? dt * charge * DN.charge * TUNE.nosCharge * 0.8 : 0)); st.glow = Math.max(st.glow || 0, driftBoost ? 1 : 0.9); st.shake = Math.max(st.shake || 0, driftBoost ? 0.2 : 0.12); }
+  else st.nos = Math.min(1, st.nos + dt * charge * DN.charge * TUNE.nosCharge);
   // SUPERSONIC mode: twenty rings held raise the fin, light the trail and add 20 %
   const wantSuper = !!TRACK.rings && st.coins >= 20;
   if (wantSuper && !st.super) { flash('SUPERSONIC', 1200, '#2ee6ff'); audio.record(); st.superTrail = trailOn; trailOn = true; trailMesh.visible = true; trailReset(); }
@@ -2322,8 +2484,8 @@ function step(dt) {
   st.super = wantSuper;
   const superMul = st.super ? 1.2 : 1;
   const nosMul = (driftBoost ? 2.0 : st.nosOn ? 1.5 : 1) * superMul, DP = diffNow().player;
-  const Pe = CAR.powerW * CAR.drivelineEff * m.power * nosMul * DP.power;
-  const Ftrac = CAR.mass * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1) * (st.nosOn ? 1.35 : 1) * DP.grip;
+  const Pe = CAR.powerW * CAR.drivelineEff * m.power * nosMul * DP.power * TUNE.power;
+  const Ftrac = MASS * G * CAR.tractionG * (st.offroad ? 0.45 : 1) * (m.ev ? 0.5 : 1) * (st.nosOn ? 1.35 : 1) * DP.grip * TUNE.grip;
   let F = 0;
   if (!st.reverse) {
     F = st.throttle * Math.min(Ftrac, Pe / Math.max(v, 2.5)) * (m.ev ? 1 : torqueFactor(st.rpm));
@@ -2333,20 +2495,20 @@ function step(dt) {
   } else {
     F = -st.brake * Math.min(7000, Pe * 0.25 / Math.max(v, 1)); if (st.u < -8) F = Math.max(F, 0);
   }
-  const Fb = (st.reverse ? 0 : st.brake) * CAR.mass * G * CAR.brakeG * (st.offroad ? 0.55 : 1) + (st.hand ? 0.35 * CAR.mass * G : 0);
-  const Fd = CAR.dragK * st.u * v * (st.super ? 0.8 : 1);
+  const Fb = (st.reverse ? 0 : st.brake) * MASS * G * CAR.brakeG * TUNE.brake * (st.offroad ? 0.55 : 1) + (st.hand ? 0.35 * MASS * G : 0);
+  const Fd = CAR.dragK * TUNE.drag * st.u * v * (st.super ? 0.8 : 1);
   const Fr = Math.sign(st.u) * (CAR.rolling + (st.offroad ? 1100 + 18 * v : 0));
   const Feb = (!st.reverse && !m.ev && st.throttle < 0.05) ? Math.sign(st.u) * 1800 * (st.rpm / CAR.redline) : 0;
   const fr0 = sampleAt(st.s), slope = fr0.t.y * Math.cos(st.psi) + fr0.b.y * Math.sin(st.psi);   // component of 'up' along the car's forward
   if (st.boostCd > 0) st.boostCd -= dt;
-  if (st.boostT > 0) { st.boostT -= dt; F += CAR.mass * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
-  if (st.nosOn) F += CAR.mass * (driftBoost ? 7.0 : 3.0);                            // the shove you feel in the seat; a drift boost is a kick
+  if (st.boostT > 0) { st.boostT -= dt; F += MASS * 7.5; }                     // booster: +7.5 m/s² for 1.3 s
+  if (st.nosOn) F += MASS * (driftBoost ? 7.0 : 3.0);                            // the shove you feel in the seat; a drift boost is a kick
   if (BOOST[fr0.i] && !st.air && !st.roof && st.boostCd <= 0 && st.u > 2) { st.boostT = 1.3; st.boostCd = 0.9; st.glow = 1; audio.boost(); }
   if (BOOST2[fr0.i] && !st.air && !st.roof && st.boost2Cd <= 0 && st.u > 2) { st.u = Math.min(st.u * 1.4, 118); st.boost2Cd = 2.0; st.glow = 1; st.shake = Math.max(st.shake || 0, 0.5); audio.boost(); audio.record(); flash('SUPER BOOST +40%', 900, '#ff3af0'); }
   if (st.boost2Cd > 0) st.boost2Cd -= dt;
-  let du = st.air ? 0 : (F - Fd - Fr - Feb) / CAR.mass * dt - G * slope * dt;
+  let du = st.air ? 0 : (F - Fd - Fr - Feb) / MASS * dt - G * slope * dt;
   st.u += du;
-  const bDecel = st.air ? 0 : Fb / CAR.mass * dt;
+  const bDecel = st.air ? 0 : Fb / MASS * dt;
   if (v > 0) { if (Math.abs(st.u) <= bDecel) st.u = 0; else st.u -= Math.sign(st.u) * bDecel; }
   if (v < 0.05 && Math.abs(F) < 1) st.u = 0;
   if (GAME.state === 'countdown') { st.u = 0; st.w = 0; }                           // on the grid: rev it, but the lights are red
@@ -2622,5 +2784,5 @@ function frame(now) {
 resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
-window.__sim = { VERSION, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, career, SHOP, showResults, cloud, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 })();

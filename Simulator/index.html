@@ -88,6 +88,7 @@
   <div id="results" class="hidden">
     <h2 id="res-title">FINISHED</h2>
     <p id="res-sub"></p>
+    <p id="res-cash"></p>
     <div id="res-rows"></div>
     <div class="btns"><button id="res-again">RACE AGAIN</button><button id="res-menu">MENU</button></div>
   </div>
@@ -112,7 +113,15 @@
       <div id="diffsel"><button data-d="0">EASY</button><button data-d="1" class="on">MEDIUM</button><button data-d="2">HARD</button><button data-d="3">IMPOSSIBLE</button></div>
     </div>
     <div class="nav"><button id="back-btn" class="ghost hidden">◀ BACK</button><button id="next-btn" class="hidden">NEXT ▶</button><button id="start-btn" class="hidden">START ENGINE</button></div>
-    <p class="credit"><button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
+    <p class="credit"><button id="garage-btn" class="link gold">GARAGE · $5,000</button> · <button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
+  </div>
+  <div id="garage" class="hidden">
+    <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div></div>
+    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="career">CAREER</button></div>
+    <div id="g-parts" class="g-pane"></div>
+    <div id="g-paint" class="g-pane hidden"></div>
+    <div id="g-career" class="g-pane hidden"></div>
+    <div class="btns"><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
   </div>
   <div id="settings" class="hidden">
     <h2>SETTINGS</h2>

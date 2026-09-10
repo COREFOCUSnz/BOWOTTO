@@ -70,6 +70,15 @@ def main():
     host = os.path.join(DIST, "hosting")
     os.makedirs(host, exist_ok=True)
     hpage = inline(src)
+    # Firebase on the hosted page only: the reserved URLs serve the SDK and the project's own config, so nothing is pasted
+    # in. The single-file page and the artifact never get these and stay local-save-only (the game says so).
+    FB = ('<script src="/__/firebase/10.12.0/firebase-app-compat.js"></script>\n'
+          '<script src="/__/firebase/10.12.0/firebase-auth-compat.js"></script>\n'
+          '<script src="/__/firebase/10.12.0/firebase-firestore-compat.js"></script>\n'
+          '<script src="/__/firebase/init.js"></script>\n')
+    marker = "<script>\n/* REVUELTO SIM"
+    assert hpage.count(marker) == 1, "sim.js marker not found once in the hosting page"
+    hpage = hpage.replace(marker, FB + marker, 1)
     if os.path.exists(model):
         shutil.copyfile(model, os.path.join(host, "revuelto.glb"))
     htags = ""

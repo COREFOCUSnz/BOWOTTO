@@ -145,6 +145,52 @@ entry below.
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
 
+## Career: prize money, the garage, parts and paints
+
+Every finish pays. The money is spent in the **GARAGE** (the gold button on the
+start screen) on parts that change the real physics numbers, and on paints.
+The car turns on the photo camera behind the panel while you shop. Escape or
+BACK returns to the start screen.
+
+**Prize money.** Versus pays by finishing position, more for harder rivals and
+longer races: a three-lap win is 8k on Easy, 12k on Medium, 18k on Hard and
+25k on Impossible, second place about 60 % of that, third about 35 %, fourth
+a token, all scaled by laps over three, so a ten-lap Impossible win is 83k.
+Time Trial pays 1.5k a lap plus 5k for a new personal best. Solo is free
+practice and pays nothing. The results card shows the prize and the balance.
+You start with 5k.
+
+**Parts.** Six lines, three tiers each, from invented tuners with real part
+language. Each tier is a multiplier the physics reads every frame, measured on
+the stock car against tier three:
+
+| line | brand | what it changes | at tier 3 |
+|---|---|---|---|
+| tyres | OSSA | grip | 0 to 100 km/h 2.69 s to 2.25 s |
+| brakes | FERRO | brake force | 100 to 0 in 23 m instead of 29 |
+| suspension | ALTA | steering rate, a little grip | steering response up 25 % |
+| engine | VOLTA | power | 320 to 345 km/h after 1.2 km |
+| NOS | AZOTO | tank size, recharge rate | a tank lasts 9.8 s not 4.9, recharges 60 % faster |
+| aero and weight | LEGGERA | drag, mass, a little grip | 330 km/h and a quicker launch |
+
+Tiers cost 5k to 30k. Everything at tier three is 2.01 s, 359 km/h and 23 m
+braking. The rivals are not upgraded, so a built car should move up a
+difficulty. The HUD's power figure follows the engine tier.
+
+**Paints.** The two starter paints are free; the rest cost 4k to 20k, TRON
+LEGACY the dearest. Paints you do not own are locked on the in-game colour
+bar and skipped by the P key.
+
+**Saving.** The career is saved in the browser always. On lambo-sim.web.app
+there is also **SIGN IN · SAVE TO CLOUD** (Google) in the garage: the record
+is kept per player in Firestore, newest copy wins between the browser and the
+cloud, so a career follows you between devices. The single-file page and the
+artifact have no cloud and say so. The hosted page loads Firebase from its
+reserved URLs, so no config is pasted in; `firestore.rules` lets each player
+read and write only their own record. Two one-time console steps for the
+cloud save: Authentication -> Sign-in method -> Google -> Enable, and Build ->
+Firestore Database -> Create database.
+
 ## Eight worlds
 
 Picked on the start screen (the page rebuilds itself for the choice, which

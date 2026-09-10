@@ -70,6 +70,21 @@ jobs:
           channelId: live
           entryPoint: ./Simulator
 
+      # The career save's database rules. Needs the Firestore database to exist in the project; until it does this
+      # step notes why and the run stays green.
+      - name: Deploy Firestore rules
+        if: steps.key.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM }}
+        run: |
+          printf '%s' "$KEY" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          cd Simulator
+          npx --yes firebase-tools@13 deploy --only firestore:rules --project lambo-sim --non-interactive \
+            || echo "::notice::Firestore rules not deployed: create the database first (Firebase console -> Build -> Firestore Database -> Create database). This step will succeed on the next push."
+          rm -f "$RUNNER_TEMP/sa.json"
+
       - name: Say where it went
         if: steps.key.outputs.ready == 'true'
         run: echo "::notice::Deployed to https://lambo-sim.web.app"
