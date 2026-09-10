@@ -135,3 +135,27 @@ is `git pull` then `firebase deploy --only hosting` in a clone of the branch,
 run on Corey's machine (it needs his Google login). A deploy that reports
 "found 1 files" means the binaries did not come down with the clone. Open
 items: engine sound samples and Corey's own music tracks (to be supplied).
+
+**Next for the sim: CAREER MODE** (Gran Turismo style), discussed 2026-09-10,
+not started. Prize money on finishing position scaled by difficulty and laps
+(1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys
+upgrades wired to the real physics numbers (tyres, brakes, suspension, engine,
+NOS with better tanks lasting longer and recharging faster, aero and weight;
+three tiers each, 5k to 30k) and paints (4k to 20k). A 3D garage with Corey's
+own environment render, the car turning, hand-placed anchors for parts (the
+model's meshes are CAD surfaces, not car parts; only paint, rims, tyres, glass,
+lights and carbon are identifiable by material). Later: five more Lamborghinis.
+Build order: save + money first, then upgrades, then a simple garage to prove
+the loop, then the 3D garage, then more cars. **Waiting on Corey:** where the
+save lives (Firebase sign-in or browser only), real brand names or invented,
+the go-ahead on the first steps, and the garage render.
+
+**CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
+in Corey's Core Hub app (tasks there earn play in here). Decided already and
+not to be forgotten: **never cut a player off mid-lap or mid-race when their
+credit runs out. Let the race finish, then stop.** So credit should be spent
+per race, not per minute.
+
+**Firebase auto-deploy: parked.** The workflow is in place and green; it only
+needs the FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM secret added in GitHub to start
+deploying by itself. Corey said to come back to it.
