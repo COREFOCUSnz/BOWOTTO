@@ -167,7 +167,15 @@ career saves `cars`/`car`. Aventador SVJ (SDC PERFORMANCE, CC BY-NC 4.0,
 10.7 MB) is HOSTED ONLY: too big for the 16 MiB artifact. `axleWheels()`
 rebuilds wheels for downloads whose wheels come as one mesh per axle (split
 by triangle centroid, corner clustering, yaw undone by a thinnest-tyre
-search). Still to come: part anchors on the car, more cars. Balance is
+search). THE SHOP (garage tab) sells cars at Corey's
+prices: Countach 25th 500k, Aventador SVJ 650k, Countach LPI 800-4 850k, with
+harder wins paying 15k to 25k (PRIZE row 2/3 raised). At ~20k a win that is
+roughly 25 wins for the first car: Corey set both numbers, watch for feedback.
+Model pipeline now covers three shapes of download: named bones, axle groups
+(axleWheels), and loose-piece models merged offline by material with wheel
+corners kept as pivoted groups (scratchpad/studio/merge.html + mergerun.js;
+LPI went 1748 meshes / 20 MB -> 33 meshes / 12.5 MB). All extra cars are
+hosted-only. Still to come: part anchors on the car, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys

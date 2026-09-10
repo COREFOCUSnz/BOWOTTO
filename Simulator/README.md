@@ -144,17 +144,23 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
-- **Cars.** The Revuelto is the car you start with. The garage's CARS tab
-  sells others and remembers which one you parked in. The Aventador SVJ
-  ($75,000) is ChristyHsu-style Sketchfab work by SDC PERFORMANCE (CC BY-NC
-  4.0) and, being a 10 MB download, exists only on the hosted site: the
-  single-file page and the artifact carry the Revuelto alone and say so.
+- **Cars and THE SHOP.** The Revuelto is the car you start with. The
+  garage's THE SHOP tab sells the others and remembers which one you parked
+  in: Countach 25th Anniversary $500,000 (amogusstrikesback2, CC BY 4.0),
+  Aventador SVJ $650,000 (SDC PERFORMANCE, CC BY-NC 4.0), Countach LPI 800-4
+  $850,000 (007, CC BY 4.0). All three are big downloads, so they exist only
+  on the hosted site: the single-file page and the artifact carry the
+  Revuelto alone and say so.
   Each car brings its own physics spec (mass, power, gearing, grip, brakes,
   drag), so the HUD's horsepower, the drive-mode line and the badge all
-  follow the car you are in. Downloads rarely name their wheels, so the
-  loader splits axle groups down the middle, finds the four wheel centres,
-  undoes any yaw baked into the pose and hangs each wheel on its own steer
-  and spin pivot.
+  follow the car you are in. Downloads arrive in three shapes and the loader
+  handles all three: named steer and rotation bones are used as they are;
+  axle groups (both wheels of an axle in one mesh) are split down the middle,
+  clustered into four corners and given their own pivots, with any yaw baked
+  into the pose undone; and a model built from hundreds of loose pieces is
+  merged offline by material, keeping each wheel corner as its own pivoted
+  group (`scratchpad/studio/merge.html`, which cut the LPI from 1,748 meshes
+  and 20 MB to 33 meshes and 12.5 MB).
 - **The 3D garage.** Two rooms, switched at the top of the garage panel and
   remembered. STUDIO is Velocity Motion's "Studio V1 For Car" (Sketchfab,
   CC BY 4.0): a long lit corridor with a slate floor and light bars, the
@@ -195,7 +201,7 @@ The car turns on the photo camera behind the panel while you shop. Escape or
 BACK returns to the start screen.
 
 **Prize money.** Versus pays by finishing position, more for harder rivals and
-longer races: a three-lap win is 8k on Easy, 12k on Medium, 18k on Hard and
+longer races: a three-lap win is 8k on Easy, 15k on Medium, 20k on Hard and
 25k on Impossible, second place about 60 % of that, third about 35 %, fourth
 a token, all scaled by laps over three, so a ten-lap Impossible win is 83k.
 Time Trial pays 1.5k a lap plus 5k for a new personal best. Solo is free

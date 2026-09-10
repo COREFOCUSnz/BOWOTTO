@@ -21,9 +21,17 @@ const CAR = {
 // the paint, the wheel groups when the wheels are not named, and which way the nose points.
 const CARS = {
   revuelto: { name: 'REVUELTO', sub: 'HYBRID V12 · 1015 CV · 1900 KG', price: 0, embedded: true, spec: { ...CAR } },
-  aventador: { name: 'AVENTADOR SVJ', sub: 'V12 · 770 CV · 1525 KG', price: 75000, ev: false, file: 'aventador.glb', yaw: Math.PI, hide: /^(Text|Plane)/i, wheelGroups: /^pneu/i, paintMats: ['Material.001', 'Material.005'], nomap: true, spin: -1,
+  aventador: { name: 'AVENTADOR SVJ', sub: 'V12 · 770 CV · 1525 KG', price: 650000, ev: false, file: 'aventador.glb', yaw: Math.PI, hide: /^(Text|Plane)/i, wheelGroups: /^pneu/i, paintMats: ['Material.001', 'Material.005'], nomap: true, spin: -1,
     note: 'HOSTED SITE ONLY · MODEL BY SDC PERFORMANCE · CC BY-NC 4.0',
     spec: { mass: 1525, wheelbase: 2.7, length: 4.943, width: 2.098, height: 1.136, powerW: 566000, drivelineEff: 0.85, tractionG: 1.25, brakeG: 1.32, dragK: 0.66, rolling: 260, redline: 8700, idle: 1000, gearTopKmh: [82, 120, 160, 200, 245, 290, 340, 352], wheelR: [0.34, 0.36], track: 0.84, axle: 1.35 } },
+  countach: { name: 'COUNTACH 25TH', sub: 'V12 · 455 CV · 1490 KG · 1988', price: 500000, file: 'countach.glb', ev: false, paintMats: ['Material.001'],
+    bones: { spin: /bone_wheel_(fl|fr|bl|br)_rotation/i, steer: /bone_wheel_(fl|fr|bl|br)_steer/i },
+    note: 'HOSTED SITE ONLY · MODEL BY AMOGUSSTRIKESBACK2 · CC BY 4.0',
+    spec: { mass: 1490, wheelbase: 2.5, length: 4.14, width: 2.0, height: 1.07, powerW: 335000, drivelineEff: 0.82, tractionG: 1.02, brakeG: 1.05, dragK: 0.86, rolling: 300, redline: 7000, idle: 900, gearTopKmh: [60, 95, 135, 180, 235, 295, 295, 295], wheelR: [0.32, 0.34], track: 0.86, axle: 1.25 } },
+  lpi: { name: 'COUNTACH LPI 800-4', sub: 'HYBRID V12 · 814 CV · 1595 KG · 2022 · 112 BUILT', price: 850000, file: 'lpi.glb',
+    paintMats: ['lLamborghini_CountachLPI8004_2022Paint_Material1'],
+    note: 'HOSTED SITE ONLY · MODEL BY 007 · CC BY 4.0',
+    spec: { mass: 1595, wheelbase: 2.7, length: 4.87, width: 2.099, height: 1.139, powerW: 599000, drivelineEff: 0.86, tractionG: 1.2, brakeG: 1.28, dragK: 0.68, rolling: 270, redline: 8500, idle: 950, gearTopKmh: [80, 120, 160, 202, 248, 292, 336, 355], wheelR: [0.34, 0.36], track: 0.84, axle: 1.35 } },
 };
 let carId = 'revuelto'; const carRoots = {};
 const MODES = [
@@ -442,7 +450,7 @@ const SHOP = {
 };
 const SHOP_KEYS = Object.keys(SHOP);
 // prize money by finishing position, per difficulty, for a three-lap Versus race (scaled by laps / 3)
-const PRIZE = [[8000, 5000, 3000, 1000], [12000, 7000, 4000, 1500], [18000, 11000, 6000, 2000], [25000, 15000, 9000, 3000]];
+const PRIZE = [[8000, 5000, 3000, 1000], [15000, 9000, 5000, 2000], [20000, 12000, 7000, 2500], [25000, 15000, 9000, 3000]];
 const PRIZE_TT_LAP = 1500, PRIZE_TT_BEST = 5000;   // Time Trial: per lap, plus a bonus for a new personal best
 const CAREER_START = 5000;
 const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
@@ -1877,7 +1885,11 @@ function installModel(root, name) {
     wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + customYaw;
   }
   customWheels = [];
-  root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
+  if (cfg.bones) {   // the download names its own pivots: a steer bone holding a rotation bone, per corner
+    const spin = {}, steer = {};
+    root.traverse(o => { let m = cfg.bones.spin.exec(o.name); if (m) spin[m[1].toLowerCase()] = o; m = cfg.bones.steer.exec(o.name); if (m) steer[m[1].toLowerCase()] = o; });
+    for (const k in spin) { const s = steer[k] || spin[k]; s.rotation.order = 'YXZ'; customWheels.push({ node: spin[k], steer: s, front: k[0] === 'f', spin: cfg.spin || 1 }); }
+  } else root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
   if (!customWheels.length && cfg.wheelGroups) customWheels = axleWheels(wrap, root, cfg);
   if (!customWheels.length) customWheels = null;
   customModel = wrap; bodyGroup.add(wrap);
@@ -2607,7 +2619,7 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
     const pp = $('g-paint'); pp.innerHTML = '';
     PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
       b.innerHTML = `<i style="background:${P.shader ? 'linear-gradient(135deg,#2ee6ff,#0a3cff)' : P.livery ? 'linear-gradient(135deg,#15181f 50%,#2ee6ff 50%)' : hex(P)}"></i><b>${P.name}</b><span>${on ? 'ON CAR' : owned ? 'OWNED' : fmtCash(P.price)}</span>`; pp.appendChild(b); });
-    const cc = $('g-cars'); cc.innerHTML = '';
+    const cc = $('g-cars'); cc.innerHTML = '<div class="g-shop-head"><b>THE SHOP</b><span>LAMBORGHINIS FOR SALE · PRIZE MONEY BUYS THEM</span></div>';
     for (const id in CARS) { const C = CARS[id], owned = career.cars.includes(id), on = id === carId, card = document.createElement('div'); card.className = 'g-card' + (on ? ' on' : '');
       card.innerHTML = `<div class="g-top"><b>LAMBORGHINI · ${C.name}</b><i>${on ? 'DRIVING' : owned ? 'OWNED' : fmtCash(C.price)}</i></div><div class="g-fit">${C.sub}</div>` + (C.note ? `<div class="g-fit"><span>${C.note}</span></div>` : '') +
         (on ? '' : owned ? `<button data-drive="${id}">DRIVE</button>` : `<button data-buycar="${id}"${career.cash < C.price ? ' disabled' : ''}>BUY · ${fmtCash(C.price)}</button>`);
