@@ -356,7 +356,7 @@ const TRACKS = {
       [-1000, 40, 0], [-500, 10, 0],
     ] },
   mars: { name: 'MARS', sub: 'RED DUST · CRATERS · LOW GRAVITY JUMPS', theme: 'mars', km: 10.9, loops: [], rolls: [],
-    jumps: [{ from: V3(705, 35, -1200), to: V3(740, 39, -1360) }, { from: V3(1900, 25, -920), to: V3(1990, 22, -1080) }, { from: V3(-370, 29, -1700), to: V3(-490, 26, -1560) }, { from: V3(-1080, 7, -340), to: V3(-1010, 4, -190) }], pads: [V3(1200, 18, -550), V3(700, 34, -1850)], gravity: 0.45,
+    jumps: [{ from: V3(705, 35, -1200), to: V3(740, 39, -1360) }, { from: V3(1900, 25, -920), to: V3(1990, 22, -1080) }, { from: V3(-370, 29, -1700), to: V3(-490, 26, -1560) }, { from: V3(-1080, 7, -340), to: V3(-1010, 4, -190) }], pads: [V3(1200, 18, -550), V3(700, 34, -1850)], gravity: 0.55,
     ctrl: lp => [
       [-300, 0, 0], [700, 0, 0], [950, -60, 4], [1150, -250, 10], [1200, -550, 18], [1100, -800, 24], [900, -950, 30],
       [700, -1150, 34], [750, -1400, 40], [1000, -1550, 44], [1300, -1500, 48], [1500, -1250, 44], [1450, -1000, 38], [1600, -800, 32],
@@ -1119,7 +1119,7 @@ const DRESS = {
     const winTex = canvasTex(512, (ctx, sz) => { ctx.fillStyle = '#0a0c14'; ctx.fillRect(0, 0, sz, sz); for (let y = 4; y < sz; y += 12) for (let x = 4; x < sz; x += 10) { const r = rnd(); if (r < 0.5) { ctx.fillStyle = r < 0.1 ? '#ffe9b0' : r < 0.25 ? '#9fd8ff' : '#e8f0ff'; ctx.globalAlpha = 0.4 + rnd() * 0.6; ctx.fillRect(x, y, 6, 7); } } ctx.globalAlpha = 1; }, 1);
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const q of S) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }
     const towers = []; let tries = 0;
-    while (towers.length < 1300 && tries++ < 20000) { const x = x0 - 500 + rnd() * (x1 - x0 + 1000), z = z0 - 500 + rnd() * (z1 - z0 + 1000), d = trackDist(x, z); if (d < 24 || d > 1100) continue; const far = clamp((d - 24) / 500, 0, 1); towers.push({ x, y: 0, z, s: 10 + rnd() * 16, sy: 16 + rnd() * rnd() * (50 + 130 * far), rot: Math.round(rnd() * 4) * Math.PI / 2, c: rnd() < 0.5 ? 0x9aa4b8 : 0xb8c0d0 }); }
+    while (towers.length < 1300 && tries++ < 20000) { const x = x0 - 500 + rnd() * (x1 - x0 + 1000), z = z0 - 500 + rnd() * (z1 - z0 + 1000), d = trackDist(x, z), sz = 10 + rnd() * 16; if (d < 26 + sz * 0.75 || d > 1100) continue; const far = clamp((d - 24) / 500, 0, 1); towers.push({ x, y: 0, z, s: sz, sy: 16 + rnd() * rnd() * (50 + 130 * far), rot: Math.round(rnd() * 4) * Math.PI / 2, c: rnd() < 0.5 ? 0x9aa4b8 : 0xb8c0d0 }); }
     instancedColored(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ map: winTex, emissiveMap: winTex, emissive: 0xffffff, emissiveIntensity: 1.0, roughness: 0.6, metalness: 0.3 }), towers, true);
     const signs = [], sc = [0xff2ad8, 0x2ee6ff, 0xffd23a, 0x8aff3a, 0xff4a4a];
     for (let i = 6; i < N; i += 11) { if (UNDER[i] || SPECIAL(i) || CAVE[i]) continue; const f = frameAt(i), side = (i / 11) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 3 + rnd() * 6)); signs.push({ x: p.x, y: p.y + 4 + rnd() * 9, z: p.z, quat: f.quat, s: 1, sy: 2 + rnd() * 6, c: sc[Math.floor(rnd() * sc.length)] }); }
@@ -2850,9 +2850,9 @@ function step(dt) {
     // the gap's road bends: the flight follows most of that bend (a clean, straight take-off lands on line at any speed
     // that clears the gap) and the stick has a little real authority. Angled take-offs and short flights still miss
     const frA = sampleAt(st.s), hv = st.vel.clone(); hv.y = 0;
-    const sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * 0.9 + st.steer * 0.35 * dt;
+    const lowG = (TRACK.gravity || 1) < 1, sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * (lowG ? 1.0 : 0.9) + st.steer * 0.35 * dt;   // low gravity: long flights, so they track the road's bend fully
     if (turn) { const c = Math.cos(turn), sn = Math.sin(turn), vx = st.vel.x, vz = st.vel.z; st.vel.x = vx * c + vz * sn; st.vel.z = -vx * sn + vz * c; hv.set(st.vel.x, 0, st.vel.z); }
-    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * 1.2))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
+    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * (lowG ? 2.4 : 1.2)))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
     st.pos.addScaledVector(st.vel, dt);
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
@@ -2876,7 +2876,9 @@ function step(dt) {
       // missed the landing (or fell through the gap): straight back to the run-up. Never let it keep falling
       // back to a standing start 480 m before the kicker so the attempt can be repeated with a full run-up
       let back = frB.i, bestD = 1e9; for (const J of JUMPS) { const dI = ((frB.i - J.i0) % N + N) % N; if (dI < 260 && dI < bestD) { bestD = dI; back = J.i0; } }   // the kicker this flight left from
-      back = (back - Math.round(480 / (trackLen / N)) + N) % N;   // 480 m: enough run-up from a standstill to clear any gap in the game
+      // 480 m of run-up from a standstill clears any gap in the game, but never reach back onto the previous jump:
+      // on a chained course the restart stops just past the earlier landing instead
+      { const kick = back, span = Math.round(480 / (trackLen / N)); let k = 1; for (; k <= span; k++) { const i = (kick - k + N) % N; if (JUMP[i]) { k = Math.max(1, k - 10); break; } } back = (kick - Math.min(k, span) + N) % N; }
       placeOnTrack(back); st.resets++; st.hits++; flash('RESET · RUN IT AGAIN', 1400); audio.crunch(0.8); st.shake = 1;
     }
     st.offroad = false; st.slip = 0;

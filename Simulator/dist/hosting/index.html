@@ -177,7 +177,7 @@ body.touch .touchonly{display:flex!important}
 #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#02040a;color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9}
 #loading.hidden{display:none}
 @media (max-height:640px){#tracksel button{min-width:118px;padding:5px 8px}#tracksel button b{font-size:12px}}
-body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
+body.outdoor #hud{text-shadow:0 1px 6px rgba(0,0,0,.85),0 0 2px rgba(0,0,0,.9)}body.theme-sky #hud,body.theme-salt #hud,body.theme-ice #hud,body.theme-docks #hud,body.theme-riviera #hud{text-shadow:0 1px 4px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.8),0 0 2px #000}
 body.outdoor #top-left .presents{text-shadow:0 1px 6px rgba(0,0,0,.9)}
 body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
 #laps div.hidden{display:none}
@@ -5789,7 +5789,7 @@ const TRACKS = {
       [-1000, 40, 0], [-500, 10, 0],
     ] },
   mars: { name: 'MARS', sub: 'RED DUST · CRATERS · LOW GRAVITY JUMPS', theme: 'mars', km: 10.9, loops: [], rolls: [],
-    jumps: [{ from: V3(705, 35, -1200), to: V3(740, 39, -1360) }, { from: V3(1900, 25, -920), to: V3(1990, 22, -1080) }, { from: V3(-370, 29, -1700), to: V3(-490, 26, -1560) }, { from: V3(-1080, 7, -340), to: V3(-1010, 4, -190) }], pads: [V3(1200, 18, -550), V3(700, 34, -1850)], gravity: 0.45,
+    jumps: [{ from: V3(705, 35, -1200), to: V3(740, 39, -1360) }, { from: V3(1900, 25, -920), to: V3(1990, 22, -1080) }, { from: V3(-370, 29, -1700), to: V3(-490, 26, -1560) }, { from: V3(-1080, 7, -340), to: V3(-1010, 4, -190) }], pads: [V3(1200, 18, -550), V3(700, 34, -1850)], gravity: 0.55,
     ctrl: lp => [
       [-300, 0, 0], [700, 0, 0], [950, -60, 4], [1150, -250, 10], [1200, -550, 18], [1100, -800, 24], [900, -950, 30],
       [700, -1150, 34], [750, -1400, 40], [1000, -1550, 44], [1300, -1500, 48], [1500, -1250, 44], [1450, -1000, 38], [1600, -800, 32],
@@ -5829,19 +5829,19 @@ const THEMES = {
             sunEl: 30, dome: [0xb8c4d0, 0xf0f4f8], pw: 3.0, terrain: { amp: 240, base: 100, cliff: 10, freq: 0.0008 }, rock: [150, 155, 165], wallHex: '#e8ecf0' },
   // ---- the ten new worlds
   city:    { bg: 0x05060f, fog: [0x070a18, 260, 2600], neon: 0xff2ad8, line: '#f4f1ea', line2: '#ff2ad8', sun: [0x8fa8ff, 0.5], hemi: [0x2a2a55, 0x05050c, 0.5], exposure: 0.85, verge: 0x10121a,
-             indoor: true, sunEl: 40, dome: [0x03040c, 0x2a1848], pw: 6.0, floor: 'asphalt', beacons: false, mirror: 0x0c0f18, envGlow: 0xff2ad8, envStrip: 0x8020a0, wallLow: '#6a0a5a', glowK: 0.9 },
+             indoor: true, sunEl: 40, dome: [0x03040c, 0x2a1848], pw: 6.0, floor: 'asphalt', beacons: false, mirror: 0x0c0f18, envGlow: 0xff2ad8, envStrip: 0x8020a0, wallLow: '#6a0a5a', glowK: 0.55 },
   volcano: { bg: 0x1a0806, fog: [0x2a0c08, 220, 2600], neon: 0xff6a1a, line: '#f4f1ea', line2: '#ff6a1a', sun: [0xff8040, 0.9], hemi: [0x5a2010, 0x1a0806, 0.6], exposure: 0.85, verge: 0x1a1412,
-             sunEl: 18, dome: [0x0a0304, 0xff4a10], pw: 5.0, stars: true, starN: 700, terrain: { amp: 220, base: 20, cliff: 22, freq: 0.0008 }, craters: [[1050, -1850, 330, 70]], rock: [40, 32, 30], wallHex: '#3a3436', glowK: 0.7 },
+             sunEl: 18, dome: [0x0a0304, 0xff4a10], pw: 5.0, stars: true, starN: 700, terrain: { amp: 220, base: 20, cliff: 22, freq: 0.0008 }, craters: [[1050, -1850, 330, 70]], rock: [40, 32, 30], wallHex: '#3a3436', glowK: 0.45 },
   ice:     { bg: 0x0b1a33, fog: [0x14284a, 500, 5200], neon: 0x7ff0ff, line: '#f4f1ea', line2: '#7ff0ff', sun: [0xcfe4ff, 0.7], hemi: [0x3a5a8a, 0x1a2a3a, 0.7], exposure: 0.85, verge: 0xdfeeff,
              sunEl: 14, dome: [0x05102a, 0x6a9ad0], pw: 3.5, stars: true, terrain: { amp: 3, base: -0.6, cliff: 0, freq: 0.002 }, rim: [1500, 2800, 420], rock: [150, 155, 165], wallHex: '#dfeeff', glowK: 0.6 },
   docks:   { bg: 0x9aa6b4, fog: [0xb8c2cc, 400, 4200], neon: 0xffb020, line: '#f4f1ea', line2: '#ffb020', sun: [0xe8ecf2, 0.9], hemi: [0xb8c4d2, 0x50565c, 0.6], exposure: 0.8, verge: 0x6a6c70,
              day: true, sunEl: 42, dome: [0x6f8299, 0xc8d0d8], pw: 3.0, terrain: { amp: 2, base: 1.2, cliff: 0, freq: 0.002 }, shore: [420, 760, 14], water: -3, waterCol: 0x2e4a5a, wallHex: '#8a8c90' },
   station: { bg: 0x000000, fog: [0x03050a, 400, 3000], neon: 0x9fd8ff, line: '#eaf6ff', line2: '#9fd8ff', sun: [0xffffff, 0.9], hemi: [0x203040, 0x000000, 0.5], exposure: 0.8, verge: 0x1a2028,
-             indoor: true, stars: true, sunEl: 55, dome: [0x000000, 0x000000], pw: 9.0, floor: 'none', beacons: false, allTunnel: true, tunnelBig: true, envGlow: 0x9fd8ff, envStrip: 0x6aa0d0, wallLow: '#3a6a90', glowK: 0.8 },
+             indoor: true, stars: true, sunEl: 55, dome: [0x000000, 0x000000], pw: 9.0, floor: 'none', beacons: false, allTunnel: true, tunnelBig: true, envGlow: 0x9fd8ff, envStrip: 0x6aa0d0, wallLow: '#3a6a90', glowK: 0.6 },
   riviera: { bg: 0x7fb8ea, fog: [0xd8e6f2, 900, 6500], neon: 0xffd27a, line: '#f4f1ea', line2: '#ffd27a', sun: [0xfff0d8, 1.4], hemi: [0x9fc8ff, 0x6a5a48, 0.55], exposure: 0.85, verge: 0x8a8478,
              day: true, sunEl: 35, dome: [0x2a6ac8, 0xf0d8b8], pw: 4.0, terrain: { amp: 160, base: 6, cliff: 8, freq: 0.0009 }, sea: [220, 520, 40], water: -1.5, waterCol: 0x1f7fb8, rock: [150, 120, 90] },
   touge:   { bg: 0x050a18, fog: [0x070d1e, 180, 2000], neon: 0xffa040, line: '#f4f1ea', line2: '#ffa040', sun: [0x9fb8ff, 0.5], hemi: [0x1a2a4a, 0x05080e, 0.5], exposure: 0.85, verge: 0x1a1a14,
-             sunEl: 50, dome: [0x02040c, 0x142446], pw: 6.0, stars: true, terrain: { amp: 330, base: 60, cliff: 16, freq: 0.0007 }, rock: [70, 66, 60], glowK: 0.9 },
+             sunEl: 50, dome: [0x02040c, 0x142446], pw: 6.0, stars: true, terrain: { amp: 330, base: 60, cliff: 16, freq: 0.0007 }, rock: [70, 66, 60], glowK: 0.4 },
   salt:    { bg: 0xa8d0ff, fog: [0xe6eef8, 1500, 9000], neon: 0xff3b3b, line: '#e8e8e8', line2: '#ff3b3b', sun: [0xffffff, 1.6], hemi: [0xbfe0ff, 0xe8e8e8, 0.8], exposure: 0.78, verge: 0xf2f2f0,
              day: true, sunEl: 60, dome: [0x2f7fe0, 0xf4f6ff], pw: 4.0, terrain: { amp: 0.6, base: -0.3, cliff: 0, freq: 0.003 }, rim: [2900, 4300, 520], wallHex: '#e8e8e4' },
   mars:    { bg: 0xc97a4a, fog: [0xd9925f, 700, 6000], neon: 0x2ee6ff, line: '#f4f1ea', line2: '#2ee6ff', sun: [0xffe0c0, 1.1], hemi: [0xd9a070, 0x6a3018, 0.55], exposure: 0.85, verge: 0x7a3a22,
@@ -6552,7 +6552,7 @@ const DRESS = {
     const winTex = canvasTex(512, (ctx, sz) => { ctx.fillStyle = '#0a0c14'; ctx.fillRect(0, 0, sz, sz); for (let y = 4; y < sz; y += 12) for (let x = 4; x < sz; x += 10) { const r = rnd(); if (r < 0.5) { ctx.fillStyle = r < 0.1 ? '#ffe9b0' : r < 0.25 ? '#9fd8ff' : '#e8f0ff'; ctx.globalAlpha = 0.4 + rnd() * 0.6; ctx.fillRect(x, y, 6, 7); } } ctx.globalAlpha = 1; }, 1);
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const q of S) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }
     const towers = []; let tries = 0;
-    while (towers.length < 1300 && tries++ < 20000) { const x = x0 - 500 + rnd() * (x1 - x0 + 1000), z = z0 - 500 + rnd() * (z1 - z0 + 1000), d = trackDist(x, z); if (d < 24 || d > 1100) continue; const far = clamp((d - 24) / 500, 0, 1); towers.push({ x, y: 0, z, s: 10 + rnd() * 16, sy: 16 + rnd() * rnd() * (50 + 130 * far), rot: Math.round(rnd() * 4) * Math.PI / 2, c: rnd() < 0.5 ? 0x9aa4b8 : 0xb8c0d0 }); }
+    while (towers.length < 1300 && tries++ < 20000) { const x = x0 - 500 + rnd() * (x1 - x0 + 1000), z = z0 - 500 + rnd() * (z1 - z0 + 1000), d = trackDist(x, z), sz = 10 + rnd() * 16; if (d < 26 + sz * 0.75 || d > 1100) continue; const far = clamp((d - 24) / 500, 0, 1); towers.push({ x, y: 0, z, s: sz, sy: 16 + rnd() * rnd() * (50 + 130 * far), rot: Math.round(rnd() * 4) * Math.PI / 2, c: rnd() < 0.5 ? 0x9aa4b8 : 0xb8c0d0 }); }
     instancedColored(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ map: winTex, emissiveMap: winTex, emissive: 0xffffff, emissiveIntensity: 1.0, roughness: 0.6, metalness: 0.3 }), towers, true);
     const signs = [], sc = [0xff2ad8, 0x2ee6ff, 0xffd23a, 0x8aff3a, 0xff4a4a];
     for (let i = 6; i < N; i += 11) { if (UNDER[i] || SPECIAL(i) || CAVE[i]) continue; const f = frameAt(i), side = (i / 11) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 3 + rnd() * 6)); signs.push({ x: p.x, y: p.y + 4 + rnd() * 9, z: p.z, quat: f.quat, s: 1, sy: 2 + rnd() * 6, c: sc[Math.floor(rnd() * sc.length)] }); }
@@ -8283,9 +8283,9 @@ function step(dt) {
     // the gap's road bends: the flight follows most of that bend (a clean, straight take-off lands on line at any speed
     // that clears the gap) and the stick has a little real authority. Angled take-offs and short flights still miss
     const frA = sampleAt(st.s), hv = st.vel.clone(); hv.y = 0;
-    const sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * 0.9 + st.steer * 0.35 * dt;
+    const lowG = (TRACK.gravity || 1) < 1, sDotA = hv.dot(frA.t), turn = KAPPA[frA.i] * sDotA * dt * (lowG ? 1.0 : 0.9) + st.steer * 0.35 * dt;   // low gravity: long flights, so they track the road's bend fully
     if (turn) { const c = Math.cos(turn), sn = Math.sin(turn), vx = st.vel.x, vz = st.vel.z; st.vel.x = vx * c + vz * sn; st.vel.z = -vx * sn + vz * c; hv.set(st.vel.x, 0, st.vel.z); }
-    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * 1.2))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
+    { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * (lowG ? 2.4 : 1.2)))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
     st.pos.addScaledVector(st.vel, dt);
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
@@ -8309,7 +8309,9 @@ function step(dt) {
       // missed the landing (or fell through the gap): straight back to the run-up. Never let it keep falling
       // back to a standing start 480 m before the kicker so the attempt can be repeated with a full run-up
       let back = frB.i, bestD = 1e9; for (const J of JUMPS) { const dI = ((frB.i - J.i0) % N + N) % N; if (dI < 260 && dI < bestD) { bestD = dI; back = J.i0; } }   // the kicker this flight left from
-      back = (back - Math.round(480 / (trackLen / N)) + N) % N;   // 480 m: enough run-up from a standstill to clear any gap in the game
+      // 480 m of run-up from a standstill clears any gap in the game, but never reach back onto the previous jump:
+      // on a chained course the restart stops just past the earlier landing instead
+      { const kick = back, span = Math.round(480 / (trackLen / N)); let k = 1; for (; k <= span; k++) { const i = (kick - k + N) % N; if (JUMP[i]) { k = Math.max(1, k - 10); break; } } back = (kick - Math.min(k, span) + N) % N; }
       placeOnTrack(back); st.resets++; st.hits++; flash('RESET · RUN IT AGAIN', 1400); audio.crunch(0.8); st.shake = 1;
     }
     st.offroad = false; st.slip = 0;
