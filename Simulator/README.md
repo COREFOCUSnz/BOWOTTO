@@ -194,7 +194,8 @@ Firestore Database -> Create database.
 ## Eighteen worlds
 
 Picked on the start screen (the page rebuilds itself for the choice, which
-is remembered). Each is a Catmull-Rom loop of control points with its own
+is remembered, behind a loading screen that names the world until the start
+screen is ready). Each is a Catmull-Rom loop of control points with its own
 loops, jumps, corkscrews, caves and a theme that sets sky, fog, ground,
 walls and dressing.
 
