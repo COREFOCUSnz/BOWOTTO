@@ -227,7 +227,9 @@ body.outdoor #msg{text-shadow:0 2px 12px rgba(0,0,0,.9)}
 body.garage #start,body.garage #hud{display:none}
 #g-room{display:flex;gap:6px;margin-top:8px}
 #g-room button{font:inherit;font-size:10px;letter-spacing:.2em;font-weight:700;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;cursor:pointer}
-#g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}   /* the garage is the car and the panel, nothing else */
+#g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}
+#g-cars .g-card.on{border-color:var(--amber);box-shadow:0 0 18px rgba(46,230,255,.2)}
+#g-cars .g-card button[data-drive]{background:rgba(46,230,255,.18);color:var(--hud);border:1px solid var(--amber)}   /* the garage is the car and the panel, nothing else */
 #garage{position:absolute;top:0;right:0;bottom:0;width:min(470px,100%);box-sizing:border-box;background:linear-gradient(90deg,rgba(4,8,16,.35),rgba(4,8,16,.94) 16%);border-left:1px solid rgba(46,230,255,.35);box-shadow:-24px 0 70px rgba(0,0,0,.55);z-index:7;padding:18px 22px 24px;overflow:auto;pointer-events:auto;letter-spacing:.16em}
 #garage.hidden{display:none}
 #g-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
@@ -314,7 +316,7 @@ body.garage #start,body.garage #hud{display:none}
     <div id="vignette"></div>
     <div id="top-left">
       <div class="presents">CORE FOCUS PRODUCTIONS PRESENTS</div>
-      <div class="badge"><span class="brand">LAMBORGHINI</span><span class="model">REVUELTO <em>(SIM)</em></span></div>
+      <div class="badge"><span class="brand">LAMBORGHINI</span><span class="model"><span id="badge-model">REVUELTO</span> <em>(SIM)</em></span></div>
       <div class="sub"><span>THE GRID · 19.4 KM · 1001 HP</span></div>
       <div id="modeline">SOLO · CHASE CAM</div>
       <div id="audiobtns"><button id="btn-music" title="change music (B)">♪ DOWNTEMPO · 100</button><button id="btn-sound" title="sound on / off (V)">SOUND ON</button><button id="btn-settings" title="settings">⚙</button></div>
@@ -393,7 +395,7 @@ body.garage #start,body.garage #hud{display:none}
     <div class="btns"><button id="res-again">RACE AGAIN</button><button id="res-menu">MENU</button></div>
   </div>
   <div id="start">
-    <h1><small>LAMBORGHINI</small>REVUELTO<i id="start-ver">V1.0.0</i></h1>
+    <h1><small>LAMBORGHINI</small><span id="start-model">REVUELTO</span><i id="start-ver">V1.0.0</i></h1>
     <div id="start-driver" class="hidden"></div>
     <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV · 0–100 KM/H 2.5 S · V-MAX 350+ KM/H<br><span id="start-sub">THE GRID</span></p>
     <div class="step" id="step-track">
@@ -418,9 +420,10 @@ body.garage #start,body.garage #hud{display:none}
   </div>
   <div id="garage" class="hidden">
     <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button></div></div>
-    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="career">CAREER</button></div>
+    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">CARS</button><button data-t="career">CAREER</button></div>
     <div id="g-parts" class="g-pane"></div>
     <div id="g-paint" class="g-pane hidden"></div>
+    <div id="g-cars" class="g-pane hidden"></div>
     <div id="g-career" class="g-pane hidden"></div>
     <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
   </div>
@@ -456,6 +459,7 @@ body.garage #start,body.garage #hud{display:none}
     CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
     GARAGE · "STUDIO V1 FOR CAR" BY VELOCITY MOTION · SKETCHFAB · CC BY 4.0<br>
     SHOWROOM · "SCIFI TRON STUDIO | BAKED" BY CHRISTYHSU · SKETCHFAB · CC BY 4.0<br>
+    AVENTADOR · "800 000 VIEWS - SPECIAL MODEL - SDC" BY SDC PERFORMANCE · SKETCHFAB · CC BY-NC 4.0<br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
     <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
     <p id="set-saved" class="cred"></p>
@@ -5530,6 +5534,17 @@ const CAR = {
   gearTopKmh: [78, 118, 158, 200, 245, 290, 335, 380],
   wheelR: [0.34, 0.36], track: 0.84, axle: 1.39,
 };
+// The cars. CAR above is the live spec (the physics reads it every step); picking a car copies its spec in. The Revuelto is
+// baked into the page; other cars are files next to the hosted page, fetched the first time they are chosen, so they exist
+// on lambo-sim.web.app only. Each entry says how its download is tidied up: the stage junk to drop, which materials are
+// the paint, the wheel groups when the wheels are not named, and which way the nose points.
+const CARS = {
+  revuelto: { name: 'REVUELTO', sub: 'HYBRID V12 · 1015 CV · 1900 KG', price: 0, embedded: true, spec: { ...CAR } },
+  aventador: { name: 'AVENTADOR SVJ', sub: 'V12 · 770 CV · 1525 KG', price: 75000, ev: false, file: 'aventador.glb', yaw: Math.PI, hide: /^(Text|Plane)/i, wheelGroups: /^pneu/i, paintMats: ['Material.001', 'Material.005'], nomap: true, spin: -1,
+    note: 'HOSTED SITE ONLY · MODEL BY SDC PERFORMANCE · CC BY-NC 4.0',
+    spec: { mass: 1525, wheelbase: 2.7, length: 4.943, width: 2.098, height: 1.136, powerW: 566000, drivelineEff: 0.85, tractionG: 1.25, brakeG: 1.32, dragK: 0.66, rolling: 260, redline: 8700, idle: 1000, gearTopKmh: [82, 120, 160, 200, 245, 290, 340, 352], wheelR: [0.34, 0.36], track: 0.84, axle: 1.35 } },
+};
+let carId = 'revuelto'; const carRoots = {};
 const MODES = [
   { name: 'CITTÀ',  sub: 'EV · 180 CV',        power: 0.18, grip: 1.55, stab: 1.0, ev: true,  color: '#4cc9f0' },
   { name: 'STRADA', sub: 'HYBRID · 886 CV',    power: 0.85, grip: 1.60, stab: 1.0, ev: false, color: '#f4f1ea' },
@@ -5949,9 +5964,11 @@ const SHOP_KEYS = Object.keys(SHOP);
 const PRIZE = [[8000, 5000, 3000, 1000], [12000, 7000, 4000, 1500], [18000, 11000, 6000, 2000], [25000, 15000, 9000, 3000]];
 const PRIZE_TT_LAP = 1500, PRIZE_TT_BEST = 5000;   // Time Trial: per lap, plus a bonus for a new personal best
 const CAREER_START = 5000;
-const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
+const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
 const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
 let hudLineOK = false;   // the HUD car line needs the track, which is built later; retune() paints it only once that exists
+// the drive-mode line names the live car's drivetrain and its power at that setting
+function modeSub(m) { const cv = Math.round(CAR.powerW / 735.5 * m.power * TUNE.power), C = CARS[carId] || {}; return (m.ev ? (C.ev === false ? 'LOW · ' : 'EV · ') : (C.ev === false ? 'V12 · ' : 'HYBRID · ')) + cv + ' CV'; }
 function retune() {
   for (const k in TUNE) TUNE[k] = 1;
   for (const key of SHOP_KEYS) { const t = career.tiers[key]; if (!t) continue; const T = SHOP[key].tiers[t - 1]; for (const k in TUNE) if (T[k] != null) TUNE[k] *= T[k]; }
@@ -5967,6 +5984,8 @@ function careerAdopt(j) {   // take a saved record (local or cloud), defensively
   if (typeof j.cash === 'number') career.cash = Math.max(0, j.cash);
   if (j.tiers) for (const k of SHOP_KEYS) career.tiers[k] = Math.min(3, Math.max(0, j.tiers[k] | 0));
   if (Array.isArray(j.paints)) career.paints = [...new Set([0, 1, ...j.paints.filter(i => Number.isInteger(i) && PAINTS[i])])];
+  if (Array.isArray(j.cars)) career.cars = [...new Set(['revuelto', ...j.cars.filter(c => typeof c === 'string' && CARS[c])])];
+  if (typeof j.car === 'string' && CARS[j.car] && career.cars.includes(j.car)) career.car = j.car;
   if (j.stats) for (const k in career.stats) if (typeof j.stats[k] === 'number') career.stats[k] = j.stats[k];
   career.updated = typeof j.updated === 'number' ? j.updated : 0;
 }
@@ -6033,7 +6052,7 @@ const cloud = {
   push() {
     if (!this.ok || !this.user) return;
     clearTimeout(this.pending);
-    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
+    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
   },
 };
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -7338,22 +7357,27 @@ function setPaint(i) {
   });
 }
 function installModel(root, name) {
+  const from = (name === 'embedded' || name === 'revuelto.glb') ? 'revuelto' : (CARS[name] ? name : null);
+  if (from) carRoots[from] = root;
+  if (from && from !== carId) return;   // a slow download landing after another car was chosen: keep it, do not fit it
+  const cfg = CARS[from || carId] || {};
   if (customModel) bodyGroup.remove(customModel);
+  if (cfg.hide) { const gone = []; root.traverse(o => { if (o !== root && cfg.hide.test(o.name || '')) gone.push(o); }); for (const o of gone) if (o.parent) o.parent.remove(o); }   // stage text, ground planes
   const wrap = new THREE.Group();
   root.traverse(o => {
     if (o.isMesh) {
       o.castShadow = o.receiveShadow = true;
       const n = ((o.material && o.material.name) || o.name || '').toLowerCase();
-      if (o.material && /light|lamp|led|brake_light|tail_light|headlight_light|turning_light_(right|left)$/.test(n) && !/glass|carbon|inside|holder/.test(n) && o.material.emissive) {
+      if (o.material && /light|lamp|led|xenon|drl|brake_light|tail_light|headlight_light|turning_light_(right|left)$/.test(n) && !/glass|carbon|inside|holder/.test(n) && o.material.emissive) {
         o.material = o.material.clone(); if (o.material.emissive.getHex() === 0) o.material.emissive.setHex(/tail|brake/.test(n) ? 0xff2010 : 0xdff2ff); o.material.emissiveIntensity = Math.max(o.material.emissiveIntensity || 1, 5.0);
       }
-      if (/paint|body|carrosserie|carroceria|exterior/.test(n) && o.material && !/glass|window|interior|light|black|nero|trim|carbon/.test(n)) {
+      if (o.material && (cfg.paintMats ? cfg.paintMats.includes(o.material.name) : /paint|body|carrosserie|carroceria|exterior/.test(n) && !/glass|window|interior|light|black|nero|trim|carbon/.test(n))) {
         // the author's colour and finish, rebuilt as clearcoat paint with live reflections
-        const src = o.material, pm = new THREE.MeshPhysicalMaterial({ color: src.color ? src.color.clone() : new THREE.Color(0xff2a03), map: src.map || null, metalness: Math.max(0.5, src.metalness || 0), roughness: Math.min(0.18, src.roughness == null ? 0.1 : src.roughness), clearcoat: 1, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.3, name: src.name });
+        const src = o.material, pm = new THREE.MeshPhysicalMaterial({ color: src.color ? src.color.clone() : new THREE.Color(0xff2a03), map: cfg.nomap ? null : (src.map || null), metalness: Math.max(0.5, src.metalness || 0), roughness: Math.min(0.18, src.roughness == null ? 0.1 : src.roughness), clearcoat: 1, clearcoatRoughness: 0.04, envMap: cubeRT.texture, envMapIntensity: 1.3, name: src.name });
         o.material = pm; o.userData.paint = true; o.userData.origMat = pm;
       } else if (o.material && o.material.isMeshStandardMaterial) {
         o.material.envMap = cubeRT.texture; o.material.envMapIntensity = /window|glass/.test(n) ? 1.6 : 0.9;
-        if (/rim|caliper|exhaust|metal|chrome/.test(n)) { o.material.metalness = 1.0; o.material.roughness = Math.min(0.3, o.material.roughness); }
+        if (/rim|caliper|exhaust|metal|chrome|miroir|mirror/.test(n)) { o.material.metalness = 1.0; o.material.roughness = Math.min(0.3, o.material.roughness); }
         if (/window|glass/.test(n) && !/head|tail|turning/.test(n)) { o.material.roughness = 0.03; o.material.metalness = 0.3; }
       }
     }
@@ -7373,13 +7397,54 @@ function installModel(root, name) {
   }
   customWheels = [];
   root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
+  if (!customWheels.length && cfg.wheelGroups) customWheels = axleWheels(wrap, root, cfg);
   if (!customWheels.length) customWheels = null;
   customModel = wrap; bodyGroup.add(wrap);
+  if (garage.on) garagePlaceCar();
   procBody.visible = false;
   wheels.forEach(w => w.steer.visible = false);   // the model brings its own wheels
   fitPlates(); setPaint(paintIdx); applyRoofClip();
   rivalTemplate = null; for (const a of ai) buildRivalVisual(a);
   if (name !== 'embedded') flash('MODEL LOADED', 1800);
+}
+// Wheels that come as axle groups (both wheels of an axle in one mesh, pivots at the car's origin): split every mesh that
+// spans both sides down the middle, find the four wheel centres from the round parts, and hang each wheel on a pivot at
+// its centre: a steer pivot (front wheels turn) holding a spin pivot (the round parts roll) and the caliper.
+function subGeometry(g, idx) {   // a non-indexed copy of just these vertex indices (a box on it is then honest)
+  const gg = new THREE.BufferGeometry();
+  for (const name in g.attributes) { const a = g.attributes[name], sz = a.itemSize, out = new Float32Array(idx.length * sz); for (let i = 0; i < idx.length; i++) for (let k = 0; k < sz; k++) out[i * sz + k] = a.array[idx[i] * sz + k]; gg.setAttribute(name, new THREE.BufferAttribute(out, sz)); }
+  gg.computeBoundingBox(); gg.computeBoundingSphere(); return gg;
+}
+function axleWheels(wrap, root, cfg) {
+  wrap.updateMatrixWorld(true);
+  const meshes = []; root.traverse(o => { if (o.isMesh && cfg.wheelGroups.test((o.parent && o.parent.name) || '')) meshes.push(o); });
+  const parts = [], tmp = new THREE.Vector3();
+  for (const m of meshes) {
+    const box = new THREE.Box3().setFromObject(m);
+    if (box.min.z < -0.25 && box.max.z > 0.25) {   // spans both sides: split by triangle centroid
+      const g = m.geometry, pos = g.attributes.position, idx = g.index ? g.index.array : null, n = idx ? idx.length : pos.count, L = [], R = [];
+      for (let i = 0; i < n; i += 3) { let z = 0; for (let k = 0; k < 3; k++) { const vi = idx ? idx[i + k] : i + k; tmp.fromBufferAttribute(pos, vi).applyMatrix4(m.matrixWorld); z += tmp.z; } (z < 0 ? L : R).push(idx ? idx[i] : i, idx ? idx[i + 1] : i + 1, idx ? idx[i + 2] : i + 2); }
+      for (const half of [L, R]) { if (!half.length) continue; const gg = subGeometry(g, half); const mm = m.clone(); mm.geometry = gg; m.parent.add(mm); parts.push(mm); }
+      m.parent.remove(m);
+    } else parts.push(m);
+  }
+  wrap.updateMatrixWorld(true);
+  const info = parts.map(m => { const b = new THREE.Box3().setFromObject(m), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3()); return { m, s, c, round: Math.abs(s.x - s.y) < 0.14 * Math.max(s.x, s.y) && s.z < 0.95 * Math.max(s.x, s.y), big: Math.max(s.x, s.y) > 0.5 }; });
+  const tyres = info.filter(q => q.round && q.big); if (tyres.length < 4) return [];
+  const mx = tyres.reduce((a, q) => a + q.c.x, 0) / tyres.length, mz = tyres.reduce((a, q) => a + q.c.z, 0) / tyres.length;
+  const corners = {}; for (const q of tyres) { const k = (q.c.x > mx ? 'f' : 'r') + (q.c.z < mz ? 'l' : 'r'); (corners[k] = corners[k] || []).push(q); }
+  const out = [];
+  for (const k in corners) {
+    const c = new THREE.Vector3(); for (const q of corners[k]) c.add(q.c); c.divideScalar(corners[k].length);
+    // the download may have the wheel turned (toe, or a posed steer): find the yaw that makes the tyre thinnest and undo it
+    const tyre = corners[k].reduce((a, q) => (q.s.x * q.s.y > a.s.x * a.s.y ? q : a), corners[k][0]), pos = tyre.m.geometry.attributes.position, wp = [];
+    for (let i = 0; i < pos.count; i += Math.max(1, Math.floor(pos.count / 1500))) wp.push(tmp.fromBufferAttribute(pos, i).applyMatrix4(tyre.m.matrixWorld).sub(c).clone());
+    let best = 0, bestW = 1e9; for (let a = -40; a <= 40; a += 1) { const r = a * Math.PI / 180, ca = Math.cos(r), sa = Math.sin(r); let z0 = 1e9, z1 = -1e9; for (const v of wp) { const z = -sa * v.x + ca * v.z; if (z < z0) z0 = z; if (z > z1) z1 = z; } if (z1 - z0 < bestW) { bestW = z1 - z0; best = r; } }
+    const steer = new THREE.Group(), fix = new THREE.Group(), spin = new THREE.Group(); wrap.add(steer); steer.position.copy(wrap.worldToLocal(c.clone())); steer.add(fix); fix.rotation.y = -best; fix.add(spin); steer.updateMatrixWorld(true);
+    for (const q of info) { if (q.c.distanceTo(c) > 0.55 || q.s.length() > 1.2) continue; (q.round ? spin : fix).attach(q.m); }
+    out.push({ node: spin, steer, front: k[0] === 'f', spin: cfg.spin || 1, toe: +(best * 180 / Math.PI).toFixed(1) });
+  }
+  return out.length === 4 ? out : [];
 }
 function loadGLBBuffer(buf, name) {
   // sandboxed pages refuse blob: URLs; without createImageBitmap the loader uses <img src="data:..."> instead
@@ -7387,6 +7452,22 @@ function loadGLBBuffer(buf, name) {
   try { new THREE.GLTFLoader().parse(buf, '', g => installModel(g.scene, name), e => { console.error(e); flash('MODEL FAILED', 2000); }); }
   catch (e) { console.error(e); flash('MODEL FAILED', 2000); }
 }
+function carApply(C) {
+  Object.assign(CAR, C.spec); customYaw = C.yaw || 0; if (typeof retune === 'function') retune(); if (typeof setMode === 'function') setMode(st.mode);
+  const bm = $('badge-model'), sm = $('start-model'); if (bm) bm.textContent = C.name; if (sm) sm.textContent = C.name;
+}
+function carSelect(id, save) {
+  const C = CARS[id]; if (!C) return;
+  const done = () => { if (save) { career.car = id; careerSave(); } if (typeof garageRefresh === 'function') garageRefresh(); };
+  if (carRoots[id]) { carId = id; carApply(C); installModel(carRoots[id], id); done(); return; }
+  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('AVAILABLE ON LAMBO-SIM.WEB.APP', 2000); return; }   // the single-file page has only the Revuelto
+  flash('LOADING ' + C.name + ' …', 4000);
+  fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
+    try { window.createImageBitmap = undefined; } catch (e) {}
+    new THREE.GLTFLoader().parse(b, '', g => { carRoots[id] = g.scene; carId = id; carApply(C); installModel(g.scene, id); flash('LAMBORGHINI ' + C.name, 1600, '#ffd21f'); done(); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
+  }).catch(() => flash('MODEL FAILED', 2000));
+}
+function buyCar(id) { const C = CARS[id]; if (!C) return 'NO'; if (career.cars.includes(id)) return 'OWNED'; if (career.cash < C.price) return 'POOR'; career.cash -= C.price; career.cars.push(id); careerSave(); return 'OK'; }
 window.addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('on'); });
 window.addEventListener('dragleave', () => $('drop').classList.remove('on'));
 window.addEventListener('drop', e => {
@@ -7402,6 +7483,7 @@ window.addEventListener('drop', e => {
     if (!(u8[0] === 0x67 && u8[1] === 0x6c && u8[2] === 0x54 && u8[3] === 0x46) && window.fflate) u8 = fflate.unzlibSync(u8);   // deflated by build.py
     loadGLBBuffer(u8.buffer, 'embedded'); } catch (e) { console.error(e); } }
   else if (location.protocol !== 'file:') (window.__glbFetch || fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null)).then(b => { if (b) loadGLBBuffer(b, 'revuelto.glb'); }).catch(() => {});
+  if (career.car && career.car !== 'revuelto' && career.cars.includes(career.car)) setTimeout(() => carSelect(career.car, false), 800);   // the car they parked in
 }
 
 // ------------------------------------------------------------------ light trail (light-cycle ribbon behind the car)
@@ -7960,7 +8042,7 @@ let flashTimer = null;
 function flash(text, ms, color) { const m = $('msg'); m.textContent = text; m.style.color = color || ''; m.style.textShadow = color ? '0 0 28px ' + color : ''; m.classList.add('show'); clearTimeout(flashTimer); flashTimer = setTimeout(() => m.classList.remove('show'), ms); }
 function setMode(i) {
   st.mode = (i + MODES.length) % MODES.length; const m = MODES[st.mode];
-  $('mode-name').textContent = m.name; $('mode-name').style.color = m.color; $('mode-sub').textContent = m.sub; try { localStorage.setItem('revuelto.drive', String(st.mode)); } catch (e) {}
+  $('mode-name').textContent = m.name; $('mode-name').style.color = m.color; $('mode-sub').textContent = modeSub(m); try { localStorage.setItem('revuelto.drive', String(st.mode)); } catch (e) {}
   flash(m.name, 900);
 }
 function shiftTo(g) { if (g < 0 || g > 7 || g === st.gear) return; st.gear = g; st.shiftT = 0.09; audio.shift(); }
@@ -8022,7 +8104,7 @@ async function nameSubmit() {
   career.name = name; careerSave(); nameClose(); nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh(); flash('WELCOME, ' + name, 1400, '#ffd21f');
 }
 function nameRefresh() { const d = $('start-driver'); if (!d) return; d.textContent = career.name ? 'DRIVER · ' + career.name : ''; d.classList.toggle('hidden', !career.name); }
-function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(1001 * TUNE.power) + ' HP · V' + VERSION; }
+function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(CAR.powerW / 745.3 * TUNE.power) + ' HP · V' + VERSION; }
 
 { // the garage: prize money spent on parts and paints, with the car turning on the photo camera behind the panel
   const gEl = $('garage'); let prevCam = 0;
@@ -8044,21 +8126,27 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
     const pp = $('g-paint'); pp.innerHTML = '';
     PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
       b.innerHTML = `<i style="background:${P.shader ? 'linear-gradient(135deg,#2ee6ff,#0a3cff)' : P.livery ? 'linear-gradient(135deg,#15181f 50%,#2ee6ff 50%)' : hex(P)}"></i><b>${P.name}</b><span>${on ? 'ON CAR' : owned ? 'OWNED' : fmtCash(P.price)}</span>`; pp.appendChild(b); });
+    const cc = $('g-cars'); cc.innerHTML = '';
+    for (const id in CARS) { const C = CARS[id], owned = career.cars.includes(id), on = id === carId, card = document.createElement('div'); card.className = 'g-card' + (on ? ' on' : '');
+      card.innerHTML = `<div class="g-top"><b>LAMBORGHINI · ${C.name}</b><i>${on ? 'DRIVING' : owned ? 'OWNED' : fmtCash(C.price)}</i></div><div class="g-fit">${C.sub}</div>` + (C.note ? `<div class="g-fit"><span>${C.note}</span></div>` : '') +
+        (on ? '' : owned ? `<button data-drive="${id}">DRIVE</button>` : `<button data-buycar="${id}"${career.cash < C.price ? ' disabled' : ''}>BUY · ${fmtCash(C.price)}</button>`);
+      cc.appendChild(card); }
     const st_ = career.stats;
-    $('g-career').innerHTML = [['DRIVER', career.name || '—'], ['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
+    $('g-career').innerHTML = [['DRIVER', career.name || '—'], ['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['CARS OWNED', career.cars.length + ' / ' + Object.keys(CARS).length], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
       .map(([k, v]) => `<div class="g-stat"><span>${k}</span><b>${v}</b></div>`).join('') +
       '<p class="g-note">PRIZE MONEY · VERSUS PAYS BY FINISHING POSITION, MORE ON HARDER RIVALS AND LONGER RACES · TIME TRIAL PAYS PER LAP WITH A BONUS FOR A NEW BEST · SOLO IS FREE PRACTICE</p>';
     $('g-signin').textContent = !cloud.ok ? 'CLOUD SAVE · ON THE HOSTED SITE' : cloud.user ? 'SIGN OUT' : 'SIGN IN · SAVE TO CLOUD';
   };
   $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + SHOP[key].tiers[t].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); });
   $('g-paint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } else { const r = buyPaint(i); if (r === 'OK') { setPaint(i); flash('BOUGHT · ' + PAINTS[i].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); } garageRefresh(); });
-  document.querySelectorAll('#g-tabs button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('#g-tabs button').forEach(x => x.classList.toggle('on', x === b)); for (const t of ['parts', 'paint', 'career']) $('g-' + t).classList.toggle('hidden', t !== b.dataset.t); }));
+  document.querySelectorAll('#g-tabs button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('#g-tabs button').forEach(x => x.classList.toggle('on', x === b)); for (const t of ['parts', 'paint', 'cars', 'career']) $('g-' + t).classList.toggle('hidden', t !== b.dataset.t); }));
   window.garageOpen = () => { garageRefresh(); document.body.classList.add('garage'); gEl.classList.remove('hidden'); prevCam = st.cam; st.cam = 4; st.snapCam = true; garageEnter(); };
   window.garageClose = () => { document.body.classList.remove('garage'); gEl.classList.add('hidden'); st.cam = prevCam; st.snapCam = true; garageLeave(); };
   $('garage-btn').addEventListener('click', e => { e.stopPropagation(); garageOpen(); });
   $('g-close').addEventListener('click', e => { e.stopPropagation(); garageClose(); });
   $('g-signin').addEventListener('click', e => { e.stopPropagation(); cloud.signIn(); });
   $('g-name').addEventListener('click', e => { e.stopPropagation(); nameOpen(false); });
+  $('g-cars').addEventListener('click', e => { const b = e.target.closest('[data-drive],[data-buycar]'); if (!b) return; e.stopPropagation(); if (b.dataset.drive) { carSelect(b.dataset.drive, true); return; } const id = b.dataset.buycar, r = buyCar(id); if (r === 'OK') { flash('BOUGHT · LAMBORGHINI ' + CARS[id].name, 1400, '#ffd21f'); carSelect(id, true); garageRefresh(); } else if (r === 'POOR') flash('NOT ENOUGH MONEY', 1200); });
   gEl.addEventListener('click', e => e.stopPropagation());
   cloud.init(); paintBarLocks(); garageRefresh();
 }
@@ -8585,7 +8673,7 @@ function step(dt) {
   // wheels
   const dist = st.u * dt;
   for (const w of wheels) { w.spin.rotation.z -= dist / w.r; w.steer.rotation.y = w.front ? st.delta : 0; }
-  if (customWheels) for (const w of customWheels) { w.node.rotation.x += dist / 0.35; w.node.rotation.y = w.front ? st.delta : 0; }
+  if (customWheels) for (const w of customWheels) { w.node.rotation.x += dist / 0.35 * (w.spin || 1); (w.steer || w.node).rotation.y = w.front ? st.delta : 0; }
 }
 
 // ------------------------------------------------------------------ camera
@@ -8738,11 +8826,14 @@ function garageRoom(name) {
 function garageEnter() {
   if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
   garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
+  garagePlaceCar();
+  roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
+}
+function garagePlaceCar() {
   car.position.set(0, 0, 0); car.quaternion.identity(); bodyGroup.rotation.set(0, 0, 0); car.updateMatrixWorld(true);
   const box = new THREE.Box3(); car.traverse(o => { if (!o.isMesh || o.isSprite || o.isLine) return; const b = new THREE.Box3().setFromObject(o), z = b.getSize(new THREE.Vector3()); if (z.length() < 8 && z.length() > 0.05) box.union(b); });
   garage.carY = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
   car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
-  roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
 }
 function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
 function garageLeave() { if (!garage.on) return; garage.on = false; scene.add(car); car.visible = true; }
@@ -8806,7 +8897,7 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 loadHide();   // the start screen is ready
-window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }
 })();
 

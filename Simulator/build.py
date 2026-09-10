@@ -103,6 +103,12 @@ def main():
     for room in rooms:
         if os.path.exists(room):
             shutil.copyfile(room, os.path.join(host, os.path.basename(room)))
+    for extra in glob.glob(os.path.join(HERE, "models", "*.glb")):   # other cars: hosted only, never inlined
+        stem = os.path.basename(extra)[:-4]
+        if stem in ("revuelto", "studio", "showroom") or stem.endswith("_src") or stem.startswith("revuelto"):
+            continue
+        shutil.copyfile(extra, os.path.join(host, stem + ".glb"))
+        print("hosted car %s.glb (%d KB)" % (stem, os.path.getsize(extra) // 1024))
     htags = ""
     for path, suffix in posters:
         if not path:

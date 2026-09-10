@@ -160,7 +160,14 @@ Motion corridor, orbit cam) and SHOWROOM (ChristyHsu tron stage, car on the
 turntable); sources in `models/*_src.glb` (gitignored), shipped GLBs
 re-encoded to 1K JPEG by scratch `studio/reenc*.js` + a Python GLB rebuild.
 Artifact now drops the intro poster clip to stay under 16 MiB (16.17 MB).
-Still to come: part anchors on the car, more cars. Balance is
+Cars are now data: `CARS` holds a physics spec plus a
+cleanup recipe per car (hide patterns, paint materials, wheel groups, nose
+yaw), `carSelect` swaps the model live, the garage has a CARS tab and the
+career saves `cars`/`car`. Aventador SVJ (SDC PERFORMANCE, CC BY-NC 4.0,
+10.7 MB) is HOSTED ONLY: too big for the 16 MiB artifact. `axleWheels()`
+rebuilds wheels for downloads whose wheels come as one mesh per axle (split
+by triangle centroid, corner clustering, yaw undone by a thinnest-tyre
+search). Still to come: part anchors on the car, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys

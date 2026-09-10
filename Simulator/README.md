@@ -144,6 +144,17 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
+- **Cars.** The Revuelto is the car you start with. The garage's CARS tab
+  sells others and remembers which one you parked in. The Aventador SVJ
+  ($75,000) is ChristyHsu-style Sketchfab work by SDC PERFORMANCE (CC BY-NC
+  4.0) and, being a 10 MB download, exists only on the hosted site: the
+  single-file page and the artifact carry the Revuelto alone and say so.
+  Each car brings its own physics spec (mass, power, gearing, grip, brakes,
+  drag), so the HUD's horsepower, the drive-mode line and the badge all
+  follow the car you are in. Downloads rarely name their wheels, so the
+  loader splits axle groups down the middle, finds the four wheel centres,
+  undoes any yaw baked into the pose and hangs each wheel on its own steer
+  and spin pivot.
 - **The 3D garage.** Two rooms, switched at the top of the garage panel and
   remembered. STUDIO is Velocity Motion's "Studio V1 For Car" (Sketchfab,
   CC BY 4.0): a long lit corridor with a slate floor and light bars, the

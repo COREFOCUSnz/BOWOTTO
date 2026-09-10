@@ -16,7 +16,7 @@
     <div id="vignette"></div>
     <div id="top-left">
       <div class="presents">CORE FOCUS PRODUCTIONS PRESENTS</div>
-      <div class="badge"><span class="brand">LAMBORGHINI</span><span class="model">REVUELTO <em>(SIM)</em></span></div>
+      <div class="badge"><span class="brand">LAMBORGHINI</span><span class="model"><span id="badge-model">REVUELTO</span> <em>(SIM)</em></span></div>
       <div class="sub"><span>THE GRID · 19.4 KM · 1001 HP</span></div>
       <div id="modeline">SOLO · CHASE CAM</div>
       <div id="audiobtns"><button id="btn-music" title="change music (B)">♪ DOWNTEMPO · 100</button><button id="btn-sound" title="sound on / off (V)">SOUND ON</button><button id="btn-settings" title="settings">⚙</button></div>
@@ -95,7 +95,7 @@
     <div class="btns"><button id="res-again">RACE AGAIN</button><button id="res-menu">MENU</button></div>
   </div>
   <div id="start">
-    <h1><small>LAMBORGHINI</small>REVUELTO<i id="start-ver">V1.0.0</i></h1>
+    <h1><small>LAMBORGHINI</small><span id="start-model">REVUELTO</span><i id="start-ver">V1.0.0</i></h1>
     <div id="start-driver" class="hidden"></div>
     <p>6.5 L NATURALLY ASPIRATED V12 · THREE E-MOTORS · 1015 CV · 0–100 KM/H 2.5 S · V-MAX 350+ KM/H<br><span id="start-sub">THE GRID</span></p>
     <div class="step" id="step-track">
@@ -120,9 +120,10 @@
   </div>
   <div id="garage" class="hidden">
     <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button></div></div>
-    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="career">CAREER</button></div>
+    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">CARS</button><button data-t="career">CAREER</button></div>
     <div id="g-parts" class="g-pane"></div>
     <div id="g-paint" class="g-pane hidden"></div>
+    <div id="g-cars" class="g-pane hidden"></div>
     <div id="g-career" class="g-pane hidden"></div>
     <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
   </div>
@@ -158,6 +159,7 @@
     CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
     GARAGE · "STUDIO V1 FOR CAR" BY VELOCITY MOTION · SKETCHFAB · CC BY 4.0<br>
     SHOWROOM · "SCIFI TRON STUDIO | BAKED" BY CHRISTYHSU · SKETCHFAB · CC BY 4.0<br>
+    AVENTADOR · "800 000 VIEWS - SPECIAL MODEL - SDC" BY SDC PERFORMANCE · SKETCHFAB · CC BY-NC 4.0<br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
     <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
     <p id="set-saved" class="cred"></p>
