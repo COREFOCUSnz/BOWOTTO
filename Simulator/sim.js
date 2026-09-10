@@ -2855,6 +2855,7 @@ function step(dt) {
     { const bh = frA.b.clone().setY(0).normalize(), latV = hv.dot(bh); st.vel.addScaledVector(bh, -latV * (1 - Math.exp(-dt * (lowG ? 2.4 : 1.6)))); hv.set(st.vel.x, 0, st.vel.z); }   // sideways drift bleeds off: within ~4° of straight lands, sloppier still misses
     st.pos.addScaledVector(st.vel, dt);
     st.s = ((st.s + hv.dot(frA.t) * dt) % trackLen + trackLen) % trackLen; st.d += hv.dot(frA.b) * dt;
+    st.d *= Math.exp(-dt * 0.45);   // and the flight pulls you back toward the centreline: a straight take-off lands on line, a wild one still misses
     st.yaw = damp(st.yaw, st.steer * 0.6, 4, dt); st.psi += -st.yaw * dt;
     const frB = sampleAt(st.s), roadY = frB.p.y + frB.b.y * st.d, over = !JUMP[frB.i];
     // tunnel roofs (STRATOS): come down over a tunnel from above and you land on top of it, not inside
