@@ -401,6 +401,22 @@ menu/mode-select screen where it's actually useful, and disappears the
 instant a race starts. Verified the round trip (menu -> driving -> ESC back
 to menu) and a phone-size driving screenshot with it gone.
 
+**Settings now pauses the race, same day:** Corey noticed opening Settings
+mid-drive didn't stop anything underneath -- the car kept coasting, the
+race clock kept running, AI kept driving. One-line fix in the main
+`frame()` loop: `const paused = !$('settings').classList.contains('hidden')`
+gates the same block that already skips physics for `!st.started`, so
+`step()`/`raceTick()`/`audio.update()` don't run while the panel is open --
+mirrors the existing `garage.on` freeze pattern one line above it. Rendering,
+camera and HUD keep running so the screen doesn't go blank, it just shows a
+frozen moment behind the dialog. Verified with a temporary lightweight test
+hook (bypassing the expensive full render path, which turned out to take
+multiple real seconds per frame in this sandbox's software renderer and
+made wall-clock-timed Playwright tests useless for this): identical
+speed/position across 90 simulated ticks with settings open, then normal
+continued acceleration once closed. Hook removed before committing --
+shipped diff is the one-line gate only.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

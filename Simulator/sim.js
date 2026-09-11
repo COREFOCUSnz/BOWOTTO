@@ -3504,7 +3504,8 @@ function frame(now) {
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   readInput();
   if (garage.on) { garageFrame(dt, now); frames++; return; }   // the world waits while the car is in the studio
-  if (st.started) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } raceTick(dt); audio.update(dt); }
+  const paused = !$('settings').classList.contains('hidden');   // settings open mid-drive: freeze the race, don't just overlay it
+  if (st.started && !paused) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } raceTick(dt); audio.update(dt); }
   car.position.copy(st.pos); car.quaternion.copy(basisQuat(st.fwd, st.up));
   underglow.position.copy(st.pos).addScaledVector(st.up, 0.25);
   st.glow = Math.max(0, (st.glow || 0) - dt * 0.9);
