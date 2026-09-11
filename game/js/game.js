@@ -1,7 +1,7 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
   const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
@@ -31,6 +31,24 @@
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
   const brains = new Map();
+
+  // ---- character models (async; the blocky players stay as the fallback)
+  const models = new ModelSet(renderer.gl);
+  const poses = new Map();
+  let modelsReady = false;
+  const CLASS_MODEL = { scout: 'scout', sniper: 'sniper', soldier: 'soldier', demoman: 'soldier', medic: 'medic', hwguy: 'heavy', pyro: 'pyro', spy: 'spy', engineer: 'engineer' };
+  const GRIP_FOR = { ac: 'heavy', flamer: 'heavy', rpg: 'launcher', ic: 'launcher', gl: 'launcher', pl: 'launcher', tranq: 'pistol', railgun: 'pistol' };
+  if (renderer.skinProg) models.load('assets/models/').then((ok) => { modelsReady = ok; if (ok && menu) renderMenu(); });
+  function poseFor(p, model) {
+    let e = poses.get(p);
+    if (!e || e.model !== model) { e = { model, pose: new Pose(model) }; poses.set(p, e); }
+    return e.pose;
+  }
+  function modelFor(p) {
+    if (!modelsReady) return null;
+    const cls = p.disguise >= 0 && p.disguiseCls ? p.disguiseCls : p.cls;
+    return models.get(CLASS_MODEL[cls] || 'soldier');
+  }
 
   // --------------------------------------------------------------- bots
   function syncBots() {
@@ -151,7 +169,8 @@
         <button data-k="6"><b>6</b> Restart round</button>
         <button data-k="7"><b>7</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
         <button data-k="8"><b>8</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
-      </div><div class="hint">Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
+        <button data-k="9"><b>9</b> Credits</button>
+      </div><div class="hint">${renderer.skinProg && !modelsReady ? 'Loading characters…<br>' : ''}Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
     } else if (menu === 'team') {
       html = title + `<div class="list"><div class="h">Choose a team</div>
         <button data-k="1" class="blue"><b>1</b> Blue</button>
@@ -184,6 +203,17 @@
         <tr><td>M / N</td><td>Change class / team</td></tr><tr><td>Tab</td><td>Scoreboard</td></tr><tr><td>Esc</td><td>Menu</td></tr>
         </table>
         <p>Capture the flag: grab the enemy flag from their basement and bring it back to your own flag room. 10 points per capture. Enemy flags return 60 s after being dropped. Your spawn room has resupply bags.</p>
+        <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'credits') {
+      html = title + `<div class="list help"><div class="h">Credits</div>
+        <p><b>Characters</b><br>
+        "All of the team Fortress 2 red team Mercenaries" by <b>inonshalev42</b>, published on Sketchfab and
+        licensed under <b>Creative Commons Attribution</b> (CC BY). The models were rescaled, split per class,
+        reduced to a 23-bone rig and re-textured for the web; they are animated procedurally here.</p>
+        <p><b>Game</b><br>Built by Core Focus Productions as a tribute to <i>Half-Life: Team Fortress Classic</i> and its
+        map 2Fort. Team Fortress is a trademark of Valve Corporation, which is not affiliated with this project.
+        No Valve game files are used: the map, weapons, sounds and code are original.</p>
+        <p><b>Note</b><br>The character set has no Demoman, so the Demoman uses the Soldier model.</p>
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'end') {
       const w = game.score[0] > game.score[1] ? 'Blue wins!' : game.score[1] > game.score[0] ? 'Red wins!' : 'Draw!';
@@ -218,6 +248,7 @@
       if (k === '2') openMenu('class'); if (k === '3') openMenu('team'); if (k === '4') openMenu('settings'); if (k === '5') openMenu('help');
       if (k === '6') { restart(); closeMenu(); }
       if (k === '7') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
+      if (k === '9') { openMenu('credits'); return; }
       if (k === '8') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
@@ -232,7 +263,7 @@
       else { human.cls = cls; human.wantsRespawn = true; human.respawnAt = Math.min(human.respawnAt, game.time); }
       if (human.spawnT === undefined) { human.cls = cls; human.spawn(); }
       closeMenu();
-    } else if (menu === 'settings' || menu === 'help') { if (k === '0') openMenu('main'); }
+    } else if (menu === 'settings' || menu === 'help' || menu === 'credits') { if (k === '0') openMenu('main'); }
     else if (menu === 'end') { if (k === '1') { restart(); closeMenu(); } }
   }
   function restart() { game.restartRound(); messages.length = 0; game.killFeed.length = 0; human.wantsRespawn = true; human.respawnAt = 0; }
@@ -298,6 +329,58 @@
   const SKIN = [0.85, 0.68, 0.55];
   const CLASS_HAT = { scout: [0.2, 0.2, 0.2], sniper: [0.35, 0.3, 0.2], soldier: [0.25, 0.3, 0.2], demoman: [0.15, 0.15, 0.15], medic: [0.95, 0.95, 0.95], hwguy: [0.3, 0.3, 0.3], pyro: [0.1, 0.1, 0.1], spy: [0.2, 0.2, 0.25], engineer: [0.95, 0.8, 0.2] };
   function teamColor(t) { return TEAM_COLORS[t]; }
+  // Root matrix placing a character in the world (handles the death topple).
+  function playerRoot(p) {
+    let m = M.mul(M.translate(p.pos[0], p.pos[1], p.pos[2]), M.rotY(p.yaw));
+    if (!p.alive) {
+      const t = clamp((game.time - p.deadAt) / 0.45, 0, 1);
+      const fall = t * t * (3 - 2 * t);
+      m = M.mul(m, M.mul(M.translate(0, 0.05 * fall, -0.45 * fall), M.rotX(-Math.PI / 2 * fall)));
+    }
+    return m;
+  }
+  function poseState(p) {
+    const w = p.alive ? p.weapon() : null;
+    const gid = w ? (GRIP_FOR[w.model] || (w.type === 'melee' ? 'melee' : 'rifle')) : 'rifle';
+    return {
+      time: game.time, walkPhase: p.walkPhase, speed: Math.hypot(p.vel[0], p.vel[2]),
+      onGround: p.onGround || p.inWater, velY: p.vel[1], pitch: p.alive ? p.pitch : 0, yaw: p.yaw, root: null,
+      fireAnim: w && w.type !== 'melee' ? p.fireAnim : 0,
+      swing: w && w.type === 'melee' ? Math.sin(Math.min(1, 1 - p.fireAnim) * Math.PI) * p.fireAnim : 0,
+      grip: GRIP[gid],
+    };
+  }
+  // Skinned pass: every visible character in one program.
+  function drawCharacters() {
+    if (!modelsReady || !renderer.beginSkinned()) return false;
+    for (const p of game.players) {
+      if (p === human && human.alive) continue;
+      if (!p.alive && game.time - p.deadAt > 8) continue;
+      const model = modelFor(p); if (!model) continue;
+      const pose = poseFor(p, model);
+      const st = poseState(p); st.root = playerRoot(p);
+      animate(pose, st);
+      const team = p.disguise >= 0 ? p.disguise : p.team;
+      renderer.drawSkinned(model, pose, { textures: models.textures, teamSwap: team === BLUE ? 1 : 0, flash: p.hitFlash > 0 ? 0.45 : 0 });
+    }
+    renderer.endSkinned();
+    return true;
+  }
+  // The gun a character carries, placed at the right hand and aimed with the player.
+  function drawCharacterWeapons() {
+    const r = renderer;
+    for (const p of game.players) {
+      if (!p.alive || (p === human && human.alive)) continue;
+      const e = poses.get(p); if (!e || !e.pose.weapon) continue;
+      const wp = e.pose.weapon;
+      const w = p.weapon();
+      const base = M.mul(M.translate(wp.pos[0], wp.pos[1], wp.pos[2]), M.mul(M.rotY(wp.yaw), M.rotX(wp.pitch)));
+      drawWeapon(r, base, weaponModelId(w), botWeaponState(p, w));
+      if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, p.id + game.time * 40);
+      if (p.flag) drawFlagCloth(M.mul(M.translate(p.pos[0], p.pos[1], p.pos[2]), M.mul(M.rotY(p.yaw), M.translate(0, 0.9, 0.28))), p.flag.team, true);
+    }
+  }
+  // ---- blocky fallback, used until the models load or if they can't ----
   function drawPlayer(p) {
     const r = renderer; const gl = r.gl;
     const team = p.disguise >= 0 ? p.disguise : p.team;
@@ -465,7 +548,7 @@
     for (const q of game.players) if (q.isBot && q.alive && q.weapon().model === 'ac') q.acSpin = (q.acSpin || 0) + (q.spinup / WEAPONS.ac.spinup) * 40 * dt;
   }
   function drawViewModel() {
-    const p = human; if (!p.alive) return;
+    const p = human; if (!p.alive || window.__hideViewmodel) return;
     const r = renderer; const w = p.weapon();
     if (zoomed && w.zoom) return;
     r.beginViewModel();
@@ -531,7 +614,9 @@
     audio.listener = camPos;
     renderer.begin({ pos: camPos, yaw, pitch, zoom: zoomed && human.alive && human.weapon().zoom ? 0.3 : 1 });
     renderer.drawWorld();
-    for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
+    const skinned = drawCharacters();
+    if (skinned) drawCharacterWeapons();
+    else for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
     drawFlags(); drawItems(); drawSentries(); drawProjectiles();
     // sniper laser dot
     if (human.alive && human.charge >= 0) { const h = game.trace(human.eye(), V.forward(human.yaw, human.pitch), 300, human); if (h) renderer.sphereAt(h.point, 0.025 + h.dist * 0.0012, [1, 0.1, 0.1], { emissive: 1 }); }
@@ -548,5 +633,5 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__models = models; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

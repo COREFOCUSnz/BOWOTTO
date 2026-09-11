@@ -1,0 +1,327 @@
+{
+ "generated": "2026-09-11",
+ "targetHeight": 1.8,
+ "lod": 0,
+ "rig": [
+  "bip_pelvis",
+  "bip_spine_0",
+  "bip_spine_1",
+  "bip_spine_2",
+  "bip_spine_3",
+  "bip_neck",
+  "bip_head",
+  "bip_collar_L",
+  "bip_upperArm_L",
+  "bip_lowerArm_L",
+  "bip_hand_L",
+  "bip_collar_R",
+  "bip_upperArm_R",
+  "bip_lowerArm_R",
+  "bip_hand_R",
+  "bip_hip_L",
+  "bip_knee_L",
+  "bip_foot_L",
+  "bip_toe_L",
+  "bip_hip_R",
+  "bip_knee_R",
+  "bip_foot_R",
+  "bip_toe_R"
+ ],
+ "rigParent": [
+  -1,
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  4,
+  7,
+  8,
+  9,
+  4,
+  11,
+  12,
+  13,
+  0,
+  15,
+  16,
+  17,
+  0,
+  19,
+  20,
+  21
+ ],
+ "classes": {
+  "spy": {
+   "file": "spy.tfm",
+   "verts": 3825,
+   "tris": 5660,
+   "height": 1.80170305054429,
+   "rawHeight": 83.0785295528756,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "mask_spy",
+     "offset": 0,
+     "count": 900
+    },
+    {
+     "material": "spy_head_red",
+     "offset": 900,
+     "count": 8952
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 9852,
+     "count": 132
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 9984,
+     "count": 132
+    },
+    {
+     "material": "spy_red",
+     "offset": 10116,
+     "count": 6864
+    }
+   ]
+  },
+  "heavy": {
+   "file": "heavy.tfm",
+   "verts": 5104,
+   "tris": 7188,
+   "height": 1.8995119805935636,
+   "rawHeight": 87.58860799403655,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "hvyweapon_red_sheen",
+     "offset": 0,
+     "count": 7380
+    },
+    {
+     "material": "heavy_head_red",
+     "offset": 7380,
+     "count": 7896
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 15276,
+     "count": 57
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 15333,
+     "count": 57
+    },
+    {
+     "material": "hvyweapon_red",
+     "offset": 15390,
+     "count": 6174
+    }
+   ]
+  },
+  "medic": {
+   "file": "medic.tfm",
+   "verts": 6727,
+   "tris": 8282,
+   "height": 1.810362759955926,
+   "rawHeight": 83.47783837574548,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "medic_backpack_red",
+     "offset": 0,
+     "count": 4872
+    },
+    {
+     "material": "medic_red",
+     "offset": 4872,
+     "count": 10266
+    },
+    {
+     "material": "medic_head_red",
+     "offset": 15138,
+     "count": 9564
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 24702,
+     "count": 72
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 24774,
+     "count": 72
+    }
+   ]
+  },
+  "scout": {
+   "file": "scout.tfm",
+   "verts": 5238,
+   "tris": 7814,
+   "height": 1.7726612082997797,
+   "rawHeight": 81.73937793826762,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "scout_red",
+     "offset": 0,
+     "count": 15360
+    },
+    {
+     "material": "scout_head_red",
+     "offset": 15360,
+     "count": 7962
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 23322,
+     "count": 60
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 23382,
+     "count": 60
+    }
+   ]
+  },
+  "sniper": {
+   "file": "sniper.tfm",
+   "verts": 5133,
+   "tris": 7000,
+   "height": 1.8815152173651142,
+   "rawHeight": 86.75875724516915,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "sniper_red",
+     "offset": 0,
+     "count": 11082
+    },
+    {
+     "material": "sniper_lens",
+     "offset": 11082,
+     "count": 240
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 11322,
+     "count": 132
+    },
+    {
+     "material": "sniper_head_red",
+     "offset": 11454,
+     "count": 9414
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 20868,
+     "count": 132
+    }
+   ]
+  },
+  "soldier": {
+   "file": "soldier.tfm",
+   "verts": 6158,
+   "tris": 8614,
+   "height": 1.8369683165520045,
+   "rawHeight": 84.70465015212021,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "soldier_red",
+     "offset": 0,
+     "count": 12912
+    },
+    {
+     "material": "medals",
+     "offset": 12912,
+     "count": 912
+    },
+    {
+     "material": "eyeball_l",
+     "offset": 13824,
+     "count": 102
+    },
+    {
+     "material": "soldier_head_red",
+     "offset": 13926,
+     "count": 11814
+    },
+    {
+     "material": "eyeball_r",
+     "offset": 25740,
+     "count": 102
+    }
+   ]
+  },
+  "engineer": {
+   "file": "engineer.tfm",
+   "verts": 9963,
+   "tris": 10578,
+   "height": 1.6564101795471586,
+   "rawHeight": 76.37891383467453,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "engineer_red",
+     "offset": 0,
+     "count": 11490
+    },
+    {
+     "material": "engineer_head_red",
+     "offset": 11490,
+     "count": 9834
+    },
+    {
+     "material": "engineer_mech_hand",
+     "offset": 21324,
+     "count": 10410
+    }
+   ]
+  },
+  "pyro": {
+   "file": "pyro.tfm",
+   "verts": 3815,
+   "tris": 4201,
+   "height": 1.7279969804648518,
+   "rawHeight": 79.67986076587928,
+   "scale": 0.021686746987951807,
+   "groups": [
+    {
+     "material": "pyro_red",
+     "offset": 0,
+     "count": 12603
+    }
+   ]
+  }
+ },
+ "textures": {
+  "mask_spy": "tex_0_256x256.jpg",
+  "spy_head_red": "tex_1_512x512.jpg",
+  "eyeball_l": "tex_2_256x256.jpg",
+  "eyeball_r": "tex_2_256x256.jpg",
+  "spy_red": "tex_3_512x256.jpg",
+  "hvyweapon_red_sheen": "tex_4_512x256.jpg",
+  "heavy_head_red": "tex_5_512x512.jpg",
+  "hvyweapon_red": "tex_4_512x256.jpg",
+  "medic_backpack_red": "tex_6_512x512.jpg",
+  "medic_red": "tex_7_512x256.jpg",
+  "medic_head_red": "tex_8_512x512.jpg",
+  "engineer_red": "tex_9_512x256.jpg",
+  "engineer_head_red": "tex_10_512x512.jpg",
+  "engineer_mech_hand": "tex_11_512x512.jpg",
+  "pyro_red": "tex_12_512x256.jpg",
+  "scout_red": "tex_13_512x256.jpg",
+  "scout_head_red": "tex_14_512x512.jpg",
+  "sniper_red": "tex_16_512x256.jpg",
+  "sniper_lens": "tex_17_64x64.jpg",
+  "sniper_head_red": "tex_18_512x512.jpg",
+  "soldier_red": "tex_19_512x256.jpg",
+  "medals": "tex_20_256x256.jpg",
+  "soldier_head_red": "tex_21_512x512.jpg"
+ }
+}

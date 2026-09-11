@@ -1,0 +1,22 @@
+Character models
+----------------
+"All of the team Fortress 2 red team Mercenaries" by inonshalev42
+Published on Sketchfab, licensed under Creative Commons Attribution (CC BY).
+
+The source model is a single 25 MB glTF binary containing eight characters
+(Scout, Sniper, Soldier, Medic, Heavy, Pyro, Spy, Engineer) with no animation
+clips. For this game they were:
+
+  - split into one file per class
+  - normalised to a common orientation, scale and floor level
+  - reduced from 74-94 source bones to a shared 23-bone rig, with skin
+    weights merged onto the nearest surviving ancestor bone
+  - reduced to the source LOD 0 mesh per body part
+  - quantised (int16 positions, int8 normals, uint16 UVs)
+  - textures downscaled to at most 512 px and re-encoded as JPEG
+  - animated procedurally at runtime (no clips exist in the source)
+
+Rebuild with:  tools/build-assets.sh <source.glb>
+
+Team Fortress is a trademark of Valve Corporation, which is not affiliated
+with this project. No Valve game files are used here.

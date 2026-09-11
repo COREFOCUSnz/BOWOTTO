@@ -8,11 +8,22 @@ const path = require('path');
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') { const t = m.type() + ': ' + m.text(); if (!errors.includes(t)) errors.push(t); } });
   page.on('pageerror', (e) => { const m = 'pageerror: ' + e.message + ' @ ' + String(e.stack).split('\n').slice(1, 3).join(' / '); if (!errors.includes(m)) errors.push(m); });
-  const url = process.argv[2] || 'file://' + path.resolve(__dirname, '../index.html');
+  const url = process.argv[2] || process.env.GAME_URL || 'file://' + path.resolve(__dirname, '../index.html');
   await page.goto(url);
   await page.evaluate(() => { window.__traceMenu = 1; });
   page.on('console', (m) => { if (/openMenu/.test(m.text())) console.log('  ' + m.text()); });
   await page.waitForFunction(() => window.__game && document.getElementById('loading').hidden, null, { timeout: 30000 });
+  const httpServed = /^https?:/.test(url);
+  if (httpServed) {
+    await page.waitForFunction(() => window.__modelsReady && window.__modelsReady(), null, { timeout: 40000 });
+    const m = await page.evaluate(() => ({ models: Object.keys(window.__models.models).length, textures: Object.keys(window.__models.textures).length }));
+    console.log('character models:', JSON.stringify(m));
+    if (m.models !== 8 || m.textures < 20) { console.log('FAIL: character models incomplete'); process.exit(1); }
+  } else {
+    const fell = await page.evaluate(() => window.__models.failed === true);
+    console.log('file:// fallback to blocky players:', fell ? 'ok' : 'UNEXPECTED');
+    if (!fell) { console.log('FAIL: expected the file:// fallback'); process.exit(1); }
+  }
   const out = path.resolve(__dirname, '../../../out');
   await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + '/menu.png' : '/tmp/menu.png' });
   // join blue, pick soldier

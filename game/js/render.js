@@ -87,6 +87,63 @@ void main(){
   gl_FragColor = vec4(c, 1.0);
 }`;
 
+
+  const SKIN_VS = `
+attribute vec3 aPos; attribute vec3 aNrm; attribute vec2 aUV; attribute vec4 aJoints; attribute vec4 aWeights;
+uniform mat4 uProj, uView;
+uniform vec4 uBones[69];
+uniform vec3 uPosMin, uPosExt; uniform vec2 uUvMin, uUvExt;
+varying vec2 vUV; varying vec3 vNrm; varying float vDepth;
+void main(){
+  vec3 p = (aPos * 0.5 + 0.5) * uPosExt + uPosMin;
+  vec4 p4 = vec4(p, 1.0);
+  vec3 sp = vec3(0.0); vec3 sn = vec3(0.0);
+  int i0 = int(aJoints.x) * 3; int i1 = int(aJoints.y) * 3;
+  int i2 = int(aJoints.z) * 3; int i3 = int(aJoints.w) * 3;
+  vec4 r0 = uBones[i0]; vec4 r1 = uBones[i0+1]; vec4 r2 = uBones[i0+2];
+  sp += aWeights.x * vec3(dot(r0,p4), dot(r1,p4), dot(r2,p4));
+  sn += aWeights.x * vec3(dot(r0.xyz,aNrm), dot(r1.xyz,aNrm), dot(r2.xyz,aNrm));
+  r0 = uBones[i1]; r1 = uBones[i1+1]; r2 = uBones[i1+2];
+  sp += aWeights.y * vec3(dot(r0,p4), dot(r1,p4), dot(r2,p4));
+  sn += aWeights.y * vec3(dot(r0.xyz,aNrm), dot(r1.xyz,aNrm), dot(r2.xyz,aNrm));
+  r0 = uBones[i2]; r1 = uBones[i2+1]; r2 = uBones[i2+2];
+  sp += aWeights.z * vec3(dot(r0,p4), dot(r1,p4), dot(r2,p4));
+  sn += aWeights.z * vec3(dot(r0.xyz,aNrm), dot(r1.xyz,aNrm), dot(r2.xyz,aNrm));
+  r0 = uBones[i3]; r1 = uBones[i3+1]; r2 = uBones[i3+2];
+  sp += aWeights.w * vec3(dot(r0,p4), dot(r1,p4), dot(r2,p4));
+  sn += aWeights.w * vec3(dot(r0.xyz,aNrm), dot(r1.xyz,aNrm), dot(r2.xyz,aNrm));
+  vNrm = normalize(sn);
+  vUV = aUV * uUvExt + uUvMin;
+  vec4 v = uView * vec4(sp, 1.0); vDepth = -v.z;
+  gl_Position = uProj * v;
+}`;
+  const SKIN_FS = `
+precision mediump float;
+varying vec2 vUV; varying vec3 vNrm; varying float vDepth;
+uniform sampler2D uTex; uniform float uTeamSwap; uniform float uFlash; uniform float uAlpha;
+uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uLightDir; uniform float uIndoor;
+void main(){
+  vec3 c = texture2D(uTex, vUV).rgb;
+  // The source art is RED team. Cloth is strongly red-dominant; skin, khaki and the
+  // medic's white coat are not, so this repaints only the team-coloured cloth.
+  float redness = 1.0 - max(c.g, c.b) / max(c.r, 0.004);
+  float f = smoothstep(0.34, 0.62, redness);
+  vec3 teamCol = mix(vec3(0.78, 0.16, 0.13), vec3(0.13, 0.30, 0.82), uTeamSwap);
+  float lum = dot(c, vec3(0.299, 0.587, 0.114));
+  c = mix(c, teamCol * (0.42 + 1.15 * lum), f * 0.88);
+  vec3 n = normalize(vNrm);
+  float diff = max(dot(n, uLightDir), 0.0);
+  float fill = max(dot(n, vec3(-0.5, 0.3, -0.6)), 0.0);
+  float light = (0.60 + 0.40 * diff + 0.14 * fill) * mix(1.0, 0.82, uIndoor);
+  // a soft rim keeps silhouettes readable against the fort walls
+  float rim = pow(1.0 - abs(n.z), 3.0) * 0.12;
+  vec3 col = c * light + rim;
+  float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
+  col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
+  col = mix(col, vec3(1.0, 0.95, 0.8), uFlash);
+  gl_FragColor = vec4(col, uAlpha);
+}`;
+
   function compile(gl, type, src) {
     const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(s));
@@ -130,6 +187,11 @@ void main(){
       this.gl = gl;
       this.prog = program(gl, VS, FS);
       this.sky = program(gl, SKY_VS, SKY_FS);
+      try {
+        this.skinProg = program(gl, SKIN_VS, SKIN_FS);
+        this.su2 = {}; for (const n of ['uProj', 'uView', 'uBones', 'uPosMin', 'uPosExt', 'uUvMin', 'uUvExt', 'uTex', 'uTeamSwap', 'uFlash', 'uAlpha', 'uFogColor', 'uFogDensity', 'uLightDir', 'uIndoor']) this.su2[n] = gl.getUniformLocation(this.skinProg, n);
+        this.sa2 = {}; for (const n of ['aPos', 'aNrm', 'aUV', 'aJoints', 'aWeights']) this.sa2[n] = gl.getAttribLocation(this.skinProg, n);
+      } catch (e) { this.skinProg = null; this.skinError = e.message; console.warn('skinned shader unavailable:', e.message); }
       this.u = {};
       for (const n of ['uProj', 'uView', 'uModel', 'uColor', 'uUseMat', 'uAlpha', 'uEmissive', 'uTime', 'uFogColor', 'uFogDensity', 'uLightDir', 'uFlash']) this.u[n] = gl.getUniformLocation(this.prog, n);
       this.a = { aPos: gl.getAttribLocation(this.prog, 'aPos'), aNrm: gl.getAttribLocation(this.prog, 'aNrm'), aMat: gl.getAttribLocation(this.prog, 'aMat'), aLit: gl.getAttribLocation(this.prog, 'aLit') };
@@ -289,6 +351,56 @@ void main(){
       gl.uniform1f(this.u.uAlpha, 1); gl.uniform1f(this.u.uEmissive, 0);
       gl.enable(gl.CULL_FACE);
       gl.depthMask(true); gl.disable(gl.BLEND);
+    }
+    // ---- skinned characters ----
+    beginSkinned() {
+      const gl = this.gl; if (!this.skinProg) return false;
+      gl.useProgram(this.skinProg);
+      gl.uniformMatrix4fv(this.su2.uProj, false, this.proj);
+      gl.uniformMatrix4fv(this.su2.uView, false, this.view);
+      gl.uniform3fv(this.su2.uFogColor, this.fogColor);
+      gl.uniform1f(this.su2.uFogDensity, this.fogDensity);
+      gl.uniform3fv(this.su2.uLightDir, this.lightDir);
+      gl.uniform1f(this.su2.uAlpha, 1);
+      gl.uniform1i(this.su2.uTex, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.disable(gl.CULL_FACE);            // source art is authored double sided
+      for (const a of Object.values(this.sa2)) if (a >= 0) gl.enableVertexAttribArray(a);
+      this._skinOn = true;
+      return true;
+    }
+    drawSkinned(model, pose, opts) {
+      const gl = this.gl; if (!this._skinOn) return;
+      opts = opts || {};
+      const a = this.sa2, S = 24;
+      gl.bindBuffer(gl.ARRAY_BUFFER, model.vbo);
+      gl.vertexAttribPointer(a.aPos, 3, gl.SHORT, true, S, 0);
+      gl.vertexAttribPointer(a.aNrm, 3, gl.BYTE, true, S, 6);
+      gl.vertexAttribPointer(a.aUV, 2, gl.UNSIGNED_SHORT, true, S, 10);
+      gl.vertexAttribPointer(a.aJoints, 4, gl.UNSIGNED_BYTE, false, S, 14);
+      gl.vertexAttribPointer(a.aWeights, 4, gl.UNSIGNED_BYTE, true, S, 18);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.ibo);
+      gl.uniform4fv(this.su2.uBones, pose.skin);
+      gl.uniform3fv(this.su2.uPosMin, model.posMin);
+      gl.uniform3fv(this.su2.uPosExt, model.posExt);
+      gl.uniform2fv(this.su2.uUvMin, model.uvMin);
+      gl.uniform2fv(this.su2.uUvExt, model.uvExt);
+      gl.uniform1f(this.su2.uTeamSwap, opts.teamSwap || 0);
+      gl.uniform1f(this.su2.uFlash, opts.flash || 0);
+      gl.uniform1f(this.su2.uIndoor, opts.indoor || 0);
+      for (const gr of model.groups) {
+        const t = opts.textures[gr.texFile];
+        if (!t) continue;
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        gl.drawElements(gl.TRIANGLES, gr.count, model.indexType, gr.offset * model.indexBytes);
+      }
+    }
+    endSkinned() {
+      const gl = this.gl; if (!this._skinOn) return;
+      for (const a of Object.values(this.sa2)) if (a >= 0) gl.disableVertexAttribArray(a);
+      gl.enable(gl.CULL_FACE);
+      gl.useProgram(this.prog);
+      this._skinOn = false;
     }
     // Project world point to screen [x,y] in CSS px or null if behind
     project(p) {

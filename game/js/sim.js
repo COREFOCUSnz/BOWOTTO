@@ -546,7 +546,7 @@
       if (dir && knock) { q.vel = V.madd(q.vel, dir, knock); if (knock > 2) q.onGround = false; }
       if (attacker && attacker !== q) { q.lastAttacker = attacker; q.lastHurt = this.time; }
       q.hitFlash = 0.15;
-      if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [rand(-2, 2), rand(0, 3), rand(-2, 2)], life: 0.5, size: 0.08, color: [0.7, 0.05, 0.05], gravity: 12, count: 5 });
+      if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [rand(-2, 2), rand(0, 3), rand(-2, 2)], life: 0.35, size: 0.045, color: [0.6, 0.04, 0.04], gravity: 14, count: 4 });
       if (q === this.human) this.effects.flash(Math.min(1, hpLoss / 40));
       if (attacker === this.human && attacker !== q) this.effects.sound('hit', null);
       else if (q === this.human) this.effects.sound('hurt', null);
@@ -559,7 +559,7 @@
       else { q.score -= 1; }
       if (q.flag) this.dropFlag(q);
       this.effects.sound('die', q.pos);
-      for (let i = 0; i < 10; i++) this.effects.particle({ pos: q.center(), vel: [rand(-4, 4), rand(1, 6), rand(-4, 4)], life: rand(0.6, 1.4), size: 0.15, color: [0.6, 0.05, 0.05], gravity: 14, collide: true });
+      for (let i = 0; i < 10; i++) this.effects.particle({ pos: q.center(), vel: [rand(-4, 4), rand(1, 6), rand(-4, 4)], life: rand(0.5, 1.1), size: 0.07, color: [0.55, 0.04, 0.04], gravity: 14, collide: true });
       const verb = { rocket: 'rocketed', pipe: 'piped', pipebomb: 'pipebombed', grenade: 'fragged', 'own grenade': 'held the grenade too long', headshot: 'headshot', sniper: 'sniped', nail: 'nailed', hitscan: 'shot', flame: 'roasted', burn: 'burned', melee: 'beat down', backstab: 'backstabbed', medkit: 'infected', infection: 'died of infection', fall: 'fell to their death', tranq: 'darted', sentry: 'was sentried by', mirv: 'MIRVed', napalm: 'napalmed', incendiary: 'torched', caltrop: 'stepped on caltrops', EMP: 'EMPed', 'nail grenade': 'nail-grenaded' }[kind] || 'killed';
       this.killFeed.push({ attacker: attacker && attacker !== q ? attacker : null, victim: q, verb, time: this.time, kind });
       if (this.killFeed.length > 6) this.killFeed.shift();
