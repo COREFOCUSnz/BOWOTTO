@@ -373,6 +373,24 @@ render time, not output file size). All of it had to fit back inside the
 36-frame/440x275/Q0.8 version left only ~38 KB of headroom, so quality was
 trimmed to 0.78 to land at a steadier ~57 KB spare instead.
 
+**Grid stillness fix, same day:** Corey noticed the AI rivals visibly
+twitching/turning on the grid before the lights go green in Versus --
+"doesn't look real... we should have them very much stationary until the
+go, and then they launch." Root cause in `rivalStep()`: the pre-race branch
+already zeroed the rival's TARGET SPEED (`target = go ? ... : 0`), but the
+steering/lane-positioning block ran regardless of `go` -- it kept computing
+a target lane offset from the upcoming corner curvature and damping the
+rival's lateral velocity (`a.dv`) and heading (`a.psi`) toward it every
+frame, even at a dead stop on the grid. That's what looked like the cars
+creeping sideways and yawing before the start. Fixed with a new branch,
+`else if (!go) { a.dv = 0; a.u = Math.max(0, a.u - 13*dt); }`, so a parked
+rival's lateral velocity is held at zero and its heading is never touched
+until `go` flips true at the green light, at which point the untouched
+original steering/throttle logic takes back over exactly as before.
+Verified: sampling all three rivals' s/d/psi/u/dv every 1.5s through a
+full 3s countdown window showed byte-for-byte identical values (fully
+frozen), confirming no residual creep or twitch.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

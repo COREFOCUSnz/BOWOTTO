@@ -7963,6 +7963,7 @@ function rivalStep(a, dt, now) {
   if (a.attackT <= 0) { a.attackT = 4 + Math.random() * 5; if (D.aggr > 0 && go && dsP > -30 && dsP < 25 && Math.random() < D.aggr) a.attack = 2.5 + D.aggr; }
   if (a.attack > 0) { a.attack -= dt; if (dsP > 1 && dsP < 25) target = Math.max(target, Math.abs(st.u) + 6 + 4 * D.aggr); }
   if (a.spinT > 0) { a.spinT -= dt; a.psi += a.spinDir * 5.5 * dt; a.u = Math.max(0, a.u - 9 * dt); a.dv *= Math.max(0, 1 - 2 * dt); }
+  else if (!go) { a.dv = 0; a.u = Math.max(0, a.u - 13 * dt); }   // on the grid, lights still red: sit dead still, no creeping or twitching
   else {
     a.psi = damp(a.psi, Math.atan2(a.dv, Math.max(a.u, 4)), 6, dt);
     if (a.u < target) { const acc = Math.min(10.5, CAR.powerW * CAR.drivelineEff * 0.9 / (CAR.mass * Math.max(a.u, 4))) * (a.boostT > 0 ? 1.7 : 1) * (a.nosOn ? 1.8 : 1); a.u = Math.min(target, a.u + acc * dt); }
