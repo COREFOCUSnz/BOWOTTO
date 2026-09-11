@@ -70,7 +70,7 @@ def main():
         ptags += '<img id="%s" hidden alt="" src="data:image/webp;base64,%s">\n' % ("carspin" if stem == "carspin" else "prev-" + stem, b)
     if prevs:
         print("embedded %d previews (%d KB)" % (len(prevs), ptot // 1024))
-    rooms = [os.path.join(HERE, "models", r + ".glb") for r in ("studio", "showroom")]   # the garage rooms, small GLBs
+    rooms = [os.path.join(HERE, "models", r + ".glb") for r in ("studio", "showroom", "wing")]   # garage rooms and the GT wing, small GLBs
     for room in rooms:
         if os.path.exists(room):
             with open(room, "rb") as f:
@@ -105,7 +105,7 @@ def main():
             shutil.copyfile(room, os.path.join(host, os.path.basename(room)))
     for extra in glob.glob(os.path.join(HERE, "models", "*.glb")):   # other cars: hosted only, never inlined
         stem = os.path.basename(extra)[:-4]
-        if stem in ("revuelto", "studio", "showroom") or stem.endswith("_src") or stem.startswith("revuelto"):
+        if stem in ("revuelto", "studio", "showroom", "wing") or stem.endswith("_src") or stem.startswith("revuelto"):
             continue
         shutil.copyfile(extra, os.path.join(host, stem + ".glb"))
         print("hosted car %s.glb (%d KB)" % (stem, os.path.getsize(extra) // 1024))

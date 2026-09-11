@@ -171,6 +171,14 @@ search). THE SHOP (garage tab) sells cars at Corey's
 prices: Countach 25th 500k, Aventador SVJ 650k, Countach LPI 800-4 850k, with
 harder wins paying 15k to 25k (PRIZE row 2/3 raised). At ~20k a win that is
 roughly 25 wins for the first car: Corey set both numbers, watch for feedback.
+GT wing (aero tier 2) ships as a real part: VR Designer's wing decimated
+167,716 -> 8,000 tris by the new Tools/decimate_glb.py (grid-cluster,
+smooth-normal rebuild), fitted via raycasting the real bumper/roof surface
+(an AABB was thrown off by an outlying mesh far past the visible body).
+Two TDZ bugs fixed (GIFTS declared after first use; garage.on read in
+installModel before garage existed) -- both from code inserted ahead of
+where bodyGroup/garage are declared; sceneReady (a hoisted var) now guards
+early calls. One-time driver gifts (career.gifts[]) added, GIFTS.INDIE=900000.
 Model pipeline now covers three shapes of download: named bones, axle groups
 (axleWheels), and loose-piece models merged offline by material with wheel
 corners kept as pivoted groups (scratchpad/studio/merge.html + mergerun.js;

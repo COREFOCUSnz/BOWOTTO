@@ -465,6 +465,7 @@ body.garage #start,body.garage #hud{display:none}
     AVENTADOR · "800 000 VIEWS - SPECIAL MODEL - SDC" BY SDC PERFORMANCE · SKETCHFAB · CC BY-NC 4.0<br>
     COUNTACH · "LAMBORGHINI COUNTACH 25TH ANNIVERSARY" BY AMOGUSSTRIKESBACK2 · SKETCHFAB · CC BY 4.0<br>
     COUNTACH LPI 800-4 · "2022_LAMBORGHINI_COUNTACH_LPI_800-4" BY 007 · SKETCHFAB · CC BY 4.0<br>
+    GT WING · "SPOILER || WING" BY VR DESIGNER · SKETCHFAB · CC BY 4.0<br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
     <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
     <p id="set-saved" class="cred"></p>
@@ -5977,8 +5978,12 @@ const SHOP_KEYS = Object.keys(SHOP);
 const PRIZE = [[8000, 5000, 3000, 1000], [15000, 9000, 5000, 2000], [20000, 12000, 7000, 2500], [25000, 15000, 9000, 3000]];
 const PRIZE_TT_LAP = 1500, PRIZE_TT_BEST = 5000;   // Time Trial: per lap, plus a bonus for a new personal best
 const CAREER_START = 5000;
+// one-time driver gifts: a name gets a bonus exactly once, recorded in career.gifts so it never repeats, on this
+// device or, once cloud sync brings the record back, on any device signed into that account
+const GIFTS = { INDIE: 900000 };
 const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
 const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
+var sceneReady = false;   // retune() runs once at module load, before the scene (bodyGroup etc.) exists: gate the wing fit on this, var so it's hoisted (no TDZ)
 let hudLineOK = false;   // the HUD car line needs the track, which is built later; retune() paints it only once that exists
 // the drive-mode line names the live car's drivetrain and its power at that setting
 function modeSub(m) { const cv = Math.round(CAR.powerW / 735.5 * m.power * TUNE.power), C = CARS[carId] || {}; return (m.ev ? (C.ev === false ? 'LOW · ' : 'EV · ') : (C.ev === false ? 'V12 · ' : 'HYBRID · ')) + cv + ' CV'; }
@@ -5986,6 +5991,7 @@ function retune() {
   for (const k in TUNE) TUNE[k] = 1;
   for (const key of SHOP_KEYS) { const t = career.tiers[key]; if (!t) continue; const T = SHOP[key].tiers[t - 1]; for (const k in TUNE) if (T[k] != null) TUNE[k] *= T[k]; }
   if (hudLineOK) hudCarLine();
+  if (sceneReady) fitWing();
 }
 const fmtCash = n => '$' + Math.round(n).toLocaleString('en-US');
 function careerLoad() {
@@ -5998,6 +6004,7 @@ function careerAdopt(j) {   // take a saved record (local or cloud), defensively
   if (j.tiers) for (const k of SHOP_KEYS) career.tiers[k] = Math.min(3, Math.max(0, j.tiers[k] | 0));
   if (Array.isArray(j.paints)) career.paints = [...new Set([0, 1, ...j.paints.filter(i => Number.isInteger(i) && PAINTS[i])])];
   if (Array.isArray(j.cars)) career.cars = [...new Set(['revuelto', ...j.cars.filter(c => typeof c === 'string' && CARS[c])])];
+  if (Array.isArray(j.gifts)) career.gifts = [...new Set(j.gifts.filter(g => typeof g === 'string'))];
   if (typeof j.car === 'string' && CARS[j.car] && career.cars.includes(j.car)) career.car = j.car;
   if (j.stats) for (const k in career.stats) if (typeof j.stats[k] === 'number') career.stats[k] = j.stats[k];
   career.updated = typeof j.updated === 'number' ? j.updated : 0;
@@ -6065,7 +6072,7 @@ const cloud = {
   push() {
     if (!this.ok || !this.user) return;
     clearTimeout(this.pending);
-    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
+    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, gifts: career.gifts || [], stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
   },
 };
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -7212,6 +7219,7 @@ const caliperMat = new THREE.MeshStandardMaterial({ color: 0xf2b400, metalness: 
 
 const car = new THREE.Group(); scene.add(car);
 const bodyGroup = new THREE.Group(); car.add(bodyGroup);          // tilts for roll / pitch
+let wingRoot = null, wingNode = null; sceneReady = true;
 car.add(glowDisc);
 // the SUPERSONIC fin: a swept blade on the rear deck that rises when twenty rings are held
 const superFin = (() => { const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(1.0, 0); sh.lineTo(0.62, 0.62); sh.lineTo(0.12, 0.7); sh.closePath();
@@ -7417,10 +7425,10 @@ function installModel(root, name) {
   if (!customWheels.length && cfg.wheelGroups) customWheels = axleWheels(wrap, root, cfg);
   if (!customWheels.length) customWheels = null;
   customModel = wrap; bodyGroup.add(wrap);
-  if (garage.on) garagePlaceCar();
+  if (sceneReady && garage.on) garagePlaceCar();
   procBody.visible = false;
   wheels.forEach(w => w.steer.visible = false);   // the model brings its own wheels
-  fitPlates(); setPaint(paintIdx); applyRoofClip();
+  fitPlates(); setPaint(paintIdx); applyRoofClip(); fitWing();
   rivalTemplate = null; for (const a of ai) buildRivalVisual(a);
   if (name !== 'embedded') flash('MODEL LOADED', 1800);
 }
@@ -7462,6 +7470,47 @@ function axleWheels(wrap, root, cfg) {
     out.push({ node: spin, steer, front: k[0] === 'f', spin: cfg.spin || 1, toe: +(best * 180 / Math.PI).toFixed(1) });
   }
   return out.length === 4 ? out : [];
+}
+// ------------------------------------------------------------------ the GT wing
+// LEGGERA's tier 2 part is a swan-neck GT wing, so it is a real part on the car: VR DESIGNER's "SPOILER || WING"
+// (Sketchfab, CC BY 4.0), cut from 167,716 triangles to 8,000 by Tools/decimate_glb.py and baked into the page at 134 KB.
+// It is fitted to whatever car is on: the mounts are placed by raycasting down onto the rear deck, and it is scaled to
+// the car's own width, so a Countach carries it as happily as a Revuelto.
+function wingLoad(cb) {
+  if (wingRoot) { if (cb) cb(); return; }
+  const done = buf => { try { new THREE.GLTFLoader().parse(buf, '', g => { wingRoot = g.scene; if (cb) cb(); }, e => console.error(e)); } catch (e) { console.error(e); } };
+  const emb = document.getElementById('wing-glb');
+  if (emb) { const bin = atob(emb.textContent.trim()), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); done(u8.buffer); }
+  else if (location.protocol !== 'file:') fetch('wing.glb').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) done(b); }).catch(() => {});
+}
+function fitWing() {
+  const want = (career.tiers.aero || 0) >= 2;
+  if (wingNode) { bodyGroup.remove(wingNode); wingNode = null; }
+  if (!want) return;
+  if (!wingRoot) { wingLoad(fitWing); return; }
+  const body = customModel || procBody; if (!body) return;
+  car.updateMatrixWorld(true);
+  const targets = []; body.traverse(o => { if (o.isMesh) targets.push(o); });
+  // find the real rear bumper and roof height by raycasting, the same technique fitPlates() uses just below: an
+  // AABB can be inflated by an outlying part (a mirror stalk, an exhaust tip) far past the actual bodywork, so the
+  // surface hit point is trusted, not the box extent
+  const ray = new THREE.Raycaster();
+  const alongX = (fromX, dirX, y, z) => { const origin = new THREE.Vector3(fromX, y, z).applyMatrix4(car.matrixWorld); ray.set(origin, new THREE.Vector3(dirX, 0, 0).applyQuaternion(car.quaternion)); const hit = ray.intersectObjects(targets, false)[0]; return hit ? fromX + dirX * hit.distance : null; };
+  const rear = alongX(-8, 1, 0.5, 0) ?? -CAR.length / 2;
+  const wl = alongX(0, -1, 0.5, -CAR.width * 0.45) ?? -CAR.width / 2, wr = alongX(0, -1, 0.5, CAR.width * 0.45) ?? CAR.width / 2;
+  const width = Math.abs(wr - wl) || CAR.width;
+  const downAt = x => { const origin = new THREE.Vector3(x, 2, 0).applyMatrix4(car.matrixWorld); ray.set(origin, new THREE.Vector3(0, -1, 0).applyQuaternion(car.quaternion)); const hit = ray.intersectObjects(targets, false)[0]; return hit ? 2 - hit.distance : null; };
+  const top = downAt(rear + 0.35) ?? downAt(0) ?? CAR.height * 0.62;
+  const w = wingRoot.clone(true);
+  const wb = new THREE.Box3().setFromObject(w), ws = wb.getSize(new THREE.Vector3()), wc = wb.getCenter(new THREE.Vector3());
+  const k = (width * 0.94) / ws.x;   // the model's span is its X; the car's width is its Z
+  const g = new THREE.Group();
+  w.position.set(-wc.x, -wb.min.y, -wc.z); w.scale.setScalar(1); g.add(w); g.scale.setScalar(k); g.rotation.y = Math.PI / 2;
+  const mountX = rear + ws.z * k * 0.55;
+  g.position.set(mountX, Math.max(0.25, top - 0.02), 0);
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0x14161c, metalness: 0.6, roughness: 0.34, clearcoat: 0.8, clearcoatRoughness: 0.12, envMap: cubeRT.texture, envMapIntensity: 1.1 });
+  g.traverse(o => { if (o.isMesh) { o.material = mat; o.castShadow = true; o.receiveShadow = true; } });
+  wingNode = g; bodyGroup.add(g);
 }
 function loadGLBBuffer(buf, name) {
   // sandboxed pages refuse blob: URLs; without createImageBitmap the loader uses <img src="data:..."> instead
@@ -8107,7 +8156,7 @@ function toMenu() {
   showStep(step);
   $('name-ok').addEventListener('click', e => { e.stopPropagation(); nameSubmit(); }); $('name-cancel').addEventListener('click', e => { e.stopPropagation(); nameClose(); }); $('namebox').addEventListener('click', e => e.stopPropagation());
   $('name-in').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') nameSubmit(); else if (e.key === 'Escape' && career.name) nameClose(); });
-  nameRefresh(); if (!career.name) nameOpen(true);   // the first visit: create your unique account name
+  nameRefresh(); giftCheck(); if (!career.name) nameOpen(true);   // the first visit: create your unique account name
 }
 
 function paintBarLocks() { document.querySelectorAll('#paints button[data-p]').forEach(b => b.classList.toggle('locked', !ownsPaint(+b.dataset.p))); }
@@ -8118,7 +8167,14 @@ async function nameSubmit() {
   const raw = $('name-in').value, err = nameValid(raw); if (err) { $('name-err').textContent = err; return; }
   const name = raw.trim().toUpperCase().replace(/\s+/g, ' ');
   if (cloud.ok && cloud.user && await cloud.claimName(name) === 'TAKEN') { $('name-err').textContent = 'THAT NAME IS TAKEN · PICK ANOTHER'; return; }
-  career.name = name; careerSave(); nameClose(); nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh(); flash('WELCOME, ' + name, 1400, '#ffd21f');
+  career.name = name; giftCheck(); careerSave(); nameClose(); nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh(); flash('WELCOME, ' + name, 1400, '#ffd21f');
+}
+function giftCheck() {
+  const n = career.name, amt = n && GIFTS[n];
+  if (!amt) return;
+  career.gifts = career.gifts || [];
+  if (career.gifts.includes(n)) return;
+  career.gifts.push(n); career.cash += amt; flash('GIFT · +' + fmtCash(amt), 2200, '#ffd21f');
 }
 function nameRefresh() { const d = $('start-driver'); if (!d) return; d.textContent = career.name ? 'DRIVER · ' + career.name : ''; d.classList.toggle('hidden', !career.name); }
 function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(CAR.powerW / 745.3 * TUNE.power) + ' HP · V' + VERSION; }
@@ -8914,7 +8970,7 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 loadHide();   // the start screen is ready
-window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, fitWing, get wingNode() { return wingNode; }, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }
 })();
 

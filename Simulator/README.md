@@ -144,6 +144,16 @@ entry below.
     steers, **left thumb gets accelerator, brake, handbrake and NOS**. The
     tach shares that corner, so it stands down in this mode.
   - **LEFT / RIGHT** is the original pair of arrow buttons.
+- **The GT wing.** LEGGERA aero tier 2 (the GT WING part) puts a real GT
+  wing on the car: VR Designer's "SPOILER || WING" (Sketchfab, CC BY 4.0),
+  cut from 167,716 triangles to 8,000 by `Tools/decimate_glb.py` (a grid
+  clustering decimator good for chunky untextured parts) and baked into
+  the page at 134 KB. It is fitted to whatever car is on by raycasting for
+  the real rear-bumper surface and roof height rather than trusting a
+  bounding box, which can be thrown off by an outlying part like a mirror
+  stalk or exhaust tip, and scaled to that car's own width, so it fits the
+  Countach as well as the Revuelto. Selling the part (dropping to tier 1
+  or below) removes it.
 - **Cars and THE SHOP.** The Revuelto is the car you start with. The
   garage's THE SHOP tab sells the others and remembers which one you parked
   in: Countach 25th Anniversary $500,000 (amogusstrikesback2, CC BY 4.0),
