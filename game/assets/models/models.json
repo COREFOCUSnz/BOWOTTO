@@ -372,5 +372,34 @@
     }
    ]
   }
+ },
+ "sets": {
+  "tron": {
+   "label": "Tron",
+   "mode": "team",
+   "glow": true,
+   "models": {
+    "blue": "tron_blue",
+    "red": "tron_red"
+   },
+   "credit": "\"Tron Willow\" and \"Ares (Tron) Helmet\" by SpringSociety (Sketchfab, CC BY). One suit per team; the circuitry is tinted to your team colour."
+  },
+  "mercs": {
+   "label": "Team Fortress 2",
+   "mode": "class",
+   "glow": false,
+   "credit": "\"All of the team Fortress 2 red team Mercenaries\" by inonshalev42 (Sketchfab, CC BY). The Demoman shares the Soldier's model.",
+   "models": {
+    "scout": "scout",
+    "sniper": "sniper",
+    "soldier": "soldier",
+    "demoman": "soldier",
+    "medic": "medic",
+    "hwguy": "heavy",
+    "pyro": "pyro",
+    "spy": "spy",
+    "engineer": "engineer"
+   }
+  }
  }
 }

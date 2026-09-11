@@ -71,6 +71,36 @@ const path = require('path');
   await page.evaluate(() => { const h = window.__human; h.pos = [0, 0.05, 4]; h.yaw = Math.PI; h.pitch = 0.05; h.vel = [0, 0, 0]; });
   await page.waitForTimeout(600);
   await page.screenshot({ path: shotDir + '/bridge.png' });
+  // ---- skin sets: switching must actually change which model a player draws with
+  if (httpServed) {
+    const skins = await page.evaluate(() => {
+      const sets = window.__sets();
+      const ids = Object.keys(sets);
+      const p = window.__game.players.find((x) => x.isBot && x.team === 0) || window.__human;
+      const seen = {};
+      for (const id of ids) { window.__setSkin(id); const m = window.__modelFor(p); seen[id] = m ? m.name : null; }
+      // a team-mode set must give the two teams different models
+      const teamSets = {};
+      for (const id of ids) {
+        if (sets[id].mode !== 'team') continue;
+        window.__setSkin(id);
+        const blue = window.__game.players.find((x) => x.team === 0), red = window.__game.players.find((x) => x.team === 1);
+        teamSets[id] = [blue && window.__modelFor(blue), red && window.__modelFor(red)].map((m) => (m ? m.name : null));
+      }
+      window.__setSkin(ids[0]);
+      return { ids, seen, teamSets, labels: ids.map((i) => sets[i].label) };
+    });
+    console.log('skin sets:', skins.labels.join(' | '), '->', JSON.stringify(skins.seen));
+    if (skins.ids.length < 2) { console.log('FAIL: expected at least two skin sets'); process.exit(1); }
+    const names = Object.values(skins.seen);
+    if (names.some((n) => !n)) { console.log('FAIL: a skin set resolved to no model'); process.exit(1); }
+    if (new Set(names).size < 2) { console.log('FAIL: switching skin set did not change the model'); process.exit(1); }
+    for (const [id, pair] of Object.entries(skins.teamSets)) {
+      if (!pair[0] || !pair[1] || pair[0] === pair[1]) { console.log('FAIL: team set ' + id + ' gives both teams ' + pair[0]); process.exit(1); }
+    }
+    console.log('PASS skin sets switch models, team sets differ per side');
+  }
+
   // exercise every class / weapon / grenade / ability
   const exercised = await page.evaluate(async () => {
     const g = window.__game, h = window.__human; const out = [];

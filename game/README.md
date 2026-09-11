@@ -111,41 +111,47 @@ natural next step: the simulation (`js/sim.js`) is deterministic and
 DOM-free, so a host-authoritative netcode over Firebase Realtime Database or
 WebRTC can drive the same code with remote inputs.
 
-## Characters
+## Skins
 
-Two sets ship, switchable under **Settings → Characters**.
+Character sets are chosen in game under **Skins** on the main menu. Two ship:
 
-**Grid suits (default)** — one suit per team, so every class on a side looks the
-same. Team colour is painted through the model's emissive map: the circuitry
-glows cyan for Blue and orange for Red, which reads instantly even in a dark
-basement. Class silhouettes are kept apart by scale, so a HWGuy is still visibly
-larger than a Scout.
+| Set | How it works |
+| --- | --- |
+| **Tron** (default) | One suit per team. Team colour is painted through the model's emissive map, so the circuitry glows cyan for Blue and orange for Red, readable even in a dark basement. Class silhouettes are kept apart by scale, so a HWGuy still stands taller than a Scout. |
+| **Team Fortress 2** | A different model for each of the nine classes (the Demoman shares the Soldier's). Team colour is a shader repaint of strongly red-dominant cloth, leaving skin, the Medic's white coat and the Sniper's khaki alone. |
 
-**Mercenaries** — one model per class, nine classes across eight models (the
-Demoman shares the Soldier's). Here team colour is a shader repaint of strongly
-red-dominant cloth, which leaves skin, the Medic's white coat and the Sniper's
-khaki as the artist painted them.
+**None of the source models contain animation clips.** Every pose is generated at
+runtime: eulers drive the spine, head and run cycle, and two-bone inverse
+kinematics puts both hands on whichever weapon the player is holding. A new model
+inherits all of that for free, and no model will ever bring animation with it.
 
-**None of the source files contain animation clips**, so every pose is generated
-at runtime: eulers drive the spine, head and run cycle, and two-bone inverse
-kinematics puts both hands on whichever weapon the player is holding. Swapping
-in a different model does not change that; it inherits the same animation.
+### Adding a skin set
 
-Assets live in `assets/models/` (3.6 MB: quantised meshes on a shared 23-bone
-rig, plus JPEG base and emissive maps). The pipeline retargets whatever skeleton
-the source uses onto that rig — three naming conventions are handled so far.
-Rebuild with:
+The menu is built from `assets/models/models.json`, so a new set needs no code
+change. For a set with one suit per team:
 
 ```
-tools/build-assets.sh /path/to/mercenaries.glb                        # class set
-node tools/extract-character.js <suit.glb> tron_blue assets/models    # one suit
-node tools/extract-character-textures.js <suit.glb> tron_blue assets/models
+node tools/extract-character.js suit_blue.glb myset_blue assets/models \
+  --set=myset --label="My Set" --slot=blue --credit="Model by X (CC BY)"
+node tools/extract-character-textures.js suit_blue.glb myset_blue assets/models
+
+node tools/extract-character.js suit_red.glb myset_red assets/models --set=myset --slot=red
+node tools/extract-character-textures.js suit_red.glb myset_red assets/models
 ```
+
+It appears under Skins the next time the game loads, and its credit line appears
+on the Credits screen.
+
+The extractor retargets whatever skeleton the source uses onto a shared 23-bone
+rig. Three naming conventions are handled so far (Valve `bip_*`, the `jt_*`
+convention and the Unreal-style skeleton); a new one means adding its names to
+the alias table at the top of `tools/extract-character.js`. Source files must be
+**glTF or GLB** — FBX and USDZ cannot be read here.
 
 ## Credits
 
-Grid suits: **"Tron Willow"** and **"Ares (Tron) Helmet"** by **SpringSociety**.
-Mercenaries: **"All of the team Fortress 2 red team Mercenaries"** by
+Tron: **"Tron Willow"** and **"Ares (Tron) Helmet"** by **SpringSociety**.
+Team Fortress 2: **"All of the team Fortress 2 red team Mercenaries"** by
 **inonshalev42**. All published on Sketchfab under **Creative Commons
 Attribution (CC BY)**. See `assets/models/CREDITS.txt` for what was changed; the
 in-game Credits screen carries the same attribution.

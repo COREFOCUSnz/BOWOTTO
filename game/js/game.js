@@ -8,7 +8,7 @@
   const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches);
   // A phone gets a smaller match, a lower render scale and some aim help on first run.
   const firstRunDefaults = coarse ? { teamSize: 4, resolution: 0.75, aimAssist: 0.6, particleBudget: 220 } : {};
-  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, charSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, skinSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
   const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
   if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
@@ -54,14 +54,22 @@
     return e.pose;
   }
   function teamOf(p) { return p.disguise >= 0 ? p.disguise : p.team; }
+  // Skin sets come from the asset manifest, so a new one only needs extracting and
+  // registering - no code change here.
+  function allSets() { return (models.manifest && models.manifest.sets) || {}; }
+  function setIds() { return Object.keys(allSets()); }
+  function activeSet() { const s = allSets(); return s[settings.skinSet] || s[setIds()[0]] || null; }
+  function setBlurb(set) { return set.mode === 'team' ? 'One suit per team. Every class on a side looks the same.' : 'A different model for each of the nine classes.'; }
   function modelFor(p) {
     if (!modelsReady) return null;
-    if (settings.charSet === 'tron') {
-      const m = models.get(teamOf(p) === BLUE ? 'tron_blue' : 'tron_red');
-      if (m) return m;
-    }
+    const set = activeSet(); if (!set) return null;
     const cls = p.disguise >= 0 && p.disguiseCls ? p.disguiseCls : p.cls;
-    return models.get(CLASS_MODEL[cls] || 'soldier');
+    const key = set.mode === 'team' ? (teamOf(p) === BLUE ? 'blue' : 'red') : cls;
+    return models.get(set.models[key] || set.models[cls] || set.models.blue) || null;
+  }
+  function pickSkinSet(id) {
+    if (!allSets()[id]) return;
+    settings.skinSet = id; saveSettings(); poses.clear();
   }
 
   // --------------------------------------------------------------- bots
@@ -233,11 +241,11 @@
         <button data-k="1"><b>1</b> ${human.alive || human.spawnT !== undefined ? 'Resume' : 'Join game'}</button>
         <button data-k="2"><b>2</b> Change class</button>
         <button data-k="3"><b>3</b> Change team</button>
-        <button data-k="4"><b>4</b> Settings &amp; bots</button>
-        <button data-k="5"><b>5</b> Controls</button>
-        <button data-k="6"><b>6</b> How to play</button>
-        <button data-k="7"><b>7</b> Restart round</button>
-        <button data-k="8"><b>8</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
+        <button data-k="4"><b>4</b> Skins: <span class="skin">${activeSet() ? activeSet().label : 'loading…'}</span></button>
+        <button data-k="5"><b>5</b> Settings &amp; bots</button>
+        <button data-k="6"><b>6</b> Controls</button>
+        <button data-k="7"><b>7</b> How to play</button>
+        <button data-k="8"><b>8</b> Restart round</button>
         <button data-k="9"><b>9</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
         <button data-k="0"><b>0</b> Credits</button>
       </div><div class="hint">${renderer.skinProg && !modelsReady ? 'Loading characters…<br>' : ''}Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
@@ -260,7 +268,6 @@
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
         ${touch.enabled ? `<label>Touch look speed <input id="s_tsens" type="range" min="0.0015" max="0.009" step="0.0001" value="${settings.touchSens}"></label>
         <label>Aim assist <select id="s_assist"><option value="0"${settings.aimAssist === 0 ? ' selected' : ''}>Off</option><option value="0.6"${settings.aimAssist === 0.6 ? ' selected' : ''}>Light</option><option value="1.2"${settings.aimAssist === 1.2 ? ' selected' : ''}>Strong</option></select></label>` : ''}
-        <label>Characters <select id="s_chars"><option value="tron"${settings.charSet === 'tron' ? ' selected' : ''}>Grid suits (per team)</option><option value="mercs"${settings.charSet === 'mercs' ? ' selected' : ''}>Mercenaries (per class)</option></select></label>
         <label>Effects <select id="s_fx"><option value="220"${settings.particleBudget === 220 ? ' selected' : ''}>Low</option><option value="900"${settings.particleBudget === 900 ? ' selected' : ''}>Normal</option><option value="1600"${settings.particleBudget === 1600 ? ' selected' : ''}>Heavy</option></select></label>
         <label>Resolution <select id="s_res"><option value="0.6"${settings.resolution === 0.6 ? ' selected' : ''}>Low (fastest)</option><option value="0.75"${settings.resolution === 0.75 ? ' selected' : ''}>Medium</option><option value="1.25"${settings.resolution === 1.25 ? ' selected' : ''}>High</option><option value="2"${settings.resolution === 2 ? ' selected' : ''}>Sharpest</option></select></label>
         <label>Field of view <input id="s_fov" type="range" min="60" max="110" value="${settings.fov}"> <span id="s_fov_v">${settings.fov}</span></label>
@@ -355,16 +362,23 @@
         <li>Both forts are the same layout mirrored, so their basement is laid out exactly like yours.</li>
         </ul>
         <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'skins') {
+      const ids = setIds();
+      html = title + `<div class="list skins"><div class="h">Skins</div>` +
+        (ids.length ? ids.map((id, i) => {
+          const st = allSets()[id];
+          return `<button data-k="${i + 1}" class="${id === settings.skinSet ? 'cur' : ''}"><b>${i + 1}</b> <span class="cn">${st.label}</span>${id === settings.skinSet ? '<span class="tick">IN USE</span>' : ''}<span class="cd">${setBlurb(st)}</span></button>`;
+        }).join('') : '<p>Character models are still loading…</p>') +
+        `<p class="note">Skins are read from the asset manifest, so a new set appears here as soon as it is
+        added to <b>assets/models</b> — nothing in the game has to change.</p>
+        <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'credits') {
+      const sets = allSets();
+      const lines = Object.values(sets).map((st) => `<p><b>${st.label}</b><br>${st.credit || 'No credit recorded for this set.'}</p>`).join('');
       html = title + `<div class="list help"><div class="h">Credits</div>
-        <h4>Characters</h4>
-        <p>The Grid suits, one per team:<br>
-        <b>"Tron Willow"</b> and <b>"Ares (Tron) Helmet"</b> by <b>SpringSociety</b>, published on Sketchfab
-        under <b>Creative Commons Attribution</b> (CC BY).</p>
-        <p>The per-class mercenaries, selectable under Settings:<br>
-        <b>"All of the team Fortress 2 red team Mercenaries"</b> by <b>inonshalev42</b>, published on Sketchfab
-        under <b>Creative Commons Attribution</b> (CC BY).</p>
-        <p>All of them were rescaled, retargeted onto a shared 23-bone rig and re-textured for the web.
+        <h4>Character skins</h4>
+        ${lines || '<p>Character models are still loading…</p>'}
+        <p>Every set was rescaled, retargeted onto a shared 23-bone rig and re-textured for the web.
         None of the source files contain animation, so every pose in this game is generated at runtime.</p>
         <h4>Game</h4>
         <p>Built by Core Focus Productions as a tribute to <i>Half-Life: Team Fortress Classic</i> and its map
@@ -392,7 +406,6 @@
     if ($('s_assist')) $('s_assist').addEventListener('change', (e) => { settings.aimAssist = parseFloat(e.target.value); saveSettings(); });
     $('s_res').addEventListener('change', (e) => { settings.resolution = parseFloat(e.target.value); saveSettings(); });
     $('s_fx').addEventListener('change', (e) => { settings.particleBudget = parseInt(e.target.value, 10); saveSettings(); });
-    $('s_chars').addEventListener('change', (e) => { settings.charSet = e.target.value; poses.clear(); saveSettings(); });
     $('s_fov').addEventListener('input', (e) => { settings.fov = parseInt(e.target.value, 10); $('s_fov_v').textContent = settings.fov; saveSettings(); });
     $('s_vol').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); audio.setVolume(settings.volume); saveSettings(); });
     $('s_ann').addEventListener('change', (e) => { settings.announcer = e.target.checked; audio.announcer = settings.announcer; saveSettings(); });
@@ -407,11 +420,14 @@
     audio.init(); audio.resume();
     if (menu === 'main') {
       if (k === '1') { if (human.spawnT === undefined) openMenu('team'); else closeMenu(); }
-      if (k === '2') openMenu('class'); if (k === '3') openMenu('team'); if (k === '4') openMenu('settings'); if (k === '5') openMenu('help');
-      if (k === '6') { openMenu('howto'); return; }
+      if (k === '2') { openMenu('class'); return; }
+      if (k === '3') { openMenu('team'); return; }
+      if (k === '4') { openMenu('skins'); return; }
+      if (k === '5') { openMenu('settings'); return; }
+      if (k === '6') { openMenu('help'); return; }
+      if (k === '7') { openMenu('howto'); return; }
       if (k === '0') { openMenu('credits'); return; }
-      if (k === '7') { restart(); closeMenu(); }
-      if (k === '8') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
+      if (k === '8') { restart(); closeMenu(); }
       if (k === '9') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
@@ -426,6 +442,10 @@
       else { human.cls = cls; human.wantsRespawn = true; human.respawnAt = Math.min(human.respawnAt, game.time); }
       if (human.spawnT === undefined) { human.cls = cls; human.spawn(); }
       closeMenu();
+    } else if (menu === 'skins') {
+      if (k === '0') { openMenu('main'); return; }
+      const id = setIds()[parseInt(k, 10) - 1];
+      if (id) { pickSkinSet(id); renderMenu(); }
     } else if (menu === 'settings' || menu === 'help' || menu === 'credits' || menu === 'howto') { if (k === '0') openMenu('main'); }
     else if (menu === 'end') { if (k === '1') { restart(); closeMenu(); } }
   }
@@ -868,5 +888,5 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__poses = poses; window.__settings = settings; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

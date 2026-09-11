@@ -294,5 +294,17 @@ for (const [name, rootNode] of ORDER) {
   manifest.classes[name] = { file: name + '.json', verts: vAll.length, tris, height: rawH * scale, rawHeight: rawH, scale, groups: merged.map((m) => ({ material: m.material, offset: m.offset, count: m.count })) };
   console.log(`${name.padEnd(9)} ${String(vAll.length).padStart(6)}v ${String(tris).padStart(6)}t ${(out.length/1024).toFixed(0).padStart(5)}KB groups=${merged.length} height=${(rawH*scale).toFixed(2)}m`);
 }
+// register the per-class set for the in-game skin menu
+const prev = fs.existsSync(path.join(OUT, 'models.json')) ? JSON.parse(fs.readFileSync(path.join(OUT, 'models.json'), 'utf8')) : {};
+manifest.textures = manifest.textures || prev.textures;
+manifest.emissive = prev.emissive;
+manifest.characters = prev.characters;
+manifest.sets = Object.assign({}, prev.sets, {
+  mercs: {
+    label: 'Team Fortress 2', mode: 'class', glow: false,
+    credit: '"All of the team Fortress 2 red team Mercenaries" by inonshalev42 (Sketchfab, CC BY). The Demoman shares the Soldier\'s model.',
+    models: { scout: 'scout', sniper: 'sniper', soldier: 'soldier', demoman: 'soldier', medic: 'medic', hwguy: 'heavy', pyro: 'pyro', spy: 'spy', engineer: 'engineer' },
+  },
+});
 fs.writeFileSync(path.join(OUT, 'models.json'), JSON.stringify(manifest, null, 1));
 console.log(`\ntotal ${grandTris} tris, ${(grandBytes/1048576).toFixed(2)} MB geometry (LOD ${LOD})`);

@@ -6,9 +6,19 @@
 const fs = require('fs'), path = require('path');
 const { load, mul, compose, xform, pngSize } = require('./glb.js');
 
-const SRC = process.argv[2], NAME = process.argv[3];
-const OUT = process.argv[4] || path.join(__dirname, '..', 'assets', 'models');
-if (!SRC || !NAME) { console.error('usage: extract-character.js <source.glb> <name> [outDir]'); process.exit(1); }
+const argv = process.argv.slice(2);
+const flags = {};
+const positional = [];
+for (const a of argv) {
+  const m = /^--([a-zA-Z]+)=(.*)$/.exec(a);
+  if (m) flags[m[1]] = m[2]; else positional.push(a);
+}
+const SRC = positional[0], NAME = positional[1];
+const OUT = positional[2] || path.join(__dirname, '..', 'assets', 'models');
+if (!SRC || !NAME) {
+  console.error('usage: extract-character.js <source.glb> <name> [outDir] [--set=id] [--label="Menu name"] [--slot=blue|red] [--credit="..."]');
+  process.exit(1);
+}
 const TARGET_HEIGHT = 1.80;
 
 const RIG = [
@@ -279,6 +289,18 @@ manifest.rigParent = manifest.rigParent || RIG.map((b) => (RIG_PARENT[b] === nul
 manifest.characters = manifest.characters || {};
 manifest.characters[NAME] = { file: NAME + '.json', verts: vAll.length, tris: iAll.length / 3, height: TARGET_HEIGHT,
   glow: true, groups: merged.map((m) => ({ material: m.material, offset: m.offset, count: m.count })) };
+
+// Optionally slot this character into a named skin set, so the in-game menu picks
+// it up without any code change.
+if (flags.set) {
+  manifest.sets = manifest.sets || {};
+  const set = manifest.sets[flags.set] || { label: flags.label || flags.set, mode: 'team', glow: true, models: {} };
+  if (flags.label) set.label = flags.label;
+  if (flags.credit) set.credit = flags.credit;
+  set.models[flags.slot || 'blue'] = NAME;
+  manifest.sets[flags.set] = set;
+  console.log(`  registered in set "${set.label}" as ${flags.slot || 'blue'}`);
+}
 fs.writeFileSync(mfPath, JSON.stringify(manifest, null, 1));
 console.log(`${NAME.padEnd(8)} ${String(vAll.length).padStart(6)}v ${String(iAll.length/3).padStart(6)}t ${(Math.ceil(out.length*4/3)/1024).toFixed(0).padStart(5)}KB groups=${merged.length} rawH=${rawH.toFixed(2)} -> ${TARGET_HEIGHT}m`);
 console.log('  groups:', merged.map((m) => m.material.slice(0, 28) + ':' + (m.count/3) + 't').join(', '));
