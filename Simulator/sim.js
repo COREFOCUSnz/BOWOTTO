@@ -2076,7 +2076,10 @@ function installModel(root, name) {
 // its centre: a steer pivot (front wheels turn) holding a spin pivot (the round parts roll) and the caliper.
 function subGeometry(g, idx) {   // a non-indexed copy of just these vertex indices (a box on it is then honest)
   const gg = new THREE.BufferGeometry();
-  for (const name in g.attributes) { const a = g.attributes[name], sz = a.itemSize, out = new Float32Array(idx.length * sz); for (let i = 0; i < idx.length; i++) for (let k = 0; k < sz; k++) out[i * sz + k] = a.array[idx[i] * sz + k]; gg.setAttribute(name, new THREE.BufferAttribute(out, sz)); }
+  for (const name in g.attributes) { const a = g.attributes[name], sz = a.itemSize, out = new Float32Array(idx.length * sz), T = a.array.constructor;
+    const div = a.normalized ? (T === Int8Array ? 127 : T === Uint8Array ? 255 : T === Int16Array ? 32767 : T === Uint16Array ? 65535 : 1) : 1;   // quantized downloads: the raw ints need the range taken out, as floatGeo does
+    const get = [a.getX, a.getY, a.getZ, a.getW];   // through the getters, not a.array: a padded int8 normal (stride 4) comes in as an InterleavedBufferAttribute
+    for (let i = 0; i < idx.length; i++) for (let k = 0; k < sz; k++) out[i * sz + k] = get[k].call(a, idx[i]) / div; gg.setAttribute(name, new THREE.BufferAttribute(out, sz)); }
   gg.computeBoundingBox(); gg.computeBoundingSphere(); return gg;
 }
 function axleWheels(wrap, root, cfg) {

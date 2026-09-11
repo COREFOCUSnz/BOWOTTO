@@ -506,6 +506,42 @@ the 16 MiB cap after this -- the compression pass Corey asked for (the
 embedded Revuelto is 15 of the 16 MB) is next and also has to pay for the
 "smoother" hero rotation he wants (more frames = more bytes).
 
+**Compression pass 2026-09-11 (Corey: "lets fix that by doing some work in
+compressing").** npm and the CDNs are 403 from the sandbox, so no Draco /
+meshopt / gltfpack: wrote Simulator/Tools/quantize_glb.py (pure Python,
+KHR_mesh_quantization: int16 positions with the per-mesh scale folded into
+node scale so pivots stay put, int8 normals stride 4, uint16 UVs when in
+[0,1], tangents dropped, unreferenced TEXCOORD sets dropped, uint16
+indices, --extract-images / --images round trip, --data-uri-images for the
+sandboxed artifact which refuses blob: URLs) and Tools/reencode_textures.js
+(headless-Chromium canvas, long side <= 1024, JPEG q0.82 unless alpha /
+BLEND-MASK, keeps the original when the canvas's fast PNG comes out
+bigger -- it does, by up to 7x, first run made the Countach's textures
+grow). Results: Revuelto (the merged 64-draw one) 19.7 -> 13.8 MB,
+Aventador 11.0 -> 5.5, LPI 12.9 -> 6.1, SC18 11.7 -> 5.5, Countach 1.75 ->
+1.06, arena 3.15 -> 0.65. The big decision: ONE Revuelto for both builds
+now -- models/revuelto.glb IS the quantized merged model (data-URI images),
+models/revuelto_hosted.glb and the old tools/quantize-glb.py are gone,
+build.py just copies the one file. The artifact went from 16,742,294 B
+(34 KB under the cap) to 14,565,119 B -- 2.2 MB of headroom, which paid
+for the smoother hero rotation Corey asked for: 144 frames (was 36) in a
+36 x 4 GRID sheet, since WebP caps each side at 16383 px and 36 x 440 px
+is the widest one row can be. CSS walks the grid row by row --
+steps(36,jump-none) along each row, a steps(1,jump-start) hop between rows
+at the 0.001% gap -- so no frame is skipped or held; verified by pausing
+the animation at 12 times and reading back computed background-position
+(frame 0/34/35/36/37/70/73/106/108/142/143 exactly as expected). One real
+lesson: WebP stores the ALPHA plane losslessly, so the chroma-key's
+256-level soft edge cost more bytes than the whole colour image -- baking
+the edge to 4 alpha levels took the sheet from 2.09 MB to 1.31 MB at the
+same quality, and the edge still reads soft at 620 px wide. Artifact with
+the smoother hero in: 16,006,146 B, 771 KB under the cap. sim.js: subGeometry now
+divides raw normalized ints by the type range like floatGeo already did
+(without it a quantized download's split wheels come through 32767x too
+big). Verified: hosted build per car (mesh count, paint meshes, wheel
+spin over 2 s of throttle, screenshots), the arena in derby, the artifact
+under a CSP that blocks blob: URLs.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

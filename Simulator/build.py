@@ -99,11 +99,9 @@ def main():
     assert hpage.count(marker) == 1, "sim.js marker not found once in the hosting page"
     hpage = hpage.replace(marker, FB + marker, 1)
     if os.path.exists(model):
-        # the hosted site gets a heavier-but-faster build of the main car when one exists: 853 draw calls merged
-        # down to 64 (scratchpad/studio/mergecar.html), ~4 MB bigger, which is the trade phones actually want; the
-        # embedded single-file/artifact page keeps the original small one so it still fits the 16 MiB artifact cap
-        hosted_car = os.path.join(HERE, "models", "revuelto_hosted.glb")
-        shutil.copyfile(hosted_car if os.path.exists(hosted_car) else model, os.path.join(host, "revuelto.glb"))
+        # one Revuelto for both builds: the 64-draw merged model, quantized by Tools/quantize_glb.py (images as data
+        # URIs so the sandboxed artifact page can load them) -- small enough to embed, few enough draws for phones
+        shutil.copyfile(model, os.path.join(host, "revuelto.glb"))
     for room in rooms:
         if os.path.exists(room):
             shutil.copyfile(room, os.path.join(host, os.path.basename(room)))

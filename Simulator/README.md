@@ -194,8 +194,9 @@ entry below.
   $850,000 (007, CC BY 4.0), SC18 Alston $950,000 (Ddiaz Design, CC
   BY-NC-SA 4.0 — one-off track/road special on the SVJ's V12 and AWD
   driveline, less weight and more downforce than the standard car). All four
-  are big downloads, so they exist only on the hosted site: the single-file
-  page and the artifact carry the Revuelto alone and say so.
+  exist only on the hosted site (5 to 6 MB each after the compression pass
+  below, down from 11 to 13): the single-file page and the artifact carry
+  the Revuelto alone and say so.
   Each car brings its own physics spec (mass, power, gearing, grip, brakes,
   drag), so the HUD's horsepower, the drive-mode line and the badge all
   follow the car you are in. Downloads arrive in four shapes and the loader
@@ -468,7 +469,7 @@ The poster board near the start shows whatever sits in `models/` as
 `poster.webm` or `poster.mp4` (a muted, looping video texture) or, failing
 that, `poster.png` / `.jpg` / `.webp`; `build.py` embeds it. For the
 published page keep a clip under about 2 MB (the page has a 16 MB cap and
-the car model uses 12.5 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
+the car model uses 10.7 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
 MP4. While the game is running you can also drag a picture or a clip onto
 the page to preview it on the board without rebuilding.
 
@@ -491,16 +492,43 @@ return the raw quantized integer instead of the decoded float, which
 silently inflated the whole car by ~32,767x until the tool was changed to
 read the underlying typed array itself and normalize by hand. Its
 `GLTFExporter` also can't write the compact quantized attribute types the
-source uses, so the merged file trades size for draw calls: **19.7 MB**,
-up from 15.4 MB, textures re-encoded from lossless PNG back to JPEG
-afterwards to claw a good chunk of that back (a 30 MB naive first pass).
+source uses, so the merged file came out at **19.7 MB**, up from 15.4 MB
+(textures re-encoded from lossless PNG back to JPEG to claw back a 30 MB
+naive first pass). For a while that meant two Revueltos: the fat fast one
+on the hosted site, the old 853-draw one embedded in the page. The
+compression pass below ended that — `Tools/quantize_glb.py` brings the
+merged model to 13.8 MB, which deflates to 10.7 MB of base64 inside the
+artifact, 2.2 MB *less* than the old model took — so both builds now ship
+the same 64-draw car (`models/revuelto.glb`, images as data URIs because
+the sandboxed artifact page refuses the blob: URLs GLTFLoader would
+otherwise make for them).
 
-That trade only lands on the hosted site (`models/revuelto_hosted.glb`,
-picked up by `build.py` automatically when present): the artifact and the
-single-file page keep the original small model so they stay inside the 16
-MiB artifact cap, at 853 draw calls same as always. Real players on
-lambo-sim.web.app get the fast one; anyone previewing here gets the
-familiar one.
+## Compression: quantized geometry, re-encoded textures
+
+npm and the CDNs are unreachable from the build sandbox, so Draco and
+meshopt were out; `Tools/quantize_glb.py` is a dependency-free quantizer
+(KHR_mesh_quantization, which this three.js r128 decodes natively):
+positions to int16 with one uniform scale per mesh folded into the node
+scale (the origin stays put, so wheel pivots still spin in place), normals
+to int8 at a 4-byte stride, UVs to uint16 when they sit inside [0, 1],
+tangents dropped (three.js derives them when a normal map needs them),
+texture-coordinate sets no material references dropped, uint32 indices to
+uint16 where the primitive is small enough. `--extract-images DIR` writes
+the textures out with an `images.json`; `Tools/reencode_textures.js`
+re-encodes them in a headless-Chromium canvas (long side capped at 1024,
+JPEG q0.82 unless the image has alpha or a BLEND/MASK material uses it,
+and it keeps the original whenever the canvas encoder's fast PNG comes
+out bigger); `--images DIR` swaps the results back in. The numbers:
+Revuelto 19.7 → 13.8 MB, Aventador 11.0 → 5.5, Countach LPI 12.9 → 6.1,
+SC18 11.7 → 5.5, Countach 1.75 → 1.06, THE ARENA 3.15 → 0.65. Every
+one verified in the game afterwards (mesh count, paint targets, wheel
+spin, a lap) rather than trusted from the file size.
+
+One thing to know: this three.js's `InterleavedBufferAttribute.getX()`
+ignores `normalized` and returns the raw int, so anything in the game that
+copies geometry on the CPU (`subGeometry`, the wheel splitter) divides by
+the type's range itself when the attribute is normalized — a quantized
+model used to come through those paths 32,767x too big.
 
 The GT wing (LEGGERA tier 2) used to raycast the car's own body mesh to
 find the rear bumper and roof height for its mount point. That raycast is
@@ -525,11 +553,13 @@ model is present (`build.py --no-model`). To swap in a different mesh:
 
    ```
    node Simulator/tools/convert-model.js model.fbx out.glb --front=+Z --weld --jpeg --max-texture=2048 --preview shot.png
-   python3 Simulator/tools/quantize-glb.py out.glb Simulator/models/revuelto.glb
+   python3 Simulator/Tools/quantize_glb.py out.glb Simulator/models/revuelto.glb --data-uri-images
    ```
 
-   The quantizer halves the file (16-bit positions, 8-bit normals) so a
-   large model still fits the single-file build, which deflates it again.
+   The quantizer roughly halves the file (16-bit positions, 8-bit normals,
+   16-bit UVs, no tangents) so a large model still fits the single-file
+   build, which deflates it again; `--data-uri-images` is what the embedded
+   model needs (see Compression above).
 
    It scales the car to 4.947 m, rests it on the ground, points the nose the
    right way (`--front` names the axis the source model's nose faces), tags
@@ -595,6 +625,8 @@ Simulator/sim.js            world, car, physics, audio, HUD
 Simulator/sim.css           HUD styling
 Simulator/vendor/           Three.js r128 + example passes (MIT)
 Simulator/tools/            convert-model.js (headless model converter)
+Simulator/Tools/            quantize_glb.py + reencode_textures.js (compression),
+                            merge_car_draws.* (draw-call merge), decimate_glb.py
 Simulator/models/           Revuelto model (source + converted) and its licence
 Simulator/blender/          Blender export + hero-render script
 Simulator/build.py          bundles into dist/revuelto.html (single file)
