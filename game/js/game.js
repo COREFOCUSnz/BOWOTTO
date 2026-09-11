@@ -120,6 +120,7 @@
     if (k === 'KeyM') { openMenu('class'); return; }
     if (k === 'KeyN') { openMenu('team'); return; }
     if (k === 'F1') { openMenu('help'); e.preventDefault(); return; }
+    if (k === 'F2') { openMenu('howto'); e.preventDefault(); return; }
     if (!human.alive) { if (k === 'Space' || k === 'Enter') { if (game.roundOver) restart(); } return; }
     if (k.startsWith('Digit')) { const d = parseInt(k.slice(5), 10); if (d >= 1 && d <= human.weapons.length) switchWeapon(d - 1); }
     if (k === 'KeyQ') { if (human.cls === 'spy') game.startDisguise(human); else switchWeapon(lastWeapon.i); }
@@ -166,10 +167,11 @@
         <button data-k="3"><b>3</b> Change team</button>
         <button data-k="4"><b>4</b> Settings &amp; bots</button>
         <button data-k="5"><b>5</b> Controls</button>
-        <button data-k="6"><b>6</b> Restart round</button>
-        <button data-k="7"><b>7</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
-        <button data-k="8"><b>8</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
-        <button data-k="9"><b>9</b> Credits</button>
+        <button data-k="6"><b>6</b> How to play</button>
+        <button data-k="7"><b>7</b> Restart round</button>
+        <button data-k="8"><b>8</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
+        <button data-k="9"><b>9</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
+        <button data-k="0"><b>0</b> Credits</button>
       </div><div class="hint">${renderer.skinProg && !modelsReady ? 'Loading characters…<br>' : ''}Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
     } else if (menu === 'team') {
       html = title + `<div class="list"><div class="h">Choose a team</div>
@@ -195,14 +197,87 @@
     } else if (menu === 'help') {
       html = title + `<div class="list help"><div class="h">Controls</div>
         <table>
-        <tr><td>W A S D</td><td>Move</td></tr><tr><td>Mouse</td><td>Look</td></tr><tr><td>Left click</td><td>Fire (hold to charge the sniper rifle)</td></tr>
-        <tr><td>Right click</td><td>Sniper zoom / detonate pipebombs</td></tr><tr><td>Space</td><td>Jump / swim up</td></tr><tr><td>Ctrl</td><td>Swim down</td></tr>
-        <tr><td>1-4, wheel</td><td>Weapons</td></tr><tr><td>Q</td><td>Last weapon (Spy: disguise)</td></tr>
-        <tr><td>G / F</td><td>Hold to prime grenade 1 / 2, release to throw (4 s fuse!)</td></tr>
-        <tr><td>E</td><td>Engineer: build a sentry gun</td></tr><tr><td>R</td><td>Demoman: detonate pipebombs</td></tr>
-        <tr><td>M / N</td><td>Change class / team</td></tr><tr><td>Tab</td><td>Scoreboard</td></tr><tr><td>Esc</td><td>Menu</td></tr>
+        <tr><td>W A S D</td><td>Move</td></tr>
+        <tr><td>Mouse</td><td>Look</td></tr>
+        <tr><td>Left click</td><td>Fire. Hold to charge the sniper rifle. Hold on your own sentry with the spanner to repair or upgrade it</td></tr>
+        <tr><td>Right click</td><td>Sniper zoom / Demoman detonate pipebombs</td></tr>
+        <tr><td>Space</td><td>Jump, or swim up</td></tr>
+        <tr><td>Ctrl / Shift</td><td>Swim down</td></tr>
+        <tr><td>1 - 4, wheel</td><td>Change weapon</td></tr>
+        <tr><td>Q</td><td>Last weapon used. Spy: put on a disguise</td></tr>
+        <tr><td>G / F</td><td>Hold to prime grenade 1 / 2, release to throw. The fuse starts when you press</td></tr>
+        <tr><td>E</td><td>Engineer: build a sentry gun</td></tr>
+        <tr><td>R</td><td>Demoman: detonate all your pipebombs</td></tr>
+        <tr><td>M / N</td><td>Change class / change team</td></tr>
+        <tr><td>Tab</td><td>Hold for the scoreboard</td></tr>
+        <tr><td>Esc</td><td>This menu</td></tr>
+        <tr><td>F1 / F2</td><td>Controls / How to play</td></tr>
         </table>
-        <p>Capture the flag: grab the enemy flag from their basement and bring it back to your own flag room. 10 points per capture. Enemy flags return 60 s after being dropped. Your spawn room has resupply bags.</p>
+        <p>New here? <b>How to play</b> on the main menu covers the objective, the routes into the enemy fort,
+        every class, and how to run a sentry gun.</p>
+        <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'howto') {
+      html = title + `<div class="list help howto"><div class="h">How to play</div>
+
+        <h4>Winning the round</h4>
+        <p>Get into the enemy fort, take the flag from their basement, and carry it back to your own flag room.
+        Each capture is worth 10 points. First team to ten captures takes the round, or whoever leads when the
+        twenty minute clock runs out. A dropped flag goes home by itself after 60 seconds, so cutting down a
+        carrier is as good as recovering it yourself.</p>
+
+        <h4>Three ways in</h4>
+        <p><b>The bridge.</b> Straight across and through the front door. Fast, obvious, and covered by every
+        sniper on their battlements.<br>
+        <b>The battlements.</b> Rocket-jump or conc-jump onto their wall and drop in behind the front line.<br>
+        <b>The water.</b> Dive into the moat and follow the tunnel at one end. It surfaces in a well inside their
+        basement and spills you out beside the flag. Slow, and almost nobody watches it.</p>
+
+        <h4>Running a sentry gun</h4>
+        <ol>
+        <li>Press <b>M</b> then <b>9</b> to become the Engineer.</li>
+        <li>Stand on solid ground facing open space. The gun lands about a metre in front of you.</li>
+        <li>Press <b>E</b>. It costs 130 cells, which is exactly what you spawn with. It takes four seconds to
+        assemble and you cannot move while it does.</li>
+        <li>It finds and shoots anything hostile within 28 m that it can see. You never aim it yourself.</li>
+        </ol>
+        <p>To <b>repair or upgrade</b>, take the spanner (weapon 1) and hold left click on your own gun.
+        While it is damaged, each hit costs 10 cells and restores 40 health. Once it is back to full health,
+        each hit costs 130 cells and adds a level, up to three. Level 2 adds a second barrel and a faster rate
+        of fire. Level 3 adds the rocket pod on top.</p>
+        <p>You spawn with only enough cells for the gun itself, so upgrading means a trip back for ammo. A
+        resupply bag in your spawn room fills you to 200 cells; an ammo pack around the fort gives 30.
+        One gun per Engineer. Any teammate can repair yours, but only you can upgrade it. And a disguised
+        enemy Spy strolls straight past it, because the gun believes the disguise.</p>
+
+        <h4>The classes</h4>
+        <p><b>Scout</b> — Fastest on the map and the thinnest. Your flag runner. A concussion grenade at your own
+        feet throws you clean over the moat, and caltrops slow whoever is chasing you.</p>
+        <p><b>Sniper</b> — Hold left click to charge and release to fire; a full charge kills nearly anything.
+        Headshots do double damage, leg shots do half and slow the target. Right click zooms. You move at half
+        speed while charging, so pick your spot before you start.</p>
+        <p><b>Soldier</b> — Rockets and the heaviest armour in the game. Aim at feet rather than chests so the
+        splash still lands on someone who dodges. Look down, then jump and fire together, to rocket-jump.</p>
+        <p><b>Demoman</b> — Pipes bounce and go off on a short fuse. Pipebombs stick where they land and wait
+        indefinitely: carpet the flag room, back off, then press <b>R</b> to set them all off at once.</p>
+        <p><b>Medic</b> — The medikit heals teammates and clears fire, infection and tranquiliser darts.
+        Swing it at an enemy instead and they catch an infection that spreads through their team.</p>
+        <p><b>HWGuy</b> — The most armour available. The assault cannon needs most of a second to spin up and
+        slows you to a crawl while it spins, so start it before you round the corner, not after.</p>
+        <p><b>Pyro</b> — Set them alight and walk away; the burn finishes the job. Water puts fires out,
+        including the one on you.</p>
+        <p><b>Spy</b> — Press <b>Q</b> to disguise as the enemy. It takes a couple of seconds and breaks the
+        instant you fire. Knife someone from behind for an instant kill. The tranquiliser slows without killing.</p>
+        <p><b>Engineer</b> — The sentry, as above. The railgun is accurate at range while you wait on cells.</p>
+
+        <h4>Worth knowing</h4>
+        <ul>
+        <li>A grenade's fuse starts when you press the key, not when you throw it. Hold on too long and it kills you.</li>
+        <li>Resupply bags in your spawn room instantly refill health, armour, ammo and grenades.</li>
+        <li>Health and ammo packs are scattered through both forts and return twelve seconds after being taken.</li>
+        <li>Falls of more than about four metres hurt. Landing in water does not.</li>
+        <li>The enemy is told the moment you touch their flag, so expect company on the way home.</li>
+        <li>Both forts are the same layout mirrored, so their basement is laid out exactly like yours.</li>
+        </ul>
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'credits') {
       html = title + `<div class="list help"><div class="h">Credits</div>
@@ -246,10 +321,11 @@
     if (menu === 'main') {
       if (k === '1') { if (human.spawnT === undefined) openMenu('team'); else closeMenu(); }
       if (k === '2') openMenu('class'); if (k === '3') openMenu('team'); if (k === '4') openMenu('settings'); if (k === '5') openMenu('help');
-      if (k === '6') { restart(); closeMenu(); }
-      if (k === '7') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
-      if (k === '9') { openMenu('credits'); return; }
-      if (k === '8') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
+      if (k === '6') { openMenu('howto'); return; }
+      if (k === '0') { openMenu('credits'); return; }
+      if (k === '7') { restart(); closeMenu(); }
+      if (k === '8') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
+      if (k === '9') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
       let team = k === '1' ? BLUE : k === '2' ? RED : (game.teamCount(BLUE) <= game.teamCount(RED) ? BLUE : RED);
@@ -263,7 +339,7 @@
       else { human.cls = cls; human.wantsRespawn = true; human.respawnAt = Math.min(human.respawnAt, game.time); }
       if (human.spawnT === undefined) { human.cls = cls; human.spawn(); }
       closeMenu();
-    } else if (menu === 'settings' || menu === 'help' || menu === 'credits') { if (k === '0') openMenu('main'); }
+    } else if (menu === 'settings' || menu === 'help' || menu === 'credits' || menu === 'howto') { if (k === '0') openMenu('main'); }
     else if (menu === 'end') { if (k === '1') { restart(); closeMenu(); } }
   }
   function restart() { game.restartRound(); messages.length = 0; game.killFeed.length = 0; human.wantsRespawn = true; human.respawnAt = 0; }

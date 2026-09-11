@@ -47,6 +47,12 @@ Click the game to capture the mouse. `Esc` opens the menu.
 | M / N | Change class / team |
 | Tab | Scoreboard |
 | Esc | Menu, settings, bot count |
+| F1 / F2 | Controls / How to play |
+
+The in-game menu carries the full briefing: **Controls** lists every key, and
+**How to play** covers the objective, the three routes into the enemy fort,
+a step-by-step guide to building and upgrading a sentry gun, and notes on all
+nine classes.
 
 ## Rules
 

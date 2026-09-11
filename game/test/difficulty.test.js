@@ -1,4 +1,11 @@
 // Difficulty must matter: godly bots should out-kill easy bots by a wide margin in a mirrored match.
+// Deterministic: the simulation leans on Math.random throughout, and captures are
+// rare enough (1-3 per five minutes) that an unseeded run can legitimately see none.
+// Pin the generator so this bench is a regression test rather than a coin flip.
+// Vary it with SEED=<n> to explore other trajectories.
+let __seed = (parseInt(process.env.SEED || '20260911', 10) >>> 0) || 1;
+Math.random = () => { __seed = (Math.imul(__seed, 1664525) + 1013904223) >>> 0; return __seed / 4294967296; };
+
 const { Game, BLUE, RED } = require('../js/sim.js');
 const { BotBrain, botClassFor, DIFFICULTIES } = require('../js/bots.js');
 function match(minutes, skillBlue, skillRed) {
