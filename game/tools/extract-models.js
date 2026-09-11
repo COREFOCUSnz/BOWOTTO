@@ -286,10 +286,12 @@ for (const [name, rootNode] of ORDER) {
   const iBuf = Buffer.alloc(iAll.length * (use32 ? 4 : 2));
   iAll.forEach((x, i) => (use32 ? iBuf.writeUInt32LE(x, i * 4) : iBuf.writeUInt16LE(x, i * 2)));
   const out = Buffer.concat([head, boneBuf, vBuf, iBuf]);
-  fs.writeFileSync(path.join(OUT, name + '.tfm'), out);
+  // Wrapped in JSON because static hosts (and the artifact sandbox) only serve
+  // standard web media types; the payload is the exact binary above.
+  fs.writeFileSync(path.join(OUT, name + '.json'), JSON.stringify({ format: 'TFM2', bytes: out.length, data: out.toString('base64') }));
 
-  const tris = iAll.length / 3; grandTris += tris; grandBytes += out.length;
-  manifest.classes[name] = { file: name + '.tfm', verts: vAll.length, tris, height: rawH * scale, rawHeight: rawH, scale, groups: merged.map((m) => ({ material: m.material, offset: m.offset, count: m.count })) };
+  const tris = iAll.length / 3; grandTris += tris; grandBytes += Math.ceil(out.length * 4 / 3);
+  manifest.classes[name] = { file: name + '.json', verts: vAll.length, tris, height: rawH * scale, rawHeight: rawH, scale, groups: merged.map((m) => ({ material: m.material, offset: m.offset, count: m.count })) };
   console.log(`${name.padEnd(9)} ${String(vAll.length).padStart(6)}v ${String(tris).padStart(6)}t ${(out.length/1024).toFixed(0).padStart(5)}KB groups=${merged.length} height=${(rawH*scale).toFixed(2)}m`);
 }
 fs.writeFileSync(path.join(OUT, 'models.json'), JSON.stringify(manifest, null, 1));

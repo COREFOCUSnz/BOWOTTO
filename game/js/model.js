@@ -216,7 +216,12 @@
         await Promise.all(Object.entries(manifest.classes).map(async ([name, meta]) => {
           const r = await fetch(base + meta.file);
           if (!r.ok) throw new Error(meta.file + ' ' + r.status);
-          this.models[name] = new Model(this.gl, name, await r.arrayBuffer(), meta, manifest);
+          const wrapped = await r.json();
+          const bin = atob(wrapped.data);
+          const buf = new ArrayBuffer(bin.length);
+          const u8 = new Uint8Array(buf);
+          for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+          this.models[name] = new Model(this.gl, name, buf, meta, manifest);
         }));
         this.ready = true;
         return true;

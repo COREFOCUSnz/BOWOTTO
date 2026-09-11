@@ -54,7 +54,7 @@
  ],
  "classes": {
   "spy": {
-   "file": "spy.tfm",
+   "file": "spy.json",
    "verts": 3825,
    "tris": 5660,
    "height": 1.80170305054429,
@@ -89,7 +89,7 @@
    ]
   },
   "heavy": {
-   "file": "heavy.tfm",
+   "file": "heavy.json",
    "verts": 5104,
    "tris": 7188,
    "height": 1.8995119805935636,
@@ -124,7 +124,7 @@
    ]
   },
   "medic": {
-   "file": "medic.tfm",
+   "file": "medic.json",
    "verts": 6727,
    "tris": 8282,
    "height": 1.810362759955926,
@@ -159,7 +159,7 @@
    ]
   },
   "scout": {
-   "file": "scout.tfm",
+   "file": "scout.json",
    "verts": 5238,
    "tris": 7814,
    "height": 1.7726612082997797,
@@ -189,7 +189,7 @@
    ]
   },
   "sniper": {
-   "file": "sniper.tfm",
+   "file": "sniper.json",
    "verts": 5133,
    "tris": 7000,
    "height": 1.8815152173651142,
@@ -224,7 +224,7 @@
    ]
   },
   "soldier": {
-   "file": "soldier.tfm",
+   "file": "soldier.json",
    "verts": 6158,
    "tris": 8614,
    "height": 1.8369683165520045,
@@ -259,7 +259,7 @@
    ]
   },
   "engineer": {
-   "file": "engineer.tfm",
+   "file": "engineer.json",
    "verts": 9963,
    "tris": 10578,
    "height": 1.6564101795471586,
@@ -284,7 +284,7 @@
    ]
   },
   "pyro": {
-   "file": "pyro.tfm",
+   "file": "pyro.json",
    "verts": 3815,
    "tris": 4201,
    "height": 1.7279969804648518,
