@@ -361,6 +361,18 @@ headroom. Scripts live only in the session scratchpad (not committed):
 `spriteload2.js` (loading spinner, same idea) -- rerun either if the
 paint, framing or size budget needs to move again.
 
+**Hero sprite round two, same day:** Corey asked to speed the welcome-screen
+rotation up a touch, smooth it out, and improve the graphics further. Went
+back from 30 frames to 36 (the frame-count cut made for the artifact's byte
+budget last round), sped the spin 14s->11s, bumped 400x250->440x275, and
+raised the offscreen supersample from 3x to 4x (matching the loading
+spinner's own 4x -- a free quality win, since supersampling only costs
+render time, not output file size). All of it had to fit back inside the
+16 MiB artifact cap: rebuilding and reading the actual
+`dist/revuelto.artifact.html` size (not estimating) after installing the
+36-frame/440x275/Q0.8 version left only ~38 KB of headroom, so quality was
+trimmed to 0.78 to land at a steadier ~57 KB spare instead.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their
