@@ -450,6 +450,62 @@ to something clearer. Two real things going on, both fixed:
    embedded build (hosted-only car now visibly blocked with the message
    on screen, confirmed via layout rect, instead of a silent no-op).
 
+**DESTRUCTION DERBY + THE ARENA, 2026-09-11:** Corey: "add a new mode called
+destruction derby mode and lets use this map i got" -- SpringSociety's Tron
+Light cycle Arena (Sketchfab, CC BY 4.0, 3 MB, 96 x 148 m, 48 meshes,
+5.9k tris). The engine is spline-bound (every car is "distance along the
+line, offset off it"; the AI drives a racing line), so a true open arena is
+impossible without a second movement model. The trick that made it a data
+change instead: THE ARENA is a stadium-shaped loop (30 m bends, 48 m
+straights) with `roadHalf: 16` -- a new per-track field; `ROAD_HALF` was a
+global const at the top of sim.js and now reads `TRACK.roadHalf || 6` right
+after `chooseTrack()` -- so the drivable floor is the whole annulus between
+the outer wall and a 12 m infield island. The polar singularity is why the
+island exists: `sDot = u / (1 + kappa*d)` needs `1 + kappa*d` well above the
+0.3 clamp, and with R=30, d=-17.2 gives 0.43. Theme `arena` is
+`Object.assign({}, THEMES.tron, ...)`, `DRESS.arena()` hides the road strip
+and fetches `arena.glb` (hosted-only, procedural Tron grid + neon walls on
+the artifact), centred on the origin with its floor at y=0.06. build.py
+already copies any non-car GLB in models/ to hosting (renamed the log line
+from "hosted car" to "hosted-only"). Preview via a hosted-capable copy of
+prev.js with a tighter frame for a 60x108 m bbox (the standard 120 m margin
+swallowed it).
+The mode (`GAME.mode === 'derby'`): 100 hp per car (`st.hp`, `a.hp`),
+damage in `contacts()` from the closing speed `resolveContact` already
+returns, x2 to the car struck and 30 % of that to the hitter -- `contactAgg`
+is a new module var resolveContact sets to its internal `aggA` (A moving
+into B) so the caller knows who hit whom without changing the return value.
+Rival-vs-rival x1.6 too, walls scratch (rival lateral speed x0.6, player
+wall-normal speed x0.6). Player damage scaled per difficulty
+(DERBY_DMG 0.6/0.85/1.05/1.25), field DERBY_N 3/4/5/6 from DERBY_RIVALS
+(the Versus three plus VIOLA/ROSSO/NERO). rivalStep gets a `derby` branch:
+no racing line, target speed and lane from the gap to the player (ahead and
+in reach: player speed + 10 on the player's lane; far ahead: vmax; beside:
+match and lean; behind: circle on at 0.8 vmax if the loop is under 1500 m
+(an arena), creep in the player's lane on a circuit where driving on would
+mean never meeting again); mistakes and car-avoidance off in derby (they are
+supposed to hit). Wrecked rivals: a new `else if (a.wrecked)` branch beside
+the grid-freeze one -- rolls to a stop, no steering, body sits 0.08 rad on a
+flat, glow disc off, paint meshes (tagged `userData.paint` in
+buildRivalVisual, each rival's OWN clone so it can be recoloured) turned
+burnt grey. Player wrecked: readInput() forces throttle 0 / brake 1 / steer
+0, finishRace() immediately. Finish: all rivals wrecked -> LAST CAR
+STANDING; standings() has a derby branch (running cars by hp, then wrecks
+latest-first) so the generic `findIndex(me)+1` position still works.
+prizeFor('derby') = PRIZE_DERBY_WRECK[diff] x st.wrecks + PRIZE[diff][0] if
+P1; payout counts wins/podiums like Versus. Lap logic skipped in derby (the
+arena is 284 m round -- every 12 s would be "a lap"). Menu: 4th mode
+button, laps hidden, difficulty step shown, START DERBY; HUD LEFT n / HP n;
+results sheet DRIVER / DAMAGE / WRECKS. Also this pass: "SIM" tag on the
+welcome title (Corey), tagline now NINETEEN WORLDS · DESTRUCTION DERBY.
+Verified on the hosted build with a scripted derby (spawn, countdown skip,
+4 s of chase, forced rams, wreck all four -> $35,000 on Medium, results
+sheet, then the player-wrecked path), zero page errors; arena model
+confirmed at ±48 x ±74 m world, walls 0.06-15 m. Artifact at 37.5 KB under
+the 16 MiB cap after this -- the compression pass Corey asked for (the
+embedded Revuelto is 15 of the 16 MB) is next and also has to pay for the
+"smoother" hero rotation he wants (more frames = more bytes).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

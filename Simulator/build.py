@@ -112,7 +112,7 @@ def main():
         if stem in ("revuelto", "studio", "showroom", "wing") or stem.endswith("_src") or stem.startswith("revuelto"):
             continue
         shutil.copyfile(extra, os.path.join(host, stem + ".glb"))
-        print("hosted car %s.glb (%d KB)" % (stem, os.path.getsize(extra) // 1024))
+        print("hosted-only %s.glb (%d KB)" % (stem, os.path.getsize(extra) // 1024))
     htags = ""
     for path, suffix in posters:
         if not path:

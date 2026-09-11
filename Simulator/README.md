@@ -23,6 +23,33 @@ entry below.
   keeps loading while it's up, so PLAY reveals the lobby instantly. Skipped
   on any internal reload (a course change, resuming a chosen track) via the
   same `straight` flag the lobby itself uses.
+- **Destruction Derby** is the fourth mode: last car standing. Every car
+  carries a 100-point damage bar; a hit costs closing speed × 2 hp to the car
+  struck and 30 % of that to the car doing the hitting, so ramming pays (a
+  22 m/s hit is 44 to them, 13 to you — two clean hits wreck a rival, and
+  you have about nine rams in the tank). Wall hits scratch. The field grows
+  with the difficulty (3 / 4 / 5 / 6 rivals; three new names — VIOLA, ROSSO,
+  NERO — join the Versus three) and your damage scales with it (×0.6 to
+  ×1.25). The rivals hunt instead of racing: ahead and in reach they close
+  at your speed plus ten and line up on your lane; far ahead they run flat
+  out to catch you; beside you they match pace and lean on the door; and
+  when you are behind them on the arena they drive on to come round on your
+  tail. A wrecked car rolls to a stop where it died, burnt out, and stays
+  as something to drive around. HUD shows cars LEFT and your HP; the sheet
+  ranks the running cars by damage, then the wrecks by who lasted longest.
+  Pays $3k / $5k / $7k / $9k per rival you wreck plus the Versus win money
+  if you are the one left running. Wins count in the career. Built for
+  **THE ARENA** but it runs in any world (on a circuit the rivals creep in
+  your lane and wait for you when you are behind them).
+- **THE ARENA** is the nineteenth world, and not a circuit: SpringSociety's
+  "Tron Light cycle Arena" (Sketchfab, CC BY 4.0), 96 × 148 m of grid floor
+  and light walls. The engine only knows "how far along the line, how far
+  off it", so the arena is a stadium-shaped loop (30 m bends, 48 m straights)
+  with the road 16 m each side of the line: the drivable floor is the whole
+  bowl between the outer wall and a 12 m infield island. Any mode runs
+  there; Solo is a good place to learn the car's limits. The model is a 3 MB
+  download, so it is hosted-site only — the single-file page and the
+  artifact draw the same bowl on the Tron grid.
 - **Start screens**: choose your course, then your mode (and laps), then
   your rivals for Versus. Choices are remembered, and a course change (which
   rebuilds the page for the new world) comes back to the mode screen with
@@ -545,6 +572,7 @@ First numbered release, and the first that is publicly hosted.
 
 - Garage: "Studio V1 For Car" by Velocity Motion, Sketchfab, CC BY 4.0.
 - Showroom: "Scifi Tron Studio | Baked" by ChristyHsu, Sketchfab, CC BY 4.0.
+- The Arena: "Tron Light cycle Arena" by SpringSociety, Sketchfab, CC BY 4.0.
 
 Car model: **"Lamborghini Revuelto" by DRIVER-FIRE** (https://skfb.ly/pM6pA),
 licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
