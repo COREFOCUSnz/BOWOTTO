@@ -228,9 +228,18 @@ body.garage #start,body.garage #hud{display:none}
 #g-room{display:flex;gap:6px;margin-top:8px}
 #g-room button{font:inherit;font-size:10px;letter-spacing:.2em;font-weight:700;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;cursor:pointer}
 #g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}
-#g-shop-head,.g-shop-head{margin:2px 0 10px}
-.g-shop-head b{display:block;font-size:18px;letter-spacing:.34em;color:var(--amber)}
-.g-shop-head span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px}
+#g-shop-head,.g-shop-head{margin:2px 0 12px}
+.g-shop-head b{display:block;font-size:22px;letter-spacing:.3em;color:var(--amber)}
+.g-shop-head span{display:block;font-size:12px;letter-spacing:.16em;color:var(--dim);margin-top:5px}
+/* THE SHOP reads bigger than the parts list: these are the big-ticket items */
+#g-cars .g-top b{font-size:16px}
+#g-cars .g-top i{font-size:14px}
+#g-cars .g-fit{font-size:12px}
+#g-cars .g-card button{font-size:14px;padding:10px 14px}
+#g-cars .g-card{cursor:pointer}
+#g-cars .g-card.previewing{border-color:var(--amber);box-shadow:0 0 18px rgba(255,210,31,.25)}
+#g-preview-tag{font-size:11px;letter-spacing:.2em;color:var(--amber);margin:-4px 0 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#g-preview-tag button{font:inherit;font-size:10px;letter-spacing:.18em;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--amber);background:rgba(255,210,31,.12);color:var(--amber);cursor:pointer}
 #g-cars .g-card.on{border-color:var(--amber);box-shadow:0 0 18px rgba(46,230,255,.2)}
 #g-cars .g-card button[data-drive]{background:rgba(46,230,255,.18);color:var(--hud);border:1px solid var(--amber)}   /* the garage is the car and the panel, nothing else */
 #garage{position:absolute;top:0;right:0;bottom:0;width:min(470px,100%);box-sizing:border-box;background:linear-gradient(90deg,rgba(4,8,16,.35),rgba(4,8,16,.94) 16%);border-left:1px solid rgba(46,230,255,.35);box-shadow:-24px 0 70px rgba(0,0,0,.55);z-index:7;padding:18px 22px 24px;overflow:auto;pointer-events:auto;letter-spacing:.16em}
@@ -257,6 +266,8 @@ body.garage #start,body.garage #hud{display:none}
 .g-card button{margin-top:9px;font:inherit;font-size:12px;letter-spacing:.26em;font-weight:700;padding:8px 14px;border-radius:4px;border:0;background:#ffd21f;color:#1a1200;cursor:pointer;width:100%;box-shadow:0 0 16px rgba(255,210,31,.25)}
 .g-card button:disabled{background:rgba(255,255,255,.08);color:var(--dim);cursor:default;box-shadow:none}
 #g-paint{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#g-paint-toggle{grid-column:1/-1;font:inherit;font-size:14px;letter-spacing:.24em;font-weight:700;color:var(--amber);background:rgba(255,210,31,.08);border:1px dashed rgba(255,210,31,.5);border-radius:8px;padding:14px;cursor:pointer;text-align:center}
+#g-paint-toggle span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px;font-weight:400}
 .g-swatch{font:inherit;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:8px 10px;background:rgba(255,255,255,.04);color:var(--hud);cursor:pointer;text-align:left}
 .g-swatch i{width:22px;height:22px;border-radius:50%;flex:none;border:1px solid rgba(255,255,255,.35)}
 .g-swatch b{display:block;font-size:11px;letter-spacing:.16em}
@@ -276,7 +287,15 @@ body.garage #start,body.garage #hud{display:none}
 /* the account name: asked once on the first visit, changeable from the garage */
 #namebox{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,4,10,.82);z-index:8;pointer-events:auto;letter-spacing:.16em}
 #namebox.hidden{display:none}
-#namebox .card{background:rgba(4,8,16,.96);border:1px solid rgba(46,230,255,.45);box-shadow:0 0 60px rgba(46,230,255,.25);border-radius:10px;padding:26px 30px;width:min(92vw,460px);text-align:center}
+#confirm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,4,10,.85);z-index:9;pointer-events:auto;letter-spacing:.16em}
+#confirm.hidden{display:none}
+#confirm-title{margin:0 0 10px;font-size:20px;letter-spacing:.24em;color:var(--amber)}
+#confirm-sub{margin:0 0 20px;font-size:13px;letter-spacing:.16em;color:var(--hud);line-height:1.7}
+#confirm .btns{display:flex;gap:12px;justify-content:center}
+#confirm .btns button{font:inherit;font-size:13px;letter-spacing:.24em;font-weight:700;padding:9px 26px;border-radius:6px;cursor:pointer}
+#confirm-yes{border:0;background:var(--amber);color:#1a1200}
+#confirm-no{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:var(--hud)}
+#confirm .card,#namebox .card{background:rgba(4,8,16,.96);border:1px solid rgba(46,230,255,.45);box-shadow:0 0 60px rgba(46,230,255,.25);border-radius:10px;padding:26px 30px;width:min(92vw,460px);text-align:center}
 #namebox h2{margin:0 0 8px;font-size:18px;letter-spacing:.3em;color:var(--amber);text-shadow:0 0 18px rgba(46,230,255,.45)}
 #namebox p{margin:0 0 16px;font-size:10px;letter-spacing:.24em;color:var(--dim);line-height:1.7}
 #name-in{font:inherit;font-size:26px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;text-align:center;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:var(--hud);outline:none}
@@ -432,6 +451,13 @@ body.garage #start,body.garage #hud{display:none}
     <div id="g-cars" class="g-pane hidden"></div>
     <div id="g-career" class="g-pane hidden"></div>
     <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
+  </div>
+  <div id="confirm" class="hidden">
+    <div class="card">
+      <h2 id="confirm-title">BUY THIS?</h2>
+      <p id="confirm-sub"></p>
+      <div class="btns"><button id="confirm-no" class="ghost">NO</button><button id="confirm-yes">YES</button></div>
+    </div>
   </div>
   <div id="namebox" class="hidden">
     <div class="card">
@@ -7377,6 +7403,119 @@ function setPaint(i) {
     o.material = o.userData.tintMat; o.material.color.setHex(P.hex);
   });
 }
+// ------------------------------------------------------------------ the 3D garage: two rooms
+// STUDIO: Velocity Motion's "Studio V1 For Car" (Sketchfab, CC BY 4.0), a long lit corridor, slate floor, light bars; the
+// camera orbits the car. SHOWROOM: ChristyHsu's "Scifi Tron Studio | Baked" (Sketchfab, CC BY 4.0), a blue stage with a
+// raised platform: the car turns on it like a turntable in front of a slow camera. Both are baked into the page (textures
+// cut to 1K JPEG: 278 KB and 387 KB), fetched on the hosted site the first time a room opens. The car is moved into the
+// room's scene, the world pauses, and the reflection cube is re-shot in the room so the paint mirrors it.
+// Drag to turn, wheel or pinch to zoom, in either room.
+const ROOMS = {
+  // minDist/maxDist keep the orbit inside each room's own walls (STUDIO's corridor is narrow, a wide zoom-out used to
+  // punch through it); minYaw/maxYaw (SHOWROOM only) keep the camera off the side where the tall screen wall blocks
+  // the view; carScale shows the car at the size it reads best in that room, without touching its real driving scale
+  studio:   { id: 'studio-glb', file: 'studio.glb', scale: 2, at: [-0.98, 0, 5.2], baked: false, spin: 0.10, turn: 0, yaw: 2.4, pitch: 0.16, dist: 4.6, minDist: 3.0, maxDist: 5.6, lights: true, carScale: 0.5 },
+  showroom: { id: 'showroom-glb', file: 'showroom.glb', scale: 1, at: [0, 1.33, -1.0], baked: true, spin: 0.025, turn: 0.30, yaw: 0.55, pitch: 0.14, dist: 11, minDist: 6, maxDist: 16, minYaw: -1.2, maxYaw: 2.3, lights: true, carYaw: Math.PI / 2, carScale: 0.8 },
+};
+const garage = { room: 'studio', scenes: {}, cam: new THREE.PerspectiveCamera(36, 1, 0.1, 400), on: false, yaw: 2.4, pitch: 0.16, dist: 6.4, drag: null, at: new THREE.Vector3(), carY: 0, carYaw: 0, turn: 0 };
+try { const r = localStorage.getItem('revuelto.room'); if (r && ROOMS[r]) garage.room = r; } catch (e) {}
+function roomScene(name) {
+  if (garage.scenes[name]) return garage.scenes[name];
+  const R = ROOMS[name], s = new THREE.Scene(); s.background = new THREE.Color(0x000000); s.userData = { loaded: false, loading: false, group: null };
+  s.add(new THREE.HemisphereLight(0xffffff, 0x141418, R.baked ? 0.7 : 0.55)); const d = new THREE.DirectionalLight(0xffffff, R.baked ? 0.9 : 0.8); d.position.set(3, 9, 6); s.add(d);
+  if (!R.baked) for (const [x, z] of [[-2.5, -4], [2.5, -4], [-2.5, 6], [2.5, 6], [0, 11]]) { const pl = new THREE.PointLight(0xffffff, 0.55, 40, 1.6); pl.position.set(R.at[0] + x, 5.4, R.at[2] + z); s.add(pl); }
+  garage.scenes[name] = s; return s;
+}
+function roomLoad(name, cb) {
+  const R = ROOMS[name], s = roomScene(name), u = s.userData;
+  if (u.loaded) { if (cb) cb(); return; } if (u.loading) return; u.loading = true;
+  const done = buf => { try { new THREE.GLTFLoader().parse(buf, '', g => { const grp = g.scene; grp.scale.setScalar(R.scale);
+    grp.traverse(o => { if (!o.isMesh) return; o.material.side = THREE.DoubleSide;
+      if (R.baked) { o.material.color.setHex(0x000000); if (o.material.emissiveMap) { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 1.25; } }   // the light is in the textures: lights only hit the car
+      else if (o.material.name === 'lights') { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 3; o.material.color.setHex(0xffffff); }
+      if (o.name === 'Object_12') o.visible = false; });
+    u.group = grp; s.add(grp); u.loaded = true; u.loading = false; if (cb) cb(); }, e => { console.error(e); u.loading = false; }); } catch (e) { console.error(e); u.loading = false; } };
+  const emb = document.getElementById(R.id);
+  if (emb) { const bin = atob(emb.textContent.trim()), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); done(u8.buffer); }
+  else if (location.protocol !== 'file:') fetch(R.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) done(b); else u.loading = false; }).catch(() => { u.loading = false; });
+  else u.loading = false;
+}
+function garageRoom(name) {
+  if (!ROOMS[name]) return; garage.room = name; try { localStorage.setItem('revuelto.room', name); } catch (e) {}
+  document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
+  const wasPreview = previewCar; garagePreviewClear();
+  if (garage.on) { garage.on = false; garageEnter(); if (wasPreview) garagePreview(wasPreview); }
+}
+function garageEnter() {
+  if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
+  garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
+  car.scale.setScalar(R.carScale || 1);
+  garagePlaceCar();
+  roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
+}
+function garagePlaceCar() {
+  car.position.set(0, 0, 0); car.quaternion.identity(); bodyGroup.rotation.set(0, 0, 0); car.updateMatrixWorld(true);
+  const box = new THREE.Box3(); car.traverse(o => { if (!o.isMesh || o.isSprite || o.isLine) return; const b = new THREE.Box3().setFromObject(o), z = b.getSize(new THREE.Vector3()); if (z.length() < 8 && z.length() > 0.05) box.union(b); });
+  garage.carY = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
+  car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
+}
+function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
+function garageLeave() { if (!garage.on) return; garagePreviewClear(); garage.on = false; scene.add(car); car.visible = true; car.scale.setScalar(1); }
+// ------------------------------------------------------------------ THE SHOP: look without buying
+// clicking a shop car's card drops a plain, unscaled-physics copy of it into the same spot the real car sits in the
+// garage, and hides the real car underneath; it never touches carId, career.car or career.cars, so nothing is bought
+// or driven by looking. Downloaded once per session (previewRoots), same fetch path as carSelect.
+let previewGroup = null, previewCar = null; const previewRoots = {};
+function garagePreviewClear() {
+  if (previewGroup) { const scn = roomScene(garage.room); scn.remove(previewGroup); previewGroup = null; }
+  previewCar = null; if (garage.on) car.visible = true;
+}
+function garagePreviewShow(id, root) {
+  const scn = roomScene(garage.room); if (previewGroup) scn.remove(previewGroup);
+  const g = root.clone(true); const C = CARS[id];
+  const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), long = Math.max(size.x, size.z);
+  const sc = (C.spec.length || CAR.length) / long; g.scale.setScalar(sc);
+  box.setFromObject(g); const c2 = box.getCenter(new THREE.Vector3());
+  const yaw = (size.z >= size.x ? Math.PI / 2 : 0) + (C.yaw || 0);
+  const wrap = new THREE.Group(); wrap.add(g); g.position.set(-c2.x, -box.min.y, -c2.z); wrap.rotation.y = yaw;
+  wrap.position.set(garage.at.x, garage.carY, garage.at.z); wrap.scale.setScalar(ROOMS[garage.room].carScale || 1);
+  scn.add(wrap); previewGroup = wrap; previewCar = id; car.visible = false;
+  if (typeof garageRefresh === 'function') garageRefresh();   // the model just arrived asynchronously: the VIEWING tag and card state were stale until now
+}
+function garagePreview(id) {
+  if (id === carId) { garagePreviewClear(); return; }
+  if (previewCar === id) return;
+  const C = CARS[id]; if (!C) return;
+  if (carRoots[id]) { garagePreviewShow(id, carRoots[id]); return; }
+  if (previewRoots[id]) { garagePreviewShow(id, previewRoots[id]); return; }
+  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('AVAILABLE ON LAMBO-SIM.WEB.APP', 2000); return; }
+  flash('LOADING ' + C.name + ' …', 3000);
+  fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
+    try { window.createImageBitmap = undefined; } catch (e) {}
+    new THREE.GLTFLoader().parse(b, '', g => { previewRoots[id] = g.scene; if (garage.on) garagePreviewShow(id, g.scene); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
+  }).catch(() => flash('MODEL FAILED', 2000));
+}
+function garageFrame(dt, now) {
+  const R = ROOMS[garage.room], s = roomScene(garage.room);
+  if (!garage.drag) { garage.yaw += dt * R.spin; if (R.minYaw != null) garage.yaw = Math.max(R.minYaw, Math.min(R.maxYaw, garage.yaw)); }
+  garage.turn += dt * R.turn; car.position.set(garage.at.x, garage.carY, garage.at.z); car.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), garage.carYaw + garage.turn);   // the turntable
+  const W = window.innerWidth, H = window.innerHeight, c = garage.cam; c.aspect = W / H;
+  if (W > 820) c.setViewOffset(W, H, Math.round(W * 0.17), 0, W, H); else c.clearViewOffset(); c.updateProjectionMatrix();
+  const cp = Math.cos(garage.pitch), r = garage.dist; c.position.set(garage.at.x + Math.sin(garage.yaw) * r * cp, garage.carY + 0.55 + Math.sin(garage.pitch) * r, garage.at.z + Math.cos(garage.yaw) * r * cp); c.lookAt(garage.at.x, garage.carY + 0.5, garage.at.z);
+  const rp = bloomOn && composer && composer.passes && composer.passes.find(q => q.scene && q.camera);
+  if (rp) { const s0 = rp.scene, c0 = rp.camera; rp.scene = s; rp.camera = c; composer.render(); rp.scene = s0; rp.camera = c0; } else renderer.render(s, c);
+}
+document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageRoom(b.dataset.r); }); });
+{ // orbit with a finger or the mouse, zoom with the wheel or a pinch
+  const cv = renderer.domElement, ptr = {};
+  cv.addEventListener('pointerdown', e => { if (!garage.on) return; ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; garage.drag = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('pointermove', e => { if (!garage.on || !garage.drag) return; const R = ROOMS[garage.room]; const ids = Object.keys(ptr); if (ids.length >= 2 && ptr[e.pointerId]) { const o = ptr[ids[0]], q = ptr[ids[1]], d0 = Math.hypot(o.x - q.x, o.y - q.y); ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; const d1 = Math.hypot(ptr[ids[0]].x - ptr[ids[1]].x, ptr[ids[0]].y - ptr[ids[1]].y); garage.dist = Math.max(R.minDist ?? 3.6, Math.min(R.maxDist ?? 9, garage.dist * (d0 / Math.max(1, d1)))); return; }
+    garage.yaw -= (e.clientX - garage.drag.x) * 0.007; if (R.minYaw != null) garage.yaw = Math.max(R.minYaw, Math.min(R.maxYaw, garage.yaw)); garage.pitch = Math.max(0.03, Math.min(0.75, garage.pitch + (e.clientY - garage.drag.y) * 0.004)); garage.drag = { x: e.clientX, y: e.clientY }; if (ptr[e.pointerId]) ptr[e.pointerId] = garage.drag; });
+  const up = e => { delete ptr[e.pointerId]; if (!Object.keys(ptr).length) garage.drag = null; };
+  window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e => { if (!garage.on) return; e.preventDefault(); const R = ROOMS[garage.room]; garage.dist = Math.max(R.minDist ?? 3.6, Math.min(R.maxDist ?? 9, garage.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
+}
+
 function installModel(root, name) {
   const from = (name === 'embedded' || name === 'revuelto.glb') ? 'revuelto' : (CARS[name] ? name : null);
   if (from) carRoots[from] = root;
@@ -8179,6 +8318,16 @@ function giftCheck() {
 function nameRefresh() { const d = $('start-driver'); if (!d) return; d.textContent = career.name ? 'DRIVER · ' + career.name : ''; d.classList.toggle('hidden', !career.name); }
 function hudCarLine() { const e = document.querySelector('#top-left .sub span'); if (e) e.textContent = TRACK.name + ' · ' + TRACK.km + ' KM · ' + Math.round(CAR.powerW / 745.3 * TUNE.power) + ' HP · V' + VERSION; }
 
+function confirmAsk(title, sub, onYes) {
+  $('confirm-title').textContent = title; $('confirm-sub').textContent = sub; $('confirm').classList.remove('hidden');
+  const yes = $('confirm-yes'), no = $('confirm-no');
+  const done = () => { $('confirm').classList.add('hidden'); yes.removeEventListener('click', go); no.removeEventListener('click', cancel); };
+  const go = e => { e.stopPropagation(); done(); onYes(); };
+  const cancel = e => { e.stopPropagation(); done(); };
+  yes.addEventListener('click', go); no.addEventListener('click', cancel);
+}
+$('confirm').addEventListener('click', e => e.stopPropagation());
+let paintOpen = false;
 { // the garage: prize money spent on parts and paints, with the car turning on the photo camera behind the panel
   const gEl = $('garage'); let prevCam = 0;
   const rating = () => { const n = SHOP_KEYS.reduce((a, k) => a + career.tiers[k], 0); return n === 0 ? 'STOCK CAR' : n >= 18 ? 'FULLY BUILT' : 'BUILD ' + Math.round(n / 18 * 100) + '%'; };
@@ -8197,12 +8346,14 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
       parts.appendChild(card);
     }
     const pp = $('g-paint'); pp.innerHTML = '';
-    PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
+    if (!paintOpen) { pp.innerHTML = '<button id="g-paint-toggle">PAINTS<span>' + PAINTS.length + ' COLOURS · CLICK TO SEE THEM ALL</span></button>'; }
+    else PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
       b.innerHTML = `<i style="background:${P.shader ? 'linear-gradient(135deg,#2ee6ff,#0a3cff)' : P.livery ? 'linear-gradient(135deg,#15181f 50%,#2ee6ff 50%)' : hex(P)}"></i><b>${P.name}</b><span>${on ? 'ON CAR' : owned ? 'OWNED' : fmtCash(P.price)}</span>`; pp.appendChild(b); });
-    const cc = $('g-cars'); cc.innerHTML = '<div class="g-shop-head"><b>THE SHOP</b><span>LAMBORGHINIS FOR SALE · PRIZE MONEY BUYS THEM</span></div>';
-    for (const id in CARS) { const C = CARS[id], owned = career.cars.includes(id), on = id === carId, card = document.createElement('div'); card.className = 'g-card' + (on ? ' on' : '');
+    const cc = $('g-cars'); cc.innerHTML = '<div class="g-shop-head"><b>THE SHOP</b><span>LAMBORGHINIS FOR SALE · PRIZE MONEY BUYS THEM · CLICK A CARD TO LOOK AT IT</span></div>' +
+      (previewCar && previewCar !== carId ? `<div id="g-preview-tag">VIEWING · ${CARS[previewCar].name}<button id="g-preview-back">BACK TO MY CAR</button></div>` : '');
+    for (const id in CARS) { const C = CARS[id], owned = career.cars.includes(id), on = id === carId, card = document.createElement('div'); card.className = 'g-card' + (on ? ' on' : '') + (previewCar === id ? ' previewing' : ''); card.dataset.view = id;
       card.innerHTML = `<div class="g-top"><b>LAMBORGHINI · ${C.name}</b><i>${on ? 'DRIVING' : owned ? 'OWNED' : fmtCash(C.price)}</i></div><div class="g-fit">${C.sub}</div>` + (C.note ? `<div class="g-fit"><span>${C.note}</span></div>` : '') +
-        (on ? '' : owned ? `<button data-drive="${id}">DRIVE</button>` : `<button data-buycar="${id}"${career.cash < C.price ? ' disabled' : ''}>BUY · ${fmtCash(C.price)}</button>`);
+        (on ? '' : owned ? `<button data-drive="${id}">DRIVE</button>` : `<button data-buycar="${id}">BUY · ${fmtCash(C.price)}</button>`);
       cc.appendChild(card); }
     const st_ = career.stats;
     $('g-career').innerHTML = [['DRIVER', career.name || '—'], ['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['CARS OWNED', career.cars.length + ' / ' + Object.keys(CARS).length], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
@@ -8210,8 +8361,14 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
       '<p class="g-note">PRIZE MONEY · VERSUS PAYS BY FINISHING POSITION, MORE ON HARDER RIVALS AND LONGER RACES · TIME TRIAL PAYS PER LAP WITH A BONUS FOR A NEW BEST · SOLO IS FREE PRACTICE</p>';
     $('g-signin').textContent = !cloud.ok ? 'CLOUD SAVE · ON THE HOSTED SITE' : cloud.user ? 'SIGN OUT' : 'SIGN IN · SAVE TO CLOUD';
   };
-  $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + SHOP[key].tiers[t].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); });
-  $('g-paint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } else { const r = buyPaint(i); if (r === 'OK') { setPaint(i); flash('BOUGHT · ' + PAINTS[i].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); } garageRefresh(); });
+  $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], nxt = SHOP[key].tiers[t];
+    confirmAsk('BUY THIS?', SHOP[key].brand + ' · ' + nxt.name + ' · ' + fmtCash(nxt.price), () => { const r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + nxt.name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); }); });
+  $('g-paint').addEventListener('click', e => {
+    if (e.target.closest('#g-paint-toggle')) { e.stopPropagation(); paintOpen = true; garageRefresh(); return; }
+    const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p;
+    if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); return; }
+    confirmAsk('BUY THIS?', PAINTS[i].name + ' · ' + fmtCash(PAINTS[i].price), () => { const r = buyPaint(i); if (r === 'OK') { setPaint(i); flash('BOUGHT · ' + PAINTS[i].name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); });
+  });
   document.querySelectorAll('#g-tabs button').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); document.querySelectorAll('#g-tabs button').forEach(x => x.classList.toggle('on', x === b)); for (const t of ['parts', 'paint', 'cars', 'career']) $('g-' + t).classList.toggle('hidden', t !== b.dataset.t); }));
   window.garageOpen = () => { garageRefresh(); document.body.classList.add('garage'); gEl.classList.remove('hidden'); prevCam = st.cam; st.cam = 4; st.snapCam = true; garageEnter(); };
   window.garageClose = () => { document.body.classList.remove('garage'); gEl.classList.add('hidden'); st.cam = prevCam; st.snapCam = true; garageLeave(); };
@@ -8219,7 +8376,18 @@ function hudCarLine() { const e = document.querySelector('#top-left .sub span');
   $('g-close').addEventListener('click', e => { e.stopPropagation(); garageClose(); });
   $('g-signin').addEventListener('click', e => { e.stopPropagation(); cloud.signIn(); });
   $('g-name').addEventListener('click', e => { e.stopPropagation(); nameOpen(false); });
-  $('g-cars').addEventListener('click', e => { const b = e.target.closest('[data-drive],[data-buycar]'); if (!b) return; e.stopPropagation(); if (b.dataset.drive) { carSelect(b.dataset.drive, true); return; } const id = b.dataset.buycar, r = buyCar(id); if (r === 'OK') { flash('BOUGHT · LAMBORGHINI ' + CARS[id].name, 1400, '#ffd21f'); carSelect(id, true); garageRefresh(); } else if (r === 'POOR') flash('NOT ENOUGH MONEY', 1200); });
+  $('g-cars').addEventListener('click', e => {
+    if (e.target.closest('#g-preview-back')) { e.stopPropagation(); garagePreviewClear(); garageRefresh(); return; }
+    const b = e.target.closest('[data-drive],[data-buycar]');
+    if (b) { e.stopPropagation();
+      if (b.dataset.drive) { garagePreviewClear(); carSelect(b.dataset.drive, true); garageRefresh(); return; }
+      const id = b.dataset.buycar, C = CARS[id];
+      if (career.cash < C.price) { flash('NOT ENOUGH MONEY', 1200); return; }
+      confirmAsk('BUY THIS?', 'LAMBORGHINI ' + C.name + ' · ' + fmtCash(C.price), () => { const r = buyCar(id); if (r === 'OK') { flash('BOUGHT · LAMBORGHINI ' + C.name, 1400, '#ffd21f'); garagePreviewClear(); carSelect(id, true); garageRefresh(); } else if (r === 'POOR') flash('NOT ENOUGH MONEY', 1200); });
+      return; }
+    const card = e.target.closest('[data-view]'); if (!card) return; e.stopPropagation();
+    garagePreview(card.dataset.view); garageRefresh();
+  });
   gEl.addEventListener('click', e => e.stopPropagation());
   cloud.init(); paintBarLocks(); garageRefresh();
 }
@@ -8857,79 +9025,6 @@ function updateHUD() {
 
 // ------------------------------------------------------------------ main loop
 const FIXED = 1 / 120; let acc = 0, last = performance.now(), frames = 0;
-// ------------------------------------------------------------------ the 3D garage: two rooms
-// STUDIO: Velocity Motion's "Studio V1 For Car" (Sketchfab, CC BY 4.0), a long lit corridor, slate floor, light bars; the
-// camera orbits the car. SHOWROOM: ChristyHsu's "Scifi Tron Studio | Baked" (Sketchfab, CC BY 4.0), a blue stage with a
-// raised platform: the car turns on it like a turntable in front of a slow camera. Both are baked into the page (textures
-// cut to 1K JPEG: 278 KB and 387 KB), fetched on the hosted site the first time a room opens. The car is moved into the
-// room's scene, the world pauses, and the reflection cube is re-shot in the room so the paint mirrors it.
-// Drag to turn, wheel or pinch to zoom, in either room.
-const ROOMS = {
-  studio:   { id: 'studio-glb', file: 'studio.glb', scale: 2, at: [-0.98, 0, 5.2], baked: false, spin: 0.10, turn: 0, yaw: 2.4, pitch: 0.16, dist: 6.4, lights: true },
-  showroom: { id: 'showroom-glb', file: 'showroom.glb', scale: 1, at: [0, 1.33, -1.0], baked: true, spin: 0.025, turn: 0.30, yaw: 0.55, pitch: 0.14, dist: 7.6, lights: true, carYaw: Math.PI / 2 },
-};
-const garage = { room: 'studio', scenes: {}, cam: new THREE.PerspectiveCamera(36, 1, 0.1, 400), on: false, yaw: 2.4, pitch: 0.16, dist: 6.4, drag: null, at: new THREE.Vector3(), carY: 0, carYaw: 0, turn: 0 };
-try { const r = localStorage.getItem('revuelto.room'); if (r && ROOMS[r]) garage.room = r; } catch (e) {}
-function roomScene(name) {
-  if (garage.scenes[name]) return garage.scenes[name];
-  const R = ROOMS[name], s = new THREE.Scene(); s.background = new THREE.Color(0x000000); s.userData = { loaded: false, loading: false, group: null };
-  s.add(new THREE.HemisphereLight(0xffffff, 0x141418, R.baked ? 0.7 : 0.55)); const d = new THREE.DirectionalLight(0xffffff, R.baked ? 0.9 : 0.8); d.position.set(3, 9, 6); s.add(d);
-  if (!R.baked) for (const [x, z] of [[-2.5, -4], [2.5, -4], [-2.5, 6], [2.5, 6], [0, 11]]) { const pl = new THREE.PointLight(0xffffff, 0.55, 40, 1.6); pl.position.set(R.at[0] + x, 5.4, R.at[2] + z); s.add(pl); }
-  garage.scenes[name] = s; return s;
-}
-function roomLoad(name, cb) {
-  const R = ROOMS[name], s = roomScene(name), u = s.userData;
-  if (u.loaded) { if (cb) cb(); return; } if (u.loading) return; u.loading = true;
-  const done = buf => { try { new THREE.GLTFLoader().parse(buf, '', g => { const grp = g.scene; grp.scale.setScalar(R.scale);
-    grp.traverse(o => { if (!o.isMesh) return; o.material.side = THREE.DoubleSide;
-      if (R.baked) { o.material.color.setHex(0x000000); if (o.material.emissiveMap) { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 1.25; } }   // the light is in the textures: lights only hit the car
-      else if (o.material.name === 'lights') { o.material.emissive.setHex(0xffffff); o.material.emissiveIntensity = 3; o.material.color.setHex(0xffffff); }
-      if (o.name === 'Object_12') o.visible = false; });
-    u.group = grp; s.add(grp); u.loaded = true; u.loading = false; if (cb) cb(); }, e => { console.error(e); u.loading = false; }); } catch (e) { console.error(e); u.loading = false; } };
-  const emb = document.getElementById(R.id);
-  if (emb) { const bin = atob(emb.textContent.trim()), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); done(u8.buffer); }
-  else if (location.protocol !== 'file:') fetch(R.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) done(b); else u.loading = false; }).catch(() => { u.loading = false; });
-  else u.loading = false;
-}
-function garageRoom(name) {
-  if (!ROOMS[name]) return; garage.room = name; try { localStorage.setItem('revuelto.room', name); } catch (e) {}
-  document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
-  if (garage.on) { garage.on = false; garageEnter(); }
-}
-function garageEnter() {
-  if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
-  garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
-  garagePlaceCar();
-  roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
-}
-function garagePlaceCar() {
-  car.position.set(0, 0, 0); car.quaternion.identity(); bodyGroup.rotation.set(0, 0, 0); car.updateMatrixWorld(true);
-  const box = new THREE.Box3(); car.traverse(o => { if (!o.isMesh || o.isSprite || o.isLine) return; const b = new THREE.Box3().setFromObject(o), z = b.getSize(new THREE.Vector3()); if (z.length() < 8 && z.length() > 0.05) box.union(b); });
-  garage.carY = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
-  car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
-}
-function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
-function garageLeave() { if (!garage.on) return; garage.on = false; scene.add(car); car.visible = true; }
-function garageFrame(dt, now) {
-  const R = ROOMS[garage.room], s = roomScene(garage.room);
-  if (!garage.drag) garage.yaw += dt * R.spin;
-  garage.turn += dt * R.turn; car.position.set(garage.at.x, garage.carY, garage.at.z); car.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), garage.carYaw + garage.turn);   // the turntable
-  const W = window.innerWidth, H = window.innerHeight, c = garage.cam; c.aspect = W / H;
-  if (W > 820) c.setViewOffset(W, H, Math.round(W * 0.17), 0, W, H); else c.clearViewOffset(); c.updateProjectionMatrix();
-  const cp = Math.cos(garage.pitch), r = garage.dist; c.position.set(garage.at.x + Math.sin(garage.yaw) * r * cp, garage.carY + 0.55 + Math.sin(garage.pitch) * r, garage.at.z + Math.cos(garage.yaw) * r * cp); c.lookAt(garage.at.x, garage.carY + 0.5, garage.at.z);
-  const rp = bloomOn && composer && composer.passes && composer.passes.find(q => q.scene && q.camera);
-  if (rp) { const s0 = rp.scene, c0 = rp.camera; rp.scene = s; rp.camera = c; composer.render(); rp.scene = s0; rp.camera = c0; } else renderer.render(s, c);
-}
-document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageRoom(b.dataset.r); }); });
-{ // orbit with a finger or the mouse, zoom with the wheel or a pinch
-  const cv = renderer.domElement, ptr = {};
-  cv.addEventListener('pointerdown', e => { if (!garage.on) return; ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; garage.drag = { x: e.clientX, y: e.clientY }; });
-  window.addEventListener('pointermove', e => { if (!garage.on || !garage.drag) return; const ids = Object.keys(ptr); if (ids.length >= 2 && ptr[e.pointerId]) { const o = ptr[ids[0]], q = ptr[ids[1]], d0 = Math.hypot(o.x - q.x, o.y - q.y); ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; const d1 = Math.hypot(ptr[ids[0]].x - ptr[ids[1]].x, ptr[ids[0]].y - ptr[ids[1]].y); garage.dist = Math.max(3.6, Math.min(9, garage.dist * (d0 / Math.max(1, d1)))); return; }
-    garage.yaw -= (e.clientX - garage.drag.x) * 0.007; garage.pitch = Math.max(0.03, Math.min(0.75, garage.pitch + (e.clientY - garage.drag.y) * 0.004)); garage.drag = { x: e.clientX, y: e.clientY }; if (ptr[e.pointerId]) ptr[e.pointerId] = garage.drag; });
-  const up = e => { delete ptr[e.pointerId]; if (!Object.keys(ptr).length) garage.drag = null; };
-  window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
-  cv.addEventListener('wheel', e => { if (!garage.on) return; e.preventDefault(); garage.dist = Math.max(3.6, Math.min(9, garage.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
-}
 
 function frame(now) {
   requestAnimationFrame(frame);

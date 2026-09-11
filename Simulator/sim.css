@@ -218,9 +218,18 @@ body.garage #start,body.garage #hud{display:none}
 #g-room{display:flex;gap:6px;margin-top:8px}
 #g-room button{font:inherit;font-size:10px;letter-spacing:.2em;font-weight:700;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;cursor:pointer}
 #g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}
-#g-shop-head,.g-shop-head{margin:2px 0 10px}
-.g-shop-head b{display:block;font-size:18px;letter-spacing:.34em;color:var(--amber)}
-.g-shop-head span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px}
+#g-shop-head,.g-shop-head{margin:2px 0 12px}
+.g-shop-head b{display:block;font-size:22px;letter-spacing:.3em;color:var(--amber)}
+.g-shop-head span{display:block;font-size:12px;letter-spacing:.16em;color:var(--dim);margin-top:5px}
+/* THE SHOP reads bigger than the parts list: these are the big-ticket items */
+#g-cars .g-top b{font-size:16px}
+#g-cars .g-top i{font-size:14px}
+#g-cars .g-fit{font-size:12px}
+#g-cars .g-card button{font-size:14px;padding:10px 14px}
+#g-cars .g-card{cursor:pointer}
+#g-cars .g-card.previewing{border-color:var(--amber);box-shadow:0 0 18px rgba(255,210,31,.25)}
+#g-preview-tag{font-size:11px;letter-spacing:.2em;color:var(--amber);margin:-4px 0 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#g-preview-tag button{font:inherit;font-size:10px;letter-spacing:.18em;font-weight:700;padding:5px 10px;border-radius:999px;border:1px solid var(--amber);background:rgba(255,210,31,.12);color:var(--amber);cursor:pointer}
 #g-cars .g-card.on{border-color:var(--amber);box-shadow:0 0 18px rgba(46,230,255,.2)}
 #g-cars .g-card button[data-drive]{background:rgba(46,230,255,.18);color:var(--hud);border:1px solid var(--amber)}   /* the garage is the car and the panel, nothing else */
 #garage{position:absolute;top:0;right:0;bottom:0;width:min(470px,100%);box-sizing:border-box;background:linear-gradient(90deg,rgba(4,8,16,.35),rgba(4,8,16,.94) 16%);border-left:1px solid rgba(46,230,255,.35);box-shadow:-24px 0 70px rgba(0,0,0,.55);z-index:7;padding:18px 22px 24px;overflow:auto;pointer-events:auto;letter-spacing:.16em}
@@ -247,6 +256,8 @@ body.garage #start,body.garage #hud{display:none}
 .g-card button{margin-top:9px;font:inherit;font-size:12px;letter-spacing:.26em;font-weight:700;padding:8px 14px;border-radius:4px;border:0;background:#ffd21f;color:#1a1200;cursor:pointer;width:100%;box-shadow:0 0 16px rgba(255,210,31,.25)}
 .g-card button:disabled{background:rgba(255,255,255,.08);color:var(--dim);cursor:default;box-shadow:none}
 #g-paint{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#g-paint-toggle{grid-column:1/-1;font:inherit;font-size:14px;letter-spacing:.24em;font-weight:700;color:var(--amber);background:rgba(255,210,31,.08);border:1px dashed rgba(255,210,31,.5);border-radius:8px;padding:14px;cursor:pointer;text-align:center}
+#g-paint-toggle span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px;font-weight:400}
 .g-swatch{font:inherit;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:8px 10px;background:rgba(255,255,255,.04);color:var(--hud);cursor:pointer;text-align:left}
 .g-swatch i{width:22px;height:22px;border-radius:50%;flex:none;border:1px solid rgba(255,255,255,.35)}
 .g-swatch b{display:block;font-size:11px;letter-spacing:.16em}
@@ -266,7 +277,15 @@ body.garage #start,body.garage #hud{display:none}
 /* the account name: asked once on the first visit, changeable from the garage */
 #namebox{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,4,10,.82);z-index:8;pointer-events:auto;letter-spacing:.16em}
 #namebox.hidden{display:none}
-#namebox .card{background:rgba(4,8,16,.96);border:1px solid rgba(46,230,255,.45);box-shadow:0 0 60px rgba(46,230,255,.25);border-radius:10px;padding:26px 30px;width:min(92vw,460px);text-align:center}
+#confirm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,4,10,.85);z-index:9;pointer-events:auto;letter-spacing:.16em}
+#confirm.hidden{display:none}
+#confirm-title{margin:0 0 10px;font-size:20px;letter-spacing:.24em;color:var(--amber)}
+#confirm-sub{margin:0 0 20px;font-size:13px;letter-spacing:.16em;color:var(--hud);line-height:1.7}
+#confirm .btns{display:flex;gap:12px;justify-content:center}
+#confirm .btns button{font:inherit;font-size:13px;letter-spacing:.24em;font-weight:700;padding:9px 26px;border-radius:6px;cursor:pointer}
+#confirm-yes{border:0;background:var(--amber);color:#1a1200}
+#confirm-no{border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.06);color:var(--hud)}
+#confirm .card,#namebox .card{background:rgba(4,8,16,.96);border:1px solid rgba(46,230,255,.45);box-shadow:0 0 60px rgba(46,230,255,.25);border-radius:10px;padding:26px 30px;width:min(92vw,460px);text-align:center}
 #namebox h2{margin:0 0 8px;font-size:18px;letter-spacing:.3em;color:var(--amber);text-shadow:0 0 18px rgba(46,230,255,.45)}
 #namebox p{margin:0 0 16px;font-size:10px;letter-spacing:.24em;color:var(--dim);line-height:1.7}
 #name-in{font:inherit;font-size:26px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;text-align:center;width:100%;box-sizing:border-box;padding:10px 12px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:var(--hud);outline:none}
