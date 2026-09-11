@@ -417,6 +417,39 @@ speed/position across 90 simulated ticks with settings open, then normal
 continued acceleration once closed. Hook removed before committing --
 shipped diff is the one-line gate only.
 
+**Garage car-select fixes, same day:** Corey: clicking an owned car in THE
+SHOP to drive it "doesn't work," and asked to rename the button from DRIVE
+to something clearer. Two real things going on, both fixed:
+1. **The actual root cause -- every `flash()` message was invisible while
+   the garage was open.** `#msg` (the on-screen toast used for "NOT ENOUGH
+   MONEY", "BOUGHT · X", the hosted-only notice, etc.) lived inside `#hud`,
+   and `body.garage #hud{display:none}` hides the whole HUD while the
+   garage panel is open -- collapsing `#msg` to a zero-size, invisible
+   node regardless of its own opacity/class state. So every blocked action
+   in the garage (not enough money, a hosted-only car on the embedded
+   build) silently did nothing from the player's point of view: the code
+   ran, the message fired, nobody ever saw it. Fixed by moving `#msg` out
+   from under `#hud` to a top-level sibling (confirmed via getBoundingClientRect:
+   0x0x0x0 before, real on-screen dimensions after) plus a z-index (11, above
+   every other overlay) and `pointer-events:none` so it can't block clicks.
+   Also gave it a phone-width rule (wraps instead of running off both
+   edges of the screen) since the clearer new copy is longer than the old
+   one-word messages.
+2. **Renamed the DRIVE button to SELECT THIS CAR**, and simplified the
+   flow for cars you already own: clicking anywhere on an owned car's
+   card in THE SHOP now selects/drives it in one tap, no separate
+   preview-then-click-the-button step (that two-step still exists for a
+   NOT-owned car, where you should look before you buy). Also reworded the
+   hosted-only block message (fires when a hosted-only car is tapped on
+   the claude.ai artifact/single-file build, which only ever carries the
+   Revuelto) from the cryptic "AVAILABLE ON LAMBO-SIM.WEB.APP" to "HOSTED
+   SITE ONLY · LAMBO-SIM.WEB.APP" -- same fix that made it visible at all
+   also makes it worth being clearer.
+   Verified end to end on the hosted build (owned car selects in one tap,
+   not-owned car still only previews, no accidental purchase) and the
+   embedded build (hosted-only car now visibly blocked with the message
+   on screen, confirmed via layout rect, instead of a silent no-op).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

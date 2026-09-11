@@ -1955,7 +1955,7 @@ function garagePreview(id) {
   const C = CARS[id]; if (!C) return;
   if (carRoots[id]) { garagePreviewShow(id, carRoots[id]); return; }
   if (previewRoots[id]) { garagePreviewShow(id, previewRoots[id]); return; }
-  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('AVAILABLE ON LAMBO-SIM.WEB.APP', 2000); return; }
+  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }
   flash('LOADING ' + C.name + ' …', 3000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
     try { window.createImageBitmap = undefined; } catch (e) {}
@@ -2131,7 +2131,7 @@ function carSelect(id, save) {
   const C = CARS[id]; if (!C) return;
   const done = () => { if (save) { career.car = id; careerSave(); } if (typeof garageRefresh === 'function') garageRefresh(); };
   if (carRoots[id]) { carId = id; carApply(C); installModel(carRoots[id], id); done(); return; }
-  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('AVAILABLE ON LAMBO-SIM.WEB.APP', 2000); return; }   // the single-file page has only the Revuelto
+  if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }   // the single-file page has only the Revuelto
   flash('LOADING ' + C.name + ' …', 4000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
     try { window.createImageBitmap = undefined; } catch (e) {}
@@ -2825,7 +2825,7 @@ let paintOpen = false;
       (previewCar && previewCar !== carId ? `<div id="g-preview-tag">VIEWING · ${CARS[previewCar].name}<button id="g-preview-back">BACK TO MY CAR</button></div>` : '');
     for (const id in CARS) { const C = CARS[id], owned = career.cars.includes(id), on = id === carId, card = document.createElement('div'); card.className = 'g-card' + (on ? ' on' : '') + (previewCar === id ? ' previewing' : ''); card.dataset.view = id;
       card.innerHTML = `<div class="g-top"><b>LAMBORGHINI · ${C.name}</b><i>${on ? 'DRIVING' : owned ? 'OWNED' : fmtCash(C.price)}</i></div><div class="g-fit">${C.sub}</div>` + (C.note ? `<div class="g-fit"><span>${C.note}</span></div>` : '') +
-        (on ? '' : owned ? `<button data-drive="${id}">DRIVE</button>` : `<button data-buycar="${id}">BUY · ${fmtCash(C.price)}</button>`);
+        (on ? '' : owned ? `<button data-drive="${id}">SELECT THIS CAR</button>` : `<button data-buycar="${id}">BUY · ${fmtCash(C.price)}</button>`);
       cc.appendChild(card); }
     const st_ = career.stats;
     $('g-career').innerHTML = [['DRIVER', career.name || '—'], ['BALANCE', fmtCash(career.cash)], ['RACES', st_.races], ['WINS', st_.wins], ['PODIUMS', st_.podiums], ['TOTAL EARNED', fmtCash(st_.earned)], ['CAR', rating()], ['CARS OWNED', career.cars.length + ' / ' + Object.keys(CARS).length], ['PAINTS OWNED', career.paints.length + ' / ' + PAINTS.length], ['SAVE', cloud.status]]
@@ -2859,7 +2859,9 @@ let paintOpen = false;
       confirmAsk('BUY THIS?', 'LAMBORGHINI ' + C.name + ' · ' + fmtCash(C.price), () => { const r = buyCar(id); if (r === 'OK') { flash('BOUGHT · LAMBORGHINI ' + C.name, 1400, '#ffd21f'); garagePreviewClear(); carSelect(id, true); garageRefresh(); } else if (r === 'POOR') flash('NOT ENOUGH MONEY', 1200); });
       return; }
     const card = e.target.closest('[data-view]'); if (!card) return; e.stopPropagation();
-    garagePreview(card.dataset.view); garageRefresh();
+    const id = card.dataset.view;
+    if (id !== carId && career.cars.includes(id)) { garagePreviewClear(); carSelect(id, true); garageRefresh(); return; }   // already yours: one tap selects it, no preview step needed
+    garagePreview(id); garageRefresh();
   });
   gEl.addEventListener('click', e => e.stopPropagation());
   cloud.init(); paintBarLocks(); garageRefresh();
