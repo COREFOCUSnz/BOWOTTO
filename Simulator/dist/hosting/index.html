@@ -195,8 +195,8 @@ body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hid
    ran behind it, so the map list appears instantly) */
 #welcome{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,#0d1c34,#05070d 72%);overflow:hidden;padding:24px;box-sizing:border-box}
 #welcome.hidden{display:none}
-#welcome-car{position:absolute;left:50%;top:5%;width:min(620px,80vw);aspect-ratio:320/200;transform:translateX(-50%);background-image:url("");background-repeat:no-repeat;background-size:3600% 100%;animation:carspintron 3.2s steps(35) infinite;filter:drop-shadow(0 0 50px rgba(46,230,255,.35)) drop-shadow(0 16px 30px rgba(0,0,0,.6));pointer-events:none}
-@keyframes carspintron{from{background-position:0% 0}to{background-position:100% 0}}
+#welcome-car{position:absolute;left:50%;top:5%;width:min(620px,80vw);aspect-ratio:320/200;transform:translateX(-50%);background-image:url("");background-repeat:no-repeat;background-size:3600% 100%;animation:carspinhero 14s steps(35) infinite;filter:drop-shadow(0 0 50px rgba(46,230,255,.35)) drop-shadow(0 16px 30px rgba(0,0,0,.6));pointer-events:none}
+@keyframes carspinhero{from{background-position:0% 0}to{background-position:100% 0}}
 #welcome-text{position:relative;z-index:1;text-align:center;margin-top:min(36vh,340px);display:flex;flex-direction:column;align-items:center;gap:14px}
 #welcome-pres{font-size:13px;letter-spacing:.4em;color:var(--amber);text-shadow:0 0 14px rgba(46,230,255,.5)}
 #welcome-title{margin:0;font-size:clamp(38px,8vw,84px);font-weight:700;letter-spacing:.12em;text-shadow:0 0 40px rgba(46,230,255,.3)}
@@ -331,7 +331,7 @@ body.garage #start,body.garage #hud{display:none}
 <video id="revuelto-poster-video2" hidden muted loop playsinline preload="auto" src="poster2.webm"></video>
 <img id="prev-canyon" hidden alt="" src="previews/canyon.webp">
 <img id="carspin" hidden alt="" src="previews/carspin.webp">
-<img id="carspin-tron" hidden alt="" src="previews/carspin_tron.webp">
+<img id="carspin-hero" hidden alt="" src="previews/carspin_hero.webp">
 <img id="prev-city" hidden alt="" src="previews/city.webp">
 <img id="prev-docks" hidden alt="" src="previews/docks.webp">
 <img id="prev-grid" hidden alt="" src="previews/grid.webp">
@@ -5988,7 +5988,7 @@ function lobbyNext() {
   // that skips the lobby); everything behind it keeps preparing while it's up, so PLAY reveals it instantly
   const wEl = $('welcome');
   if (straight) { wEl.classList.add('hidden'); } else {
-    const strip = $('carspin-tron'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
+    const strip = $('carspin-hero'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
     const playGo = () => { wEl.classList.add('hidden'); };
     $('welcome-play').addEventListener('click', e => { e.stopPropagation(); playGo(); });
     wEl.addEventListener('click', e => e.stopPropagation());

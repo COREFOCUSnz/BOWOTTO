@@ -411,7 +411,7 @@ function lobbyNext() {
   // that skips the lobby); everything behind it keeps preparing while it's up, so PLAY reveals it instantly
   const wEl = $('welcome');
   if (straight) { wEl.classList.add('hidden'); } else {
-    const strip = $('carspin-tron'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
+    const strip = $('carspin-hero'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
     const playGo = () => { wEl.classList.add('hidden'); };
     $('welcome-play').addEventListener('click', e => { e.stopPropagation(); playGo(); });
     wEl.addEventListener('click', e => e.stopPropagation());

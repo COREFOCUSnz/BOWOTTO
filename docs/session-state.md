@@ -248,10 +248,12 @@ untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel.
 
 **Welcome screen, same day:** a title screen ahead of the lobby -- the
-Revuelto in its animated TRON LEGACY paint rotating above CORE FOCUS
+Revuelto slowly rotating (14s per turn) in CORE FOCUS LIVERY above CORE FOCUS
 PRODUCTIONS PRESENTS / LAMBORGHINI REVUELTO / PLAY, on a new hero sprite
-(`previews/carspin_tron.webp`, 36 frames at 320x200, same chroma-key render
-technique as the loading spinner). Uses the existing `straight` flag so any
+(`previews/carspin_hero.webp`, 36 frames at 320x200, same chroma-key render
+technique as the loading spinner; started as the animated TRON LEGACY paint,
+Corey asked for CORE FOCUS LIVERY instead and a much slower spin). Uses the
+existing `straight` flag so any
 internal reload (course change, resuming a chosen track) skips straight past
 it, same as the lobby. Two three.js/CSS gotchas from building it: the
 percentage-based sprite-sheet animation needs `steps(frameCount-1)`, not

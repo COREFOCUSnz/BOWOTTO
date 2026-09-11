@@ -67,7 +67,7 @@ def main():
         with open(q, "rb") as f:
             b = base64.b64encode(f.read()).decode("ascii")
         ptot += len(b)
-        ptags += '<img id="%s" hidden alt="" src="data:image/webp;base64,%s">\n' % ("carspin" if stem == "carspin" else "carspin-tron" if stem == "carspin_tron" else "prev-" + stem, b)
+        ptags += '<img id="%s" hidden alt="" src="data:image/webp;base64,%s">\n' % ("carspin" if stem == "carspin" else "carspin-hero" if stem == "carspin_hero" else "prev-" + stem, b)
     if prevs:
         print("embedded %d previews (%d KB)" % (len(prevs), ptot // 1024))
     rooms = [os.path.join(HERE, "models", r + ".glb") for r in ("studio", "showroom", "wing")]   # garage rooms and the GT wing, small GLBs
@@ -128,7 +128,7 @@ def main():
         for q in prevs:
             stem = os.path.basename(q)[:-5]
             shutil.copyfile(q, os.path.join(host, "previews", stem + ".webp"))
-            htags += '<img id="%s" hidden alt="" src="previews/%s.webp">\n' % ("carspin" if stem == "carspin" else "carspin-tron" if stem == "carspin_tron" else "prev-" + stem, stem)
+            htags += '<img id="%s" hidden alt="" src="previews/%s.webp">\n' % ("carspin" if stem == "carspin" else "carspin-hero" if stem == "carspin_hero" else "prev-" + stem, stem)
     if htags:
         hpage = hpage.replace("<div id=\"app\">", htags + "<div id=\"app\">", 1)
     with open(os.path.join(host, "index.html"), "w", encoding="utf-8") as f:
