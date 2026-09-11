@@ -173,6 +173,26 @@ convention and the Unreal-style skeleton); a new one means adding its names to
 the alias table at the top of `tools/extract-character.js`. Source files must be
 **glTF or GLB** — FBX and USDZ cannot be read here.
 
+### Props
+
+Static set dressing — crates, terminals, signage, anything modelled in Blender —
+goes in without touching the map source:
+
+```
+node tools/extract-prop.js crate.glb crate assets/models --height=0.9
+node tools/extract-character-textures.js crate.glb crate assets/models
+node tools/place-prop.js add crate -4 0 12 --yaw=30
+node tools/place-prop.js list
+```
+
+Props are drawn through the skinned path with a single bone carrying the
+placement matrix, so they cost no extra renderer code — and they have **no
+collision**. Anything solid belongs in the voxel map in `js/map2fort.js`.
+
+`BLENDER.md` walks through the whole asset pipeline from the Blender side:
+export settings, budgets, what the rig needs, and why map geometry is harder
+than it looks.
+
 ## Credits
 
 Tron: **"Tron Willow"** and **"Ares (Tron) Helmet"** by **SpringSociety**.

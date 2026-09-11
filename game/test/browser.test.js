@@ -25,7 +25,14 @@ const path = require('path');
         if (!M.textures[g.texFile]) unresolved.push(name + '/' + g.material + ' base');
         if (g.emisFile && !M.textures[g.emisFile]) unresolved.push(name + '/' + g.material + ' emissive');
       }
+      // static props share the skinned path with a single bone, and every
+      // placement has to name a prop that actually loaded
+      const props = Object.keys(M.manifest.props || {});
+      const badProps = props.filter((n) => !M.models[n] || M.models[n].boneCount !== 1);
+      const badPlacements = (M.manifest.placements || []).filter((pl) => !M.prop(pl.prop)).map((pl) => pl.prop);
       return { names, textures: Object.keys(M.textures).length, unresolved,
+        props, badProps, badPlacements,
+        placements: (M.manifest.placements || []).length,
         glow: names.filter((n) => M.models[n].glow) };
     });
     console.log('character models:', m.names.length, '| textures:', m.textures, '| team suits:', m.glow.join(','));
@@ -34,6 +41,9 @@ const path = require('path');
     if (missing.length) { console.log('FAIL: missing models ' + missing.join(', ')); process.exit(1); }
     if (m.unresolved.length) { console.log('FAIL: groups with no texture: ' + m.unresolved.join(', ')); process.exit(1); }
     if (m.glow.length !== 2) { console.log('FAIL: expected two glowing team suits, got ' + m.glow.length); process.exit(1); }
+    console.log('props:', m.props.length ? m.props.join(', ') : '(none)', '| placed:', m.placements);
+    if (m.badProps.length) { console.log('FAIL: props that are not single-bone statics: ' + m.badProps.join(', ')); process.exit(1); }
+    if (m.badPlacements.length) { console.log('FAIL: placements naming a prop that did not load: ' + m.badPlacements.join(', ')); process.exit(1); }
   } else {
     const fell = await page.evaluate(() => window.__models.failed === true);
     console.log('file:// fallback to blocky players:', fell ? 'ok' : 'UNEXPECTED');

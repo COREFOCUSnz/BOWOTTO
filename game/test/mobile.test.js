@@ -115,8 +115,11 @@ const path = require('path');
   await page.waitForFunction(() => window.__human.onGround, null, { timeout: 5000 }).catch(() => {});
   const groundY = await page.evaluate(() => window.__human.pos[1]);
   await page.dispatchEvent('#touch .jump', 'touchstart', { touches: [], changedTouches: [], targetTouches: [] });
-  await page.waitForTimeout(150);
-  const jumped = await page.evaluate((y) => window.__human.pos[1] > y + 0.15 || window.__human.vel[1] > 1, groundY);
+  // Poll rather than sleep a fixed 150 ms: under software GL the game can run at
+  // 1.5 fps, and one frame is then longer than the wait, so the press is never
+  // read and a working button reads as dead.
+  const jumped = await page.waitForFunction((y) => window.__human.pos[1] > y + 0.15 || window.__human.vel[1] > 1,
+    groundY, { timeout: 6000, polling: 30 }).then(() => true, () => false);
   await page.dispatchEvent('#touch .jump', 'touchend', { touches: [], changedTouches: [], targetTouches: [] });
   jumped ? pass('jump button left the ground') : fail('jump button did nothing');
 

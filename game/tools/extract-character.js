@@ -16,7 +16,7 @@ for (const a of argv) {
 const SRC = positional[0], NAME = positional[1];
 const OUT = positional[2] || path.join(__dirname, '..', 'assets', 'models');
 if (!SRC || !NAME) {
-  console.error('usage: extract-character.js <source.glb> <name> [outDir] [--set=id] [--label="Menu name"] [--slot=blue|red] [--credit="..."]');
+  console.error('usage: extract-character.js <source.glb> <name> [outDir] [--set=id] [--label="Menu name"] [--slot=blue|red|<class>] [--mode=team|class] [--glow=false] [--credit="..."]');
   process.exit(1);
 }
 const TARGET_HEIGHT = 1.80;
@@ -294,12 +294,18 @@ manifest.characters[NAME] = { file: NAME + '.json', verts: vAll.length, tris: iA
 // it up without any code change.
 if (flags.set) {
   manifest.sets = manifest.sets || {};
-  const set = manifest.sets[flags.set] || { label: flags.label || flags.set, mode: 'team', glow: true, models: {} };
+  const slot = flags.slot || 'blue';
+  // A slot that names a class rather than a side makes this a per-class set
+  // (like the TF2 mercenaries); --mode overrides if you need to be explicit.
+  const guessed = slot === 'blue' || slot === 'red' ? 'team' : 'class';
+  const set = manifest.sets[flags.set] || { label: flags.label || flags.set, mode: guessed, glow: flags.glow !== 'false', models: {} };
+  if (flags.mode) set.mode = flags.mode;
   if (flags.label) set.label = flags.label;
   if (flags.credit) set.credit = flags.credit;
-  set.models[flags.slot || 'blue'] = NAME;
+  if (flags.glow !== undefined) set.glow = flags.glow !== 'false';
+  set.models[slot] = NAME;
   manifest.sets[flags.set] = set;
-  console.log(`  registered in set "${set.label}" as ${flags.slot || 'blue'}`);
+  console.log(`  registered in set "${set.label}" (${set.mode}) as ${slot}`);
 }
 fs.writeFileSync(mfPath, JSON.stringify(manifest, null, 1));
 console.log(`${NAME.padEnd(8)} ${String(vAll.length).padStart(6)}v ${String(iAll.length/3).padStart(6)}t ${(Math.ceil(out.length*4/3)/1024).toFixed(0).padStart(5)}KB groups=${merged.length} rawH=${rawH.toFixed(2)} -> ${TARGET_HEIGHT}m`);
