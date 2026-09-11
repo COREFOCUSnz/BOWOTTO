@@ -97,6 +97,7 @@ body.touch .touchonly{display:flex!important}
 @media (max-width:820px){#tach{width:150px;height:150px}#spd{font-size:50px}#gear{font-size:44px}#help{display:none}#top-right{transform:scale(.8);transform-origin:top right}#top-left .brand{font-size:24px}#top-left .model{font-size:20px}#mode-name{font-size:24px}}
 
 #paints{position:absolute;right:22px;bottom:150px;display:grid;grid-template-columns:repeat(2,26px);gap:7px;pointer-events:auto;background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px}
+#paints.hidden{display:none}
 #paints button{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
 #paints button:hover{transform:scale(1.12)}
 #paints button.on{border-color:#fff;box-shadow:0 0 12px rgba(46,230,255,.6)}
@@ -8319,12 +8320,13 @@ function shiftTo(g) { if (g < 0 || g > 7 || g === st.gear) return; st.gear = g; 
 function shiftManual(d) { if (st.auto) { st.auto = false; $('gearlbl').textContent = 'MANUAL'; } if (!st.reverse) shiftTo(st.gear + d); }
 function startGame() {
   if (!$('start').classList.contains('hidden')) $('start').classList.add('hidden'); else return;
+  $('paints').classList.add('hidden');   // the paint picker is a menu control, not part of the driving HUD -- especially in the way on a phone
   if (!st.started) { st.started = true; audio.start(); setMode(st.mode); setPaint(paintIdx); }
   startRace(GAME.mode, GAME.laps);
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
 { // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
   // rebuilds the page) comes back to the mode screen with everything as it was

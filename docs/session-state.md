@@ -391,6 +391,16 @@ Verified: sampling all three rivals' s/d/psi/u/dv every 1.5s through a
 full 3s countdown window showed byte-for-byte identical values (fully
 frozen), confirming no residual creep or twitch.
 
+**Paint bar hidden while driving, same day:** Corey: get rid of the quick
+paint-swatch bar while actually driving, especially on a phone where it eats
+real HUD space. `#paints` was a top-level element with no state-based hide
+of its own -- always on screen, menu or not. Hidden in `startGame()`
+(alongside where `#start` itself gets hidden) and shown again in `toMenu()`
+(alongside where `#start` reappears), so it now only shows on the
+menu/mode-select screen where it's actually useful, and disappears the
+instant a race starts. Verified the round trip (menu -> driving -> ESC back
+to menu) and a phone-size driving screenshot with it gone.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

@@ -2723,12 +2723,13 @@ function shiftTo(g) { if (g < 0 || g > 7 || g === st.gear) return; st.gear = g; 
 function shiftManual(d) { if (st.auto) { st.auto = false; $('gearlbl').textContent = 'MANUAL'; } if (!st.reverse) shiftTo(st.gear + d); }
 function startGame() {
   if (!$('start').classList.contains('hidden')) $('start').classList.add('hidden'); else return;
+  $('paints').classList.add('hidden');   // the paint picker is a menu control, not part of the driving HUD -- especially in the way on a phone
   if (!st.started) { st.started = true; audio.start(); setMode(st.mode); setPaint(paintIdx); }
   startRace(GAME.mode, GAME.laps);
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
 { // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
   // rebuilds the page) comes back to the mode screen with everything as it was
