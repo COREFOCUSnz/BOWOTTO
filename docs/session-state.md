@@ -112,3 +112,13 @@ UI iterated three times based on Corey's feedback:
 - Measured cabinet IR (method known, no capture session yet).
 - Still in scope but deferred: ORION PACK completion (AAX for Pro Tools,
   Windows builds on real hardware).
+
+---
+
+## Side project (not the plugin): `game/`
+
+Corey asked for a browser Team Fortress Classic / 2Fort tribute to host on
+Firebase later. It lives entirely in `game/` (plain JS + WebGL, no deps, no
+build), with its own README, tests (`cd game && npm test`) and
+`firebase.json`. It does not touch the plugin sources, CMake, version or the
+plugin README. Branch: `claude/team-fortress-classic-game-l8qs5f`.
