@@ -1,11 +1,15 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, Renderer, GameAudio, Game, BotBrain, botClassFor, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
-  const settings = Object.assign({ teamSize: 5, fill: true, skill: 0.55, sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
+  const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
+  if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
+  const botSkill = () => DIFFICULTIES[settings.difficulty];
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const canvas = $('c');
   let renderer;
@@ -40,10 +44,10 @@
         const used = new Set(game.players.map((p) => p.name));
         let name = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]; let k = 0; while (used.has(name)) name = BOT_NAMES[(k++) % BOT_NAMES.length] + (k > BOT_NAMES.length ? k : '');
         const b = game.addPlayer(name, team, true); b.cls = botClassFor(idx + (team === RED ? 3 : 0)); b.wantsRespawn = true; b.respawnAt = game.time + Math.random() * 2;
-        brains.set(b, new BotBrain(game, b, settings.skill)); bots.push(b); idx++;
+        brains.set(b, new BotBrain(game, b, botSkill())); bots.push(b); idx++;
       }
     }
-    for (const [, br] of brains) br.skill = settings.skill;
+    for (const [, br] of brains) br.skill = botSkill();
   }
 
   // --------------------------------------------------------------- input
@@ -146,6 +150,7 @@
         <button data-k="5"><b>5</b> Controls</button>
         <button data-k="6"><b>6</b> Restart round</button>
         <button data-k="7"><b>7</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
+        <button data-k="8"><b>8</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
       </div><div class="hint">Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
     } else if (menu === 'team') {
       html = title + `<div class="list"><div class="h">Choose a team</div>
@@ -162,7 +167,7 @@
         <label>Your name <input id="s_name" value="${escapeHtml(settings.name)}" maxlength="16"></label>
         <label>Fill teams with bots <input id="s_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
         <label>Players per team <input id="s_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="s_size_v">${settings.teamSize}</span></label>
-        <label>Bot skill <select id="s_skill"><option value="0.3"${settings.skill === 0.3 ? ' selected' : ''}>Easy</option><option value="0.55"${settings.skill === 0.55 ? ' selected' : ''}>Normal</option><option value="0.8"${settings.skill === 0.8 ? ' selected' : ''}>Hard</option></select></label>
+        <label>Bot difficulty <select id="s_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
         <label>Field of view <input id="s_fov" type="range" min="60" max="110" value="${settings.fov}"> <span id="s_fov_v">${settings.fov}</span></label>
         <label>Volume <input id="s_vol" type="range" min="0" max="1" step="0.05" value="${settings.volume}"></label>
@@ -194,7 +199,7 @@
     $('s_name').addEventListener('input', (e) => { settings.name = e.target.value.slice(0, 16) || 'Player'; human.name = settings.name; saveSettings(); });
     $('s_fill').addEventListener('change', (e) => { settings.fill = e.target.checked; saveSettings(); syncBots(); });
     $('s_size').addEventListener('input', (e) => { settings.teamSize = parseInt(e.target.value, 10); $('s_size_v').textContent = settings.teamSize; saveSettings(); syncBots(); });
-    $('s_skill').addEventListener('change', (e) => { settings.skill = parseFloat(e.target.value); saveSettings(); syncBots(); });
+    $('s_skill').addEventListener('change', (e) => { settings.difficulty = e.target.value; saveSettings(); syncBots(); });
     $('s_sens').addEventListener('input', (e) => { settings.sens = parseFloat(e.target.value); saveSettings(); });
     $('s_fov').addEventListener('input', (e) => { settings.fov = parseInt(e.target.value, 10); $('s_fov_v').textContent = settings.fov; saveSettings(); });
     $('s_vol').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); audio.setVolume(settings.volume); saveSettings(); });
@@ -213,6 +218,7 @@
       if (k === '2') openMenu('class'); if (k === '3') openMenu('team'); if (k === '4') openMenu('settings'); if (k === '5') openMenu('help');
       if (k === '6') { restart(); closeMenu(); }
       if (k === '7') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
+      if (k === '8') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
       let team = k === '1' ? BLUE : k === '2' ? RED : (game.teamCount(BLUE) <= game.teamCount(RED) ? BLUE : RED);

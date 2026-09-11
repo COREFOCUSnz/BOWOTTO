@@ -6,6 +6,8 @@
   const { WEAPONS, CLASSES } = isNode ? require('./defs.js') : root;
   const { BLUE, RED } = isNode ? require('./map2fort.js') : root;
 
+  // Difficulty presets: skill 0..1 drives reaction time, aim error, turn speed, sight range and grenade use.
+  const DIFFICULTIES = { easy: 0.2, medium: 0.45, hard: 0.65, difficult: 0.82, godly: 1.0 };
   class BotBrain {
     constructor(game, p, skill) {
       this.game = game; this.p = p; this.skill = skill;
@@ -108,10 +110,10 @@
       for (const q of g.players) {
         if (!q.alive || q.team === p.team || q === p) continue;
         if (q.disguise === p.team && q.lastFire < g.time - 1 && (q.lastAttacker !== p)) continue; // fooled by the spy
-        const d = V.dist(eye, q.center()); if (d > 60 || d > bd) continue;
+        const d = V.dist(eye, q.center()); if (d > 35 + this.skill * 65 || d > bd) continue;
         // field of view unless recently hurt by them
         const to = V.norm(V.sub(q.center(), eye)); const fwd = V.forward(p.yaw, p.pitch);
-        if (V.dot(to, fwd) < -0.2 && p.lastAttacker !== q && d > 4) continue;
+        if (V.dot(to, fwd) < (this.skill > 0.9 ? -0.95 : 0.1 - this.skill * 0.4) && p.lastAttacker !== q && d > 4) continue;
         if (!g.world.lineClear(eye, q.center()) && !g.world.lineClear(eye, q.eye())) continue;
         best = q; bd = d;
       }
@@ -146,7 +148,7 @@
       const g = this.game, p = this.p;
       if (!p.alive) { this.path = null; this.goalKey = ''; this.target = null; return; }
       this.thinkAt -= dt;
-      if (this.thinkAt <= 0) { this.thinkAt = 0.12 + Math.random() * 0.06; if (!this.roleSet) { this.decideRole(); this.roleSet = true; } this.think(); }
+      if (this.thinkAt <= 0) { this.thinkAt = 0.06 + (1 - this.skill) * 0.28 + Math.random() * 0.06; if (!this.roleSet) { this.decideRole(); this.roleSet = true; } this.think(); }
       const inp = p.input; inp.dir = [0, 0, 0]; inp.jump = false; inp.fire = false; inp.alt = false; inp.gren = [false, false];
       // ---- movement along the path
       let moveTarget = null;
@@ -199,9 +201,9 @@
         if (w.type === 'proj' && (w.proj === 'pipe')) { aimAt = V.add(aimAt, [0, V.dist(eye, aimAt) * 0.12, 0]); }
         if (aimEnt && w.type === 'proj' && w.proj === 'rocket' && aimEnt.onGround) aimAt = [aimAt[0], aimEnt.pos[1] + 0.3, aimAt[2]]; // aim at feet
         // skill-based aim error that wanders
-        this.aimErrT -= dt; if (this.aimErrT <= 0) { this.aimErrT = rand(0.3, 0.8); const e = (1 - this.skill) * 0.14 + 0.01; this.aimErr = [rand(-e, e), rand(-e, e)]; }
+        this.aimErrT -= dt; if (this.aimErrT <= 0) { this.aimErrT = rand(0.3, 0.8); const e = Math.pow(1 - this.skill, 1.5) * 0.16 + 0.004; this.aimErr = [rand(-e, e), rand(-e, e)]; }
         const wantYaw = V.yawTo(eye, aimAt) + this.aimErr[0], wantPitch = V.pitchTo(eye, aimAt) + this.aimErr[1];
-        const rate = (4 + this.skill * 6) * dt;
+        const rate = (3 + this.skill * 9) * dt;
         p.yaw += clamp(angleDiff(p.yaw, wantYaw), -rate, rate);
         p.pitch = clamp(p.pitch + clamp(wantPitch - p.pitch, -rate, rate), -1.4, 1.4);
         const err = Math.abs(angleDiff(p.yaw, wantYaw)) + Math.abs(wantPitch - p.pitch);
@@ -217,7 +219,7 @@
         // grenades
         if (this.target && !p.grenPrime) {
           this.grenT -= dt;
-          if (this.grenT <= 0) { this.grenT = rand(3, 7); if (dist > 5 && dist < 22 && Math.random() < 0.6) { const slot = p.gren[0] > 0 && p.def.gren[0] && p.def.gren[0] !== 'caltrop' ? 0 : p.gren[1] > 0 && p.def.gren[1] ? 1 : -1; if (slot >= 0) { g.primeGrenade(p, slot); p.grenPrime.hold = rand(1.5, 2.6); } } }
+          if (this.grenT <= 0) { this.grenT = rand(3, 7) * (1.3 - this.skill * 0.8); if (dist > 5 && dist < 22 && Math.random() < 0.3 + this.skill * 0.6) { const slot = p.gren[0] > 0 && p.def.gren[0] && p.def.gren[0] !== 'caltrop' ? 0 : p.gren[1] > 0 && p.def.gren[1] ? 1 : -1; if (slot >= 0) { g.primeGrenade(p, slot); p.grenPrime.hold = rand(1.5, 2.6); } } }
         }
         if (p.cls === 'demoman' && w === WEAPONS.pl && Math.random() < dt * 2) inp.alt = true;
       } else {
@@ -240,6 +242,6 @@
   const LINEUP = ['soldier', 'scout', 'demoman', 'medic', 'sniper', 'hwguy', 'pyro', 'engineer', 'spy', 'soldier', 'scout', 'medic'];
   function botClassFor(index) { return LINEUP[index % LINEUP.length]; }
 
-  const out = { BotBrain, botClassFor };
+  const out = { BotBrain, botClassFor, DIFFICULTIES };
   if (isNode) module.exports = out; else Object.assign(root, out);
 })(typeof window !== 'undefined' ? window : globalThis);
