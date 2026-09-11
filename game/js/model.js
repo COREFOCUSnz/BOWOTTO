@@ -81,7 +81,9 @@
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint8Array(buf, off, iBytes), gl.STATIC_DRAW);
       this.indexType = indexBits === 32 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
       this.indexBytes = indexBits === 32 ? 4 : 2;
-      this.groups = meta.groups.map((gr) => ({ offset: gr.offset, count: gr.count, material: gr.material, texFile: manifest.textures[gr.material] }));
+      this.groups = meta.groups.map((gr) => ({ offset: gr.offset, count: gr.count, material: gr.material,
+        texFile: manifest.textures[gr.material], emisFile: (manifest.emissive || {})[gr.material] }));
+      this.glow = !!meta.glow;
       this.tris = meta.tris;
       // rest-pose world matrices, used for bone lengths and anchor heights
       this.restWorld = new Float32Array(this.boneCount * 16);
@@ -169,7 +171,8 @@
     solveArm(shoulder, elbow, hand, target, pole) {
       const m = this.model;
       const S = this.bonePos(shoulder, this.v0);
-      const L1 = m.armUpper, L2 = m.armFore;
+      const sc = this.scale || 1;
+      const L1 = m.armUpper * sc, L2 = m.armFore * sc;
       let dx = target[0]-S[0], dy = target[1]-S[1], dz = target[2]-S[2];
       let d = Math.hypot(dx, dy, dz);
       const dmin = Math.abs(L1 - L2) + 1e-3, dmax = L1 + L2 - 1e-3;
@@ -211,9 +214,10 @@
         this.manifest = manifest;
         manifest.rig.forEach((n, i) => { BONE[n] = i; });
         this.bone = BONE;
-        const texFiles = [...new Set(Object.values(manifest.textures))];
+        const texFiles = [...new Set([...Object.values(manifest.textures), ...Object.values(manifest.emissive || {})])];
         await Promise.all(texFiles.map((f) => this.loadTexture(base + f, f)));
-        await Promise.all(Object.entries(manifest.classes).map(async ([name, meta]) => {
+        const all = Object.assign({}, manifest.classes, manifest.characters || {});
+        await Promise.all(Object.entries(all).map(async ([name, meta]) => {
           const r = await fetch(base + meta.file);
           if (!r.ok) throw new Error(meta.file + ' ' + r.status);
           const wrapped = await r.json();

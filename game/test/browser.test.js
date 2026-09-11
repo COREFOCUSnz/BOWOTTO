@@ -16,9 +16,24 @@ const path = require('path');
   const httpServed = /^https?:/.test(url);
   if (httpServed) {
     await page.waitForFunction(() => window.__modelsReady && window.__modelsReady(), null, { timeout: 40000 });
-    const m = await page.evaluate(() => ({ models: Object.keys(window.__models.models).length, textures: Object.keys(window.__models.textures).length }));
-    console.log('character models:', JSON.stringify(m));
-    if (m.models !== 8 || m.textures < 20) { console.log('FAIL: character models incomplete'); process.exit(1); }
+    const m = await page.evaluate(() => {
+      const M = window.__models;
+      const names = Object.keys(M.models);
+      // every group of every model must resolve to a texture that actually loaded
+      const unresolved = [];
+      for (const [name, mod] of Object.entries(M.models)) for (const g of mod.groups) {
+        if (!M.textures[g.texFile]) unresolved.push(name + '/' + g.material + ' base');
+        if (g.emisFile && !M.textures[g.emisFile]) unresolved.push(name + '/' + g.material + ' emissive');
+      }
+      return { names, textures: Object.keys(M.textures).length, unresolved,
+        glow: names.filter((n) => M.models[n].glow) };
+    });
+    console.log('character models:', m.names.length, '| textures:', m.textures, '| team suits:', m.glow.join(','));
+    const wantClasses = ['scout', 'sniper', 'soldier', 'medic', 'heavy', 'pyro', 'spy', 'engineer'];
+    const missing = [...wantClasses, 'tron_blue', 'tron_red'].filter((n) => !m.names.includes(n));
+    if (missing.length) { console.log('FAIL: missing models ' + missing.join(', ')); process.exit(1); }
+    if (m.unresolved.length) { console.log('FAIL: groups with no texture: ' + m.unresolved.join(', ')); process.exit(1); }
+    if (m.glow.length !== 2) { console.log('FAIL: expected two glowing team suits, got ' + m.glow.length); process.exit(1); }
   } else {
     const fell = await page.evaluate(() => window.__models.failed === true);
     console.log('file:// fallback to blocky players:', fell ? 'ok' : 'UNEXPECTED');

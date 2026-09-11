@@ -8,7 +8,7 @@
   const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches);
   // A phone gets a smaller match, a lower render scale and some aim help on first run.
   const firstRunDefaults = coarse ? { teamSize: 4, resolution: 0.75, aimAssist: 0.6, particleBudget: 220 } : {};
-  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, charSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
   const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
   if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
@@ -42,6 +42,10 @@
   const poses = new Map();
   let modelsReady = false;
   const CLASS_MODEL = { scout: 'scout', sniper: 'sniper', soldier: 'soldier', demoman: 'soldier', medic: 'medic', hwguy: 'heavy', pyro: 'pyro', spy: 'spy', engineer: 'engineer' };
+  // One suit per team means every class shares a mesh, so keep the height differences
+  // the mercenaries had; a Heavy still reads as bigger than a Scout.
+  const CLASS_SCALE = { scout: 0.98, sniper: 1.04, soldier: 1.02, demoman: 1.02, medic: 1.01, hwguy: 1.06, pyro: 0.96, spy: 1.0, engineer: 0.92 };
+  const TEAM_GLOW = [[0.40, 1.30, 2.40], [2.40, 0.55, 0.18]];   // blue: cyan, red: orange
   const GRIP_FOR = { ac: 'heavy', flamer: 'heavy', rpg: 'launcher', ic: 'launcher', gl: 'launcher', pl: 'launcher', tranq: 'pistol', railgun: 'pistol' };
   if (renderer.skinProg) models.load('assets/models/').then((ok) => { modelsReady = ok; if (ok && menu) renderMenu(); });
   function poseFor(p, model) {
@@ -49,8 +53,13 @@
     if (!e || e.model !== model) { e = { model, pose: new Pose(model) }; poses.set(p, e); }
     return e.pose;
   }
+  function teamOf(p) { return p.disguise >= 0 ? p.disguise : p.team; }
   function modelFor(p) {
     if (!modelsReady) return null;
+    if (settings.charSet === 'tron') {
+      const m = models.get(teamOf(p) === BLUE ? 'tron_blue' : 'tron_red');
+      if (m) return m;
+    }
     const cls = p.disguise >= 0 && p.disguiseCls ? p.disguiseCls : p.cls;
     return models.get(CLASS_MODEL[cls] || 'soldier');
   }
@@ -251,6 +260,7 @@
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
         ${touch.enabled ? `<label>Touch look speed <input id="s_tsens" type="range" min="0.0015" max="0.009" step="0.0001" value="${settings.touchSens}"></label>
         <label>Aim assist <select id="s_assist"><option value="0"${settings.aimAssist === 0 ? ' selected' : ''}>Off</option><option value="0.6"${settings.aimAssist === 0.6 ? ' selected' : ''}>Light</option><option value="1.2"${settings.aimAssist === 1.2 ? ' selected' : ''}>Strong</option></select></label>` : ''}
+        <label>Characters <select id="s_chars"><option value="tron"${settings.charSet === 'tron' ? ' selected' : ''}>Grid suits (per team)</option><option value="mercs"${settings.charSet === 'mercs' ? ' selected' : ''}>Mercenaries (per class)</option></select></label>
         <label>Effects <select id="s_fx"><option value="220"${settings.particleBudget === 220 ? ' selected' : ''}>Low</option><option value="900"${settings.particleBudget === 900 ? ' selected' : ''}>Normal</option><option value="1600"${settings.particleBudget === 1600 ? ' selected' : ''}>Heavy</option></select></label>
         <label>Resolution <select id="s_res"><option value="0.6"${settings.resolution === 0.6 ? ' selected' : ''}>Low (fastest)</option><option value="0.75"${settings.resolution === 0.75 ? ' selected' : ''}>Medium</option><option value="1.25"${settings.resolution === 1.25 ? ' selected' : ''}>High</option><option value="2"${settings.resolution === 2 ? ' selected' : ''}>Sharpest</option></select></label>
         <label>Field of view <input id="s_fov" type="range" min="60" max="110" value="${settings.fov}"> <span id="s_fov_v">${settings.fov}</span></label>
@@ -347,14 +357,20 @@
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'credits') {
       html = title + `<div class="list help"><div class="h">Credits</div>
-        <p><b>Characters</b><br>
-        "All of the team Fortress 2 red team Mercenaries" by <b>inonshalev42</b>, published on Sketchfab and
-        licensed under <b>Creative Commons Attribution</b> (CC BY). The models were rescaled, split per class,
-        reduced to a 23-bone rig and re-textured for the web; they are animated procedurally here.</p>
-        <p><b>Game</b><br>Built by Core Focus Productions as a tribute to <i>Half-Life: Team Fortress Classic</i> and its
-        map 2Fort. Team Fortress is a trademark of Valve Corporation, which is not affiliated with this project.
-        No Valve game files are used: the map, weapons, sounds and code are original.</p>
-        <p><b>Note</b><br>The character set has no Demoman, so the Demoman uses the Soldier model.</p>
+        <h4>Characters</h4>
+        <p>The Grid suits, one per team:<br>
+        <b>"Tron Willow"</b> and <b>"Ares (Tron) Helmet"</b> by <b>SpringSociety</b>, published on Sketchfab
+        under <b>Creative Commons Attribution</b> (CC BY).</p>
+        <p>The per-class mercenaries, selectable under Settings:<br>
+        <b>"All of the team Fortress 2 red team Mercenaries"</b> by <b>inonshalev42</b>, published on Sketchfab
+        under <b>Creative Commons Attribution</b> (CC BY).</p>
+        <p>All of them were rescaled, retargeted onto a shared 23-bone rig and re-textured for the web.
+        None of the source files contain animation, so every pose in this game is generated at runtime.</p>
+        <h4>Game</h4>
+        <p>Built by Core Focus Productions as a tribute to <i>Half-Life: Team Fortress Classic</i> and its map
+        2Fort. Team Fortress is a trademark of Valve Corporation and Tron is a trademark of Disney; neither is
+        affiliated with this project. No game files from either are used: the map, weapons, sounds and code are
+        original.</p>
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'end') {
       const w = game.score[0] > game.score[1] ? 'Blue wins!' : game.score[1] > game.score[0] ? 'Red wins!' : 'Draw!';
@@ -376,6 +392,7 @@
     if ($('s_assist')) $('s_assist').addEventListener('change', (e) => { settings.aimAssist = parseFloat(e.target.value); saveSettings(); });
     $('s_res').addEventListener('change', (e) => { settings.resolution = parseFloat(e.target.value); saveSettings(); });
     $('s_fx').addEventListener('change', (e) => { settings.particleBudget = parseInt(e.target.value, 10); saveSettings(); });
+    $('s_chars').addEventListener('change', (e) => { settings.charSet = e.target.value; poses.clear(); saveSettings(); });
     $('s_fov').addEventListener('input', (e) => { settings.fov = parseInt(e.target.value, 10); $('s_fov_v').textContent = settings.fov; saveSettings(); });
     $('s_vol').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); audio.setVolume(settings.volume); saveSettings(); });
     $('s_ann').addEventListener('change', (e) => { settings.announcer = e.target.checked; audio.announcer = settings.announcer; saveSettings(); });
@@ -494,8 +511,9 @@
   const CLASS_HAT = { scout: [0.2, 0.2, 0.2], sniper: [0.35, 0.3, 0.2], soldier: [0.25, 0.3, 0.2], demoman: [0.15, 0.15, 0.15], medic: [0.95, 0.95, 0.95], hwguy: [0.3, 0.3, 0.3], pyro: [0.1, 0.1, 0.1], spy: [0.2, 0.2, 0.25], engineer: [0.95, 0.8, 0.2] };
   function teamColor(t) { return TEAM_COLORS[t]; }
   // Root matrix placing a character in the world (handles the death topple).
-  function playerRoot(p) {
+  function playerRoot(p, scale) {
     let m = M.mul(M.translate(p.pos[0], p.pos[1], p.pos[2]), M.rotY(p.yaw));
+    if (scale && scale !== 1) m = M.mul(m, M.scale(scale, scale, scale));
     if (!p.alive) {
       const t = clamp((game.time - p.deadAt) / 0.45, 0, 1);
       const fall = t * t * (3 - 2 * t);
@@ -523,10 +541,17 @@
       if (!visible(p.pos, cull.char)) continue;
       const model = modelFor(p); if (!model) continue;
       const pose = poseFor(p, model);
-      const st = poseState(p); st.root = playerRoot(p);
+      const scale = model.glow ? (CLASS_SCALE[p.cls] || 1) : 1;
+      pose.scale = scale;
+      const st = poseState(p); st.root = playerRoot(p, scale);
       animate(pose, st);
-      const team = p.disguise >= 0 ? p.disguise : p.team;
-      renderer.drawSkinned(model, pose, { textures: models.textures, teamSwap: team === BLUE ? 1 : 0, flash: p.hitFlash > 0 ? 0.45 : 0 });
+      const team = teamOf(p);
+      renderer.drawSkinned(model, pose, {
+        textures: models.textures,
+        teamSwap: model.glow ? 0 : (team === BLUE ? 1 : 0),
+        glow: model.glow ? TEAM_GLOW[team] : null,
+        flash: Math.min(0.32, Math.max(0, p.hitFlash) * 2.1),   // fades out; a flat 0.45 whited-out dark suits
+      });
     }
     renderer.endSkinned();
     return true;
@@ -843,5 +868,5 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__poses = poses; window.__settings = settings; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

@@ -120,7 +120,8 @@ void main(){
   const SKIN_FS = `
 precision mediump float;
 varying vec2 vUV; varying vec3 vNrm; varying float vDepth;
-uniform sampler2D uTex; uniform float uTeamSwap; uniform float uFlash; uniform float uAlpha;
+uniform sampler2D uTex; uniform sampler2D uEmis; uniform vec3 uGlow; uniform float uEmisAmt;
+uniform float uTeamSwap; uniform float uFlash; uniform float uAlpha;
 uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uLightDir; uniform float uIndoor;
 void main(){
   vec3 c = texture2D(uTex, vUV).rgb;
@@ -138,6 +139,9 @@ void main(){
   // a soft rim keeps silhouettes readable against the fort walls
   float rim = pow(1.0 - abs(n.z), 3.0) * 0.12;
   vec3 col = c * light + rim;
+  // Emissive maps carry the circuitry on suit-style characters; tinting it is how
+  // those characters show their team.
+  if (uEmisAmt > 0.0) col += texture2D(uEmis, vUV).rgb * uGlow * uEmisAmt;
   float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
   col = mix(col, uFogColor, clamp(fog, 0.0, 1.0));
   col = mix(col, vec3(1.0, 0.95, 0.8), uFlash);
@@ -189,7 +193,7 @@ void main(){
       this.sky = program(gl, SKY_VS, SKY_FS);
       try {
         this.skinProg = program(gl, SKIN_VS, SKIN_FS);
-        this.su2 = {}; for (const n of ['uProj', 'uView', 'uBones', 'uPosMin', 'uPosExt', 'uUvMin', 'uUvExt', 'uTex', 'uTeamSwap', 'uFlash', 'uAlpha', 'uFogColor', 'uFogDensity', 'uLightDir', 'uIndoor']) this.su2[n] = gl.getUniformLocation(this.skinProg, n);
+        this.su2 = {}; for (const n of ['uProj', 'uView', 'uBones', 'uPosMin', 'uPosExt', 'uUvMin', 'uUvExt', 'uTex', 'uEmis', 'uGlow', 'uEmisAmt', 'uTeamSwap', 'uFlash', 'uAlpha', 'uFogColor', 'uFogDensity', 'uLightDir', 'uIndoor']) this.su2[n] = gl.getUniformLocation(this.skinProg, n);
         this.sa2 = {}; for (const n of ['aPos', 'aNrm', 'aUV', 'aJoints', 'aWeights']) this.sa2[n] = gl.getAttribLocation(this.skinProg, n);
       } catch (e) { this.skinProg = null; this.skinError = e.message; console.warn('skinned shader unavailable:', e.message); }
       this.u = {};
@@ -364,7 +368,7 @@ void main(){
       gl.uniform3fv(this.su2.uLightDir, this.lightDir);
       gl.uniform1f(this.su2.uAlpha, 1);
       gl.uniform1i(this.su2.uTex, 0);
-      gl.activeTexture(gl.TEXTURE0);
+      gl.uniform1i(this.su2.uEmis, 1);
       gl.disable(gl.CULL_FACE);            // source art is authored double sided
       for (const a of Object.values(this.sa2)) if (a >= 0) gl.enableVertexAttribArray(a);
       this._skinOn = true;
@@ -387,11 +391,16 @@ void main(){
       gl.uniform2fv(this.su2.uUvMin, model.uvMin);
       gl.uniform2fv(this.su2.uUvExt, model.uvExt);
       gl.uniform1f(this.su2.uTeamSwap, opts.teamSwap || 0);
+      gl.uniform3fv(this.su2.uGlow, opts.glow || [0, 0, 0]);
       gl.uniform1f(this.su2.uFlash, opts.flash || 0);
       gl.uniform1f(this.su2.uIndoor, opts.indoor || 0);
       for (const gr of model.groups) {
         const t = opts.textures[gr.texFile];
         if (!t) continue;
+        const e = gr.emisFile ? opts.textures[gr.emisFile] : null;
+        gl.uniform1f(this.su2.uEmisAmt, e && opts.glow ? 1 : 0);
+        if (e) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, e); }
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, t);
         gl.drawElements(gl.TRIANGLES, gr.count, model.indexType, gr.offset * model.indexBytes);
       }

@@ -113,32 +113,46 @@ WebRTC can drive the same code with remote inputs.
 
 ## Characters
 
-The nine classes use eight skinned character models (the Demoman shares the
-Soldier's, see Credits). The source model has no animation clips, so every pose
-is generated at runtime: eulers drive the spine, head and run cycle, and
-two-bone IK puts both hands on whichever weapon the player is holding. Team
-colour is applied in the fragment shader — it repaints only strongly
-red-dominant cloth, so skin, the Medic's white coat and the Sniper's khaki stay
-as the artist painted them.
+Two sets ship, switchable under **Settings → Characters**.
 
-Assets live in `assets/models/` (1.9 MB total: eight quantised meshes on a
-shared 23-bone rig, plus 21 JPEG textures). Rebuild them from the source glTF
-with:
+**Grid suits (default)** — one suit per team, so every class on a side looks the
+same. Team colour is painted through the model's emissive map: the circuitry
+glows cyan for Blue and orange for Red, which reads instantly even in a dark
+basement. Class silhouettes are kept apart by scale, so a HWGuy is still visibly
+larger than a Scout.
+
+**Mercenaries** — one model per class, nine classes across eight models (the
+Demoman shares the Soldier's). Here team colour is a shader repaint of strongly
+red-dominant cloth, which leaves skin, the Medic's white coat and the Sniper's
+khaki as the artist painted them.
+
+**None of the source files contain animation clips**, so every pose is generated
+at runtime: eulers drive the spine, head and run cycle, and two-bone inverse
+kinematics puts both hands on whichever weapon the player is holding. Swapping
+in a different model does not change that; it inherits the same animation.
+
+Assets live in `assets/models/` (3.6 MB: quantised meshes on a shared 23-bone
+rig, plus JPEG base and emissive maps). The pipeline retargets whatever skeleton
+the source uses onto that rig — three naming conventions are handled so far.
+Rebuild with:
 
 ```
-tools/build-assets.sh /path/to/mercenaries.glb
+tools/build-assets.sh /path/to/mercenaries.glb                        # class set
+node tools/extract-character.js <suit.glb> tron_blue assets/models    # one suit
+node tools/extract-character-textures.js <suit.glb> tron_blue assets/models
 ```
 
 ## Credits
 
-Character models: **"All of the team Fortress 2 red team Mercenaries" by
-inonshalev42**, published on Sketchfab under **Creative Commons Attribution
-(CC BY)**. See `assets/models/CREDITS.txt` for what was changed. The in-game
-Credits screen carries the same attribution.
+Grid suits: **"Tron Willow"** and **"Ares (Tron) Helmet"** by **SpringSociety**.
+Mercenaries: **"All of the team Fortress 2 red team Mercenaries"** by
+**inonshalev42**. All published on Sketchfab under **Creative Commons
+Attribution (CC BY)**. See `assets/models/CREDITS.txt` for what was changed; the
+in-game Credits screen carries the same attribution.
 
-Team Fortress is a trademark of Valve Corporation, which is not affiliated with
-this project. No Valve game files are used: the map, weapons, sounds and code
-are original.
+Team Fortress is a trademark of Valve Corporation and Tron is a trademark of
+Disney. Neither is affiliated with this project, and no game files from either
+are used: the map, weapons, sounds and code are original.
 
 ## Layout
 
