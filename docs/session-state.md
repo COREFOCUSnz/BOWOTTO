@@ -276,6 +276,34 @@ the loop, then the 3D garage, then more cars. **Waiting on Corey:** the garage r
 clicks for the cloud save (enable Google sign-in; create the Firestore
 database).
 
+**Fourth shop car, SC18 ALSTON, 2026-09-11:** Corey supplied the GLB
+(Ddiaz Design's "2019 Lamborghini SC18 Alston", CC BY-NC-SA 4.0 -- the
+ShareAlike term means any redistributed copy/derivative keeps the same
+license, noted in both READMEs). $950,000, hosted-site only like the other
+three. Its wheels are a fourth shape the loader hadn't seen before: already
+split one-per-corner, but named by parent group (`3DWheel_Front_L` /
+`_Front_R` / `_Rear_L` / `_Rear_R`), not `wheel_fl`-style. The generic
+name-matching branch (`/wheel[_-\s]?(fl|fr|rl|rr)/i`, tested against every
+node in the scene) actually DID match here, which was the bug: "Front" and
+"Rear" both start with "r"/"f"-adjacent letters, and "front" contains "fr"
+as a substring, so both `3DWheel_Front_L` and `3DWheel_Front_R` matched on
+"fr" (front) while neither `Rear_*` group matched at all ("rear" contains
+"re", not "rl"/"rr") -- two wheels detected, both wrongly tagged front, rear
+axle silently missing. Fixed with a car-specific `bones` regex
+(`/3DWheel_((?:Front|Rear)_[LR])/i`) instead of relying on the generic path,
+same spin and steer node since the download has one pivot per corner, not a
+separate steer joint. Physics spec built off the Aventador SVJ (same 6.5L
+V12, 770 CV, AWD, ISR-style box) since the SC18 shares that platform: a
+touch lighter (1490 vs 1525 kg, matching Lamborghini's own "less weight than
+the standard model" line), more drag and grip from the fixed wing, and the
+gearing scaled so top speed lands on the SC18's official 338 km/h instead of
+the SVJ's 352. No official weight/dimensions were ever published by
+Lamborghini, so those are estimates; the model's own auto-scale (matched to
+the spec's `length`) means the visual size follows whatever `length` says
+regardless. Verified on the hosted build: correct nose orientation (rear
+chase-cam shot confirms driving forward, not backward), wheel spin,
+ROSSO MARS repaint, and the HUD showing 770 CV (not the Revuelto's 1015).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

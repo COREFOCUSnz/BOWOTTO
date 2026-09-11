@@ -32,6 +32,11 @@ const CARS = {
     paintMats: ['lLamborghini_CountachLPI8004_2022Paint_Material1'],
     note: 'HOSTED SITE ONLY · MODEL BY 007 · CC BY 4.0',
     spec: { mass: 1595, wheelbase: 2.7, length: 4.87, width: 2.099, height: 1.139, powerW: 599000, drivelineEff: 0.86, tractionG: 1.2, brakeG: 1.28, dragK: 0.68, rolling: 270, redline: 8500, idle: 950, gearTopKmh: [80, 120, 160, 202, 248, 292, 336, 355], wheelR: [0.34, 0.36], track: 0.84, axle: 1.35 } },
+  sc18: { name: 'SC18 ALSTON', sub: 'V12 · 770 CV · 1490 KG · 2019 · ONE-OFF', price: 950000, file: 'sc18.glb', ev: false,
+    bones: { spin: /3DWheel_((?:Front|Rear)_[LR])/i, steer: /3DWheel_((?:Front|Rear)_[LR])/i },
+    paintMats: ['Paint', 'LamboLamborghini_SC18Alston_2019PaintA_Material1'], nomap: true,
+    note: 'HOSTED SITE ONLY · MODEL BY DDIAZ DESIGN · CC BY-NC-SA 4.0',
+    spec: { mass: 1490, wheelbase: 2.7, length: 4.97, width: 2.15, height: 1.15, powerW: 566000, drivelineEff: 0.85, tractionG: 1.30, brakeG: 1.35, dragK: 0.70, rolling: 260, redline: 8700, idle: 1000, gearTopKmh: [79, 115, 154, 192, 235, 278, 326, 338], wheelR: [0.34, 0.36], track: 0.87, axle: 1.35 } },
 };
 let carId = 'revuelto'; const carRoots = {};
 const MODES = [

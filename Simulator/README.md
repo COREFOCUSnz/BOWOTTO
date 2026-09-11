@@ -164,19 +164,27 @@ entry below.
   garage's THE SHOP tab sells the others and remembers which one you parked
   in: Countach 25th Anniversary $500,000 (amogusstrikesback2, CC BY 4.0),
   Aventador SVJ $650,000 (SDC PERFORMANCE, CC BY-NC 4.0), Countach LPI 800-4
-  $850,000 (007, CC BY 4.0). All three are big downloads, so they exist only
-  on the hosted site: the single-file page and the artifact carry the
-  Revuelto alone and say so.
+  $850,000 (007, CC BY 4.0), SC18 Alston $950,000 (Ddiaz Design, CC
+  BY-NC-SA 4.0 — one-off track/road special on the SVJ's V12 and AWD
+  driveline, less weight and more downforce than the standard car). All four
+  are big downloads, so they exist only on the hosted site: the single-file
+  page and the artifact carry the Revuelto alone and say so.
   Each car brings its own physics spec (mass, power, gearing, grip, brakes,
   drag), so the HUD's horsepower, the drive-mode line and the badge all
-  follow the car you are in. Downloads arrive in three shapes and the loader
-  handles all three: named steer and rotation bones are used as they are;
+  follow the car you are in. Downloads arrive in four shapes and the loader
+  handles all of them: named steer and rotation bones are used as they are;
   axle groups (both wheels of an axle in one mesh) are split down the middle,
   clustered into four corners and given their own pivots, with any yaw baked
-  into the pose undone; and a model built from hundreds of loose pieces is
+  into the pose undone; a model built from hundreds of loose pieces is
   merged offline by material, keeping each wheel corner as its own pivoted
   group (`scratchpad/studio/merge.html`, which cut the LPI from 1,748 meshes
-  and 20 MB to 33 meshes and 12.5 MB).
+  and 20 MB to 33 meshes and 12.5 MB); and the SC18's own four `3DWheel_
+  Front_L/Front_R/Rear_L/Rear_R` groups (already split per corner, just not
+  named `wheel_fl`-style) are matched with a `bones` regex instead of the
+  plain name test, which avoids a real trap in that plain test: `wheel[_-\s]?
+  (fl|fr|rl|rr)` also matches "wheel_**fr**ont_l" on the substring "fr", so
+  both front corners silently came back tagged front and the rear ones were
+  dropped until the car got its own `bones` pattern.
 - **THE SHOP has confirmations and a look-before-you-buy view.** Every
   purchase (parts, paint, cars) now asks ARE YOU SURE with the item and
   price before it spends anything; YES buys, NO cancels with nothing
@@ -535,6 +543,13 @@ licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 See `models/LICENSE.md`. The credit must stay with any copy of the sim that
 includes the model. Three.js is MIT
 (`vendor/LICENSE.three.js`).
+
+Shop cars (hosted site only): Countach 25th Anniversary by amogusstrikesback2
+(CC BY 4.0); Aventador SVJ by SDC PERFORMANCE (CC BY-NC 4.0); Countach LPI
+800-4 by 007 (CC BY 4.0); **"2019 Lamborghini SC18 Alston" by Ddiaz Design**,
+licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+— non-commercial, and any redistributed copy of the model or a derivative of
+it must carry the same license.
 
 ## Layout
 
