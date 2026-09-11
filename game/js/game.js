@@ -1,10 +1,10 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, Renderer, GameAudio, Game, BotBrain, botClassFor, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, Renderer, GameAudio, Game, BotBrain, botClassFor, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
-  const settings = Object.assign({ bots: 4, skill: 0.55, sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
+  const settings = Object.assign({ teamSize: 5, fill: true, skill: 0.55, sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
 
   const canvas = $('c');
@@ -22,7 +22,7 @@
     flash(a) { flashAmt = Math.min(1, flashAmt + a); },
     shake(a) { shakeAmt = Math.min(1, shakeAmt + a); },
   };
-  const game = new Game({ effects, botsPerTeam: settings.bots });
+  const game = new Game({ effects });
   renderer.setWorld(game.world);
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
@@ -30,9 +30,9 @@
 
   // --------------------------------------------------------------- bots
   function syncBots() {
-    const n = settings.bots;
     for (const team of [BLUE, RED]) {
-      const want = team === human.team ? n : n + 1;
+      const humans = game.players.filter((p) => !p.isBot && p.team === team).length;
+      const want = settings.fill ? Math.max(0, settings.teamSize - humans) : 0;
       let bots = game.players.filter((p) => p.isBot && p.team === team);
       while (bots.length > want) { const b = bots.pop(); game.removePlayer(b); brains.delete(b); }
       let idx = bots.length;
@@ -48,15 +48,31 @@
 
   // --------------------------------------------------------------- input
   const keys = {}; let mouseDown = [false, false, false]; let locked = false; let zoomed = false;
+  // Pointer lock can be refused (iframes, some embeds). Fall back to relative mouse motion plus edge-turning.
+  let fallbackLook = false; const edgeTurn = [0, 0];
+  function requestLock() {
+    try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => enableFallback()); } catch (e) { enableFallback(); }
+    setTimeout(() => { if (!locked && !menu && !fallbackLook) enableFallback(); }, 700);
+  }
+  function enableFallback() {
+    if (fallbackLook) return; fallbackLook = true; canvas.style.cursor = 'none';
+    effects.message('Mouse capture unavailable here: move the mouse to the screen edges to keep turning', human.team, 'info', human);
+  }
+  document.addEventListener('pointerlockerror', () => enableFallback());
   let menu = 'main'; // 'main' | 'class' | 'team' | 'settings' | 'help' | null | 'end'
   let showScores = false;
   const lastWeapon = { i: 0 };
-  canvas.addEventListener('click', () => { if (!menu) canvas.requestPointerLock(); });
-  document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; if (!locked && !menu) openMenu('main'); });
+  canvas.addEventListener('click', () => { if (!menu && !locked) requestLock(); });
+  document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; if (locked) { fallbackLook = false; canvas.style.cursor = 'crosshair'; } if (!locked && !menu && !fallbackLook) openMenu('main'); });
   document.addEventListener('mousemove', (e) => {
-    if (!locked || menu) return;
+    if (menu || (!locked && !fallbackLook)) return;
     const s = settings.sens * (zoomed ? 0.35 : 1);
     human.yaw -= e.movementX * s; human.pitch = clamp(human.pitch - e.movementY * s, -1.5, 1.5);
+    if (fallbackLook) {
+      const rx = e.clientX / window.innerWidth, ry = e.clientY / window.innerHeight, m = 0.12;
+      edgeTurn[0] = rx < m ? -(m - rx) / m : rx > 1 - m ? (rx - (1 - m)) / m : 0;
+      edgeTurn[1] = ry < m ? -(m - ry) / m : ry > 1 - m ? (ry - (1 - m)) / m : 0;
+    }
   });
   document.addEventListener('mousedown', (e) => {
     if (menu) return;
@@ -103,7 +119,8 @@
     if (human.inWater && f !== 0) d[1] = Math.sin(human.pitch) * f;
     inp.dir = d;
     inp.jump = !!keys.Space; inp.up = keys.ControlLeft || keys.ShiftLeft ? -1 : 0;
-    inp.fire = mouseDown[0] && locked; inp.alt = mouseDown[2] && locked;
+    inp.fire = mouseDown[0] && (locked || fallbackLook); inp.alt = mouseDown[2] && (locked || fallbackLook);
+    if (fallbackLook && !menu) { human.yaw -= edgeTurn[0] * 2.2 * DT; human.pitch = clamp(human.pitch - edgeTurn[1] * 1.2 * DT, -1.5, 1.5); }
     inp.gren = [!!keys.KeyG, !!keys.KeyF];
     if (!human.alive && game.time >= human.respawnAt && !menu) human.wantsRespawn = true;
   }
@@ -112,11 +129,11 @@
   const menuEl = $('menu');
   function openMenu(which) {
     if (window.__traceMenu) console.log('openMenu ' + which + ' ' + new Error().stack.split('\n').slice(1, 4).join(' / '));
-    menu = which; menuEl.hidden = false; if (document.pointerLockElement) document.exitPointerLock();
+    menu = which; menuEl.hidden = false; canvas.style.cursor = 'crosshair'; edgeTurn[0] = edgeTurn[1] = 0; if (document.pointerLockElement) document.exitPointerLock();
     for (const k in keys) keys[k] = false; mouseDown = [false, false, false]; showScores = false;
     renderMenu();
   }
-  function closeMenu() { menu = null; menuEl.hidden = true; canvas.requestPointerLock(); }
+  function closeMenu() { menu = null; menuEl.hidden = true; if (fallbackLook) canvas.style.cursor = 'none'; requestLock(); }
   function renderMenu() {
     let html = '';
     const title = '<div class="title">TEAM FORTRESS <span>2FORT</span></div><div class="sub">A browser tribute to Team Fortress Classic</div>';
@@ -128,6 +145,7 @@
         <button data-k="4"><b>4</b> Settings &amp; bots</button>
         <button data-k="5"><b>5</b> Controls</button>
         <button data-k="6"><b>6</b> Restart round</button>
+        <button data-k="7"><b>7</b> Fill teams with bots: <span class="${settings.fill ? 'on' : 'off'}">${settings.fill ? 'ON' : 'OFF'}</span> (${settings.teamSize} v ${settings.teamSize})</button>
       </div><div class="hint">Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
     } else if (menu === 'team') {
       html = title + `<div class="list"><div class="h">Choose a team</div>
@@ -142,7 +160,8 @@
     } else if (menu === 'settings') {
       html = title + `<div class="list settings"><div class="h">Settings</div>
         <label>Your name <input id="s_name" value="${escapeHtml(settings.name)}" maxlength="16"></label>
-        <label>Bots per team <input id="s_bots" type="range" min="0" max="8" value="${settings.bots}"> <span id="s_bots_v">${settings.bots}</span></label>
+        <label>Fill teams with bots <input id="s_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
+        <label>Players per team <input id="s_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="s_size_v">${settings.teamSize}</span></label>
         <label>Bot skill <select id="s_skill"><option value="0.3"${settings.skill === 0.3 ? ' selected' : ''}>Easy</option><option value="0.55"${settings.skill === 0.55 ? ' selected' : ''}>Normal</option><option value="0.8"${settings.skill === 0.8 ? ' selected' : ''}>Hard</option></select></label>
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
         <label>Field of view <input id="s_fov" type="range" min="60" max="110" value="${settings.fov}"> <span id="s_fov_v">${settings.fov}</span></label>
@@ -173,7 +192,8 @@
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
   function bindSettings() {
     $('s_name').addEventListener('input', (e) => { settings.name = e.target.value.slice(0, 16) || 'Player'; human.name = settings.name; saveSettings(); });
-    $('s_bots').addEventListener('input', (e) => { settings.bots = parseInt(e.target.value, 10); $('s_bots_v').textContent = settings.bots; saveSettings(); syncBots(); });
+    $('s_fill').addEventListener('change', (e) => { settings.fill = e.target.checked; saveSettings(); syncBots(); });
+    $('s_size').addEventListener('input', (e) => { settings.teamSize = parseInt(e.target.value, 10); $('s_size_v').textContent = settings.teamSize; saveSettings(); syncBots(); });
     $('s_skill').addEventListener('change', (e) => { settings.skill = parseFloat(e.target.value); saveSettings(); syncBots(); });
     $('s_sens').addEventListener('input', (e) => { settings.sens = parseFloat(e.target.value); saveSettings(); });
     $('s_fov').addEventListener('input', (e) => { settings.fov = parseInt(e.target.value, 10); $('s_fov_v').textContent = settings.fov; saveSettings(); });
@@ -192,6 +212,7 @@
       if (k === '1') { if (human.spawnT === undefined) openMenu('team'); else closeMenu(); }
       if (k === '2') openMenu('class'); if (k === '3') openMenu('team'); if (k === '4') openMenu('settings'); if (k === '5') openMenu('help');
       if (k === '6') { restart(); closeMenu(); }
+      if (k === '7') { settings.fill = !settings.fill; saveSettings(); syncBots(); renderMenu(); }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
       let team = k === '1' ? BLUE : k === '2' ? RED : (game.teamCount(BLUE) <= game.teamCount(RED) ? BLUE : RED);
@@ -317,10 +338,9 @@
     r.drawMesh(r.cube, M.mul(aim, M.mul(M.translate(0.3 * wide, -0.05, -0.25), M.scale(0.14, 0.14, 0.55))), col);
     r.drawMesh(r.cube, M.mul(aim, M.mul(M.translate(-0.3 * wide, -0.05, -0.2), M.scale(0.14, 0.14, 0.45))), col);
     const w = p.weapon();
-    const wl = w.model === 'rpg' || w.model === 'sniper' || w.model === 'ac' ? 1.0 : 0.6;
-    r.drawMesh(r.cube, M.mul(aim, M.mul(M.translate(0.12 * wide, -0.02, -0.45 - wl / 2), M.scale(w.model === 'ac' ? 0.22 : 0.1, w.model === 'rpg' ? 0.18 : 0.12, wl))), [0.2, 0.2, 0.22]);
-    // muzzle flash
-    if (p.fireAnim > 0.7 && w.type !== 'melee' && w.type !== 'flame') r.drawMesh(r.cube, M.mul(aim, M.mul(M.translate(0.12 * wide, -0.02, -0.5 - wl), M.scale(0.25, 0.25, 0.25))), [1, 0.9, 0.5], { emissive: 1 });
+    const hand = M.mul(aim, M.translate(0.16 * wide, -0.04, -0.28));
+    drawWeapon(r, hand, weaponModelId(w), botWeaponState(p, w));
+    if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, hand, w.model, p.id + game.time * 40);
     // flag on the back
     if (p.flag) drawFlagCloth(M.mul(base, M.translate(0, 1.0, 0.3)), p.flag.team, true);
     if (flash) gl.uniform1f(r.u.uFlash, 0);
@@ -407,41 +427,72 @@
     for (const t of game.tracers) r.beam(t.a, t.b, 0.03, t.color, { emissive: 1, alpha: 0.9 * t.life / t.maxLife });
     for (const f of game.firePatches) r.drawMesh(r.cube, M.mul(M.translate(f.pos[0], f.pos[1] + 0.05, f.pos[2]), M.scale(f.r * 2, 0.06, f.r * 2)), [1, 0.4, 0.1], { alpha: 0.35, emissive: 1 });
   }
+  function weaponModelId(w) { return w.model === 'melee' ? (w === WEAPONS.medkit ? 'medkit' : w === WEAPONS.knife ? 'knife' : w === WEAPONS.spanner ? 'spanner' : 'crowbar') : w.model; }
+  function weaponState(p, w) {
+    const prog = w.rate ? 1 - p.cooldown / w.rate : 1;
+    const cycle = prog > 0.3 && prog < 0.85 ? Math.sin((prog - 0.3) / 0.55 * Math.PI) : 0;
+    return {
+      kick: p.fireAnim, time: game.time, charge: p.charge >= 0 ? p.charge : 0, hasAmmo: !w.ammo || p.ammo[w.ammo] > 0,
+      pump: w.model === 'shotgun' || w.model === 'supershotgun' ? cycle : 0,
+      bolt: w.model === 'sniper' ? cycle : 0,
+      drum: (p.shots || 0) * Math.PI / 3 - (p.fireAnim > 0 ? (1 - Math.min(1, (1 - p.fireAnim) * 2)) : 0) * Math.PI / 3,
+      spin: p.acSpin || 0, barrel: p.shots || 0,
+      swing: w.type === 'melee' ? Math.sin(Math.min(1, 1 - p.fireAnim) * Math.PI) * 0.9 : 0,
+    };
+  }
+  function botWeaponState(p, w) { const st = weaponState(p, w); st.spin = p.acSpin || 0; return st; }
+  // viewmodel motion state
+  const vm = { swayX: 0, swayY: 0, prevYaw: 0, prevPitch: 0, raise: 0, lastWi: -1, lastCls: '', camKick: 0, lastFireSeen: -1 };
+  const CAM_KICK = { shotgun: 0.012, supershotgun: 0.03, rpg: 0.02, gl: 0.015, pl: 0.012, sniper: 0.04, autorifle: 0.004, ac: 0.003, nailgun: 0.002, ic: 0.02, tranq: 0.008, railgun: 0.01 };
+  function updateViewModel(dt) {
+    const p = human;
+    // sway lags the mouse
+    const dy = angleDiff(vm.prevYaw, p.yaw), dp = p.pitch - vm.prevPitch; vm.prevYaw = p.yaw; vm.prevPitch = p.pitch;
+    vm.swayX = clamp(vm.swayX + dy * 0.6, -0.08, 0.08) * Math.exp(-dt * 8);
+    vm.swayY = clamp(vm.swayY + dp * 0.6, -0.08, 0.08) * Math.exp(-dt * 8);
+    if (p.wi !== vm.lastWi || p.cls !== vm.lastCls) { vm.lastWi = p.wi; vm.lastCls = p.cls; vm.raise = 1; }
+    vm.raise = Math.max(0, vm.raise - dt * 4.5);
+    if (p.lastFire !== vm.lastFireSeen) { vm.lastFireSeen = p.lastFire; if (p.alive && p.lastFire > game.time - 0.1) vm.camKick += CAM_KICK[p.weapon().model] || 0; }
+    vm.camKick *= Math.exp(-dt * 10);
+    // minigun barrel spin
+    if (p.alive) { const w = p.weapon(); p.acSpin = (p.acSpin || 0) + (w.model === 'ac' ? (p.spinup / WEAPONS.ac.spinup) * 40 * dt : 0); }
+    for (const q of game.players) if (q.isBot && q.alive && q.weapon().model === 'ac') q.acSpin = (q.acSpin || 0) + (q.spinup / WEAPONS.ac.spinup) * 40 * dt;
+  }
   function drawViewModel() {
     const p = human; if (!p.alive) return;
     const r = renderer; const w = p.weapon();
     if (zoomed && w.zoom) return;
     r.beginViewModel();
-    const bob = Math.hypot(p.vel[0], p.vel[2]) > 0.5 && p.onGround ? Math.sin(p.walkPhase * 2.2) * 0.02 : 0;
-    const kick = p.fireAnim * 0.12 + (p.spinup > 0 ? Math.sin(game.time * 60) * 0.01 : 0);
-    const chargeShake = p.charge >= 0 ? Math.sin(game.time * 40) * 0.004 * p.charge : 0;
-    const base = M.mul(M.mul(M.translate(0.3 + chargeShake, -0.27 + bob - p.landT * 0.1, -0.42 + kick), M.rotY(-0.06)), M.scale(0.7, 0.7, 0.7));
-    const metal = [0.22, 0.23, 0.25], dark = [0.12, 0.12, 0.13], wood = [0.45, 0.3, 0.15];
-    const D = (m, c, o) => r.drawMesh(r.cube, M.mul(base, m), c, o);
-    switch (w.model) {
-      case 'melee': {
-        const swing = p.fireAnim * 0.9;
-        const bm = M.mul(M.translate(0.05, -0.05, 0.1), M.rotX(-swing));
-        if (w === WEAPONS.medkit) { D(M.mul(bm, M.mul(M.translate(0, 0, -0.35), M.scale(0.25, 0.18, 0.3))), [0.9, 0.9, 0.9]); D(M.mul(bm, M.mul(M.translate(0, 0.095, -0.35), M.scale(0.18, 0.01, 0.06))), [0.9, 0.1, 0.1]); D(M.mul(bm, M.mul(M.translate(0, 0.095, -0.35), M.scale(0.06, 0.01, 0.18))), [0.9, 0.1, 0.1]); }
-        else if (w === WEAPONS.knife) { D(M.mul(bm, M.mul(M.translate(0, 0, -0.25), M.scale(0.03, 0.06, 0.16))), dark); D(M.mul(bm, M.mul(M.translate(0, 0, -0.5), M.scale(0.015, 0.05, 0.35))), [0.8, 0.8, 0.85]); }
-        else if (w === WEAPONS.spanner) { D(M.mul(bm, M.mul(M.translate(0, 0, -0.35), M.scale(0.05, 0.05, 0.5))), [0.7, 0.7, 0.72]); D(M.mul(bm, M.mul(M.translate(0, 0, -0.62), M.scale(0.14, 0.05, 0.1))), [0.7, 0.7, 0.72]); }
-        else { D(M.mul(bm, M.mul(M.translate(0, 0, -0.4), M.scale(0.05, 0.05, 0.75))), [0.7, 0.2, 0.15]); D(M.mul(bm, M.mul(M.translate(0, 0.02, -0.78), M.scale(0.05, 0.1, 0.06))), [0.6, 0.15, 0.1]); }
-        break;
-      }
-      case 'shotgun': D(M.mul(M.translate(0, 0, -0.45), M.scale(0.07, 0.07, 0.9)), metal); D(M.mul(M.translate(0, -0.08, -0.45), M.scale(0.05, 0.05, 0.45)), wood); D(M.mul(M.translate(0, -0.05, 0.05), M.scale(0.08, 0.14, 0.25)), wood); break;
-      case 'supershotgun': D(M.mul(M.translate(-0.045, 0, -0.45), M.scale(0.07, 0.07, 0.85)), metal); D(M.mul(M.translate(0.045, 0, -0.45), M.scale(0.07, 0.07, 0.85)), metal); D(M.mul(M.translate(0, -0.05, 0.05), M.scale(0.12, 0.14, 0.25)), wood); break;
-      case 'nailgun': D(M.mul(M.translate(0, 0, -0.35), M.scale(0.14, 0.16, 0.6)), metal); D(M.mul(M.translate(0, 0.02, -0.75), M.scale(0.05, 0.05, 0.3)), dark); D(M.mul(M.translate(0, -0.12, -0.3), M.scale(0.1, 0.12, 0.3)), [0.5, 0.45, 0.1]); D(M.mul(M.translate(0, -0.05, 0.05), M.scale(0.08, 0.14, 0.15)), dark); break;
-      case 'rpg': D(M.mul(M.translate(-0.05, 0.05, -0.4), M.scale(0.16, 0.16, 1.1)), [0.3, 0.32, 0.28]); D(M.mul(M.translate(-0.05, 0.05, -0.97), M.scale(0.2, 0.2, 0.06)), dark); D(M.mul(M.translate(0, -0.08, 0.05), M.scale(0.08, 0.14, 0.2)), dark); break;
-      case 'gl': D(M.mul(M.translate(0, 0, -0.4), M.scale(0.1, 0.1, 0.8)), metal); D(M.mul(M.translate(0, -0.02, -0.15), M.scale(0.2, 0.2, 0.2)), [0.35, 0.3, 0.2]); D(M.mul(M.translate(0, -0.06, 0.08), M.scale(0.08, 0.14, 0.22)), wood); break;
-      case 'sniper': D(M.mul(M.translate(0, 0, -0.55), M.scale(0.05, 0.05, 1.2)), metal); D(M.mul(M.translate(0, 0.07, -0.25), M.scale(0.06, 0.06, 0.3)), dark); D(M.mul(M.translate(0, -0.06, 0.02), M.scale(0.07, 0.12, 0.4)), wood); if (p.charge >= 0) D(M.mul(M.translate(0, 0.07, -0.42), M.scale(0.03, 0.03, 0.03)), [1, 0.1, 0.1], { emissive: 1 }); break;
-      case 'autorifle': D(M.mul(M.translate(0, 0, -0.45), M.scale(0.07, 0.09, 0.9)), metal); D(M.mul(M.translate(0, -0.12, -0.25), M.scale(0.05, 0.14, 0.08)), dark); D(M.mul(M.translate(0, -0.05, 0.05), M.scale(0.08, 0.13, 0.25)), [0.3, 0.3, 0.3]); break;
-      case 'ac': { const spin = p.spinup * 30 * game.time; for (let i = 0; i < 4; i++) { const a = spin + i * Math.PI / 2; D(M.mul(M.translate(-0.05 + Math.cos(a) * 0.07, 0.02 + Math.sin(a) * 0.07, -0.55), M.scale(0.05, 0.05, 0.9)), metal); } D(M.mul(M.translate(-0.05, 0.02, -0.1), M.scale(0.28, 0.24, 0.3)), [0.3, 0.3, 0.32]); D(M.mul(M.translate(-0.05, -0.2, 0.05), M.scale(0.3, 0.14, 0.25)), dark); break; }
-      case 'flamer': D(M.mul(M.translate(0, 0, -0.45), M.scale(0.08, 0.08, 0.9)), [0.5, 0.3, 0.1]); D(M.mul(M.translate(0, 0.05, -0.9), M.scale(0.12, 0.12, 0.08)), dark); D(M.mul(M.translate(0.02, -0.1, 0.0), M.scale(0.18, 0.18, 0.35)), [0.6, 0.15, 0.1]); if (p.fireAnim > 0.3) D(M.mul(M.translate(0, 0.05, -1.05), M.scale(0.1, 0.1, 0.25)), [0.3, 0.6, 1], { emissive: 1 }); break;
-    }
-    // hand
-    D(M.mul(M.translate(0.02, -0.14, -0.05), M.scale(0.12, 0.12, 0.16)), SKIN);
-    if (p.grenPrime) { const g = M.mul(M.translate(-0.55, -0.28, -0.45), M.rotY(0.4)); D(M.mul(g, M.scale(0.13, 0.13, 0.13)), SKIN); D(M.mul(g, M.mul(M.translate(0, 0.12, -0.02), M.scale(0.12, 0.14, 0.12))), [0.25, 0.35, 0.25]); }
+    const moving = Math.hypot(p.vel[0], p.vel[2]) > 0.5 && p.onGround;
+    const bobX = moving ? Math.sin(p.walkPhase * 2.2) * 0.012 : 0, bobY = moving ? Math.abs(Math.cos(p.walkPhase * 2.2)) * 0.012 : 0;
+    const kickZ = p.fireAnim * (w.model === 'supershotgun' || w.model === 'rpg' || w.model === 'sniper' ? 0.12 : 0.06);
+    const kickPitch = p.fireAnim * (w.model === 'supershotgun' || w.model === 'sniper' ? 0.12 : 0.05);
+    const rumble = p.spinup > 0 ? Math.sin(game.time * 60) * 0.004 : 0;
+    const chargeShake = p.charge >= 0 ? Math.sin(game.time * 40) * 0.003 * p.charge : 0;
+    const raise = vm.raise * vm.raise;
+    const pos = [0.3 + bobX - vm.swayX + chargeShake, -0.29 + bobY - p.landT * 0.08 - raise * 0.35 + vm.swayY * 0.5 + rumble, -0.4 + kickZ];
+    if (w.model === 'ac' || w.model === 'flamer') pos[0] -= 0.06;
+    let base = M.mul(M.translate(pos[0], pos[1], pos[2]), M.mul(M.rotY(-0.08 + vm.swayX * 0.4), M.mul(M.rotX(kickPitch - raise * 0.6 - vm.swayY * 0.4), M.scale(0.85, 0.85, 0.85))));
+    if (window.__showcase) { drawShowcase(); r.endViewModel(); return; }
+    const st = weaponState(p, w);
+    drawWeapon(r, base, weaponModelId(w), st);
+    if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, game.time * 40);
+    // hands
+    const SK = SKIN;
+    r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(0.0, -0.06, 0.02), M.scale(0.09, 0.09, 0.13))), SK);
+    const front = w.model === 'ac' ? [-0.08, 0.15, -0.1] : w.model === 'rpg' || w.model === 'ic' ? [0, -0.02, -0.3] : w.type === 'melee' ? null : [0, -0.05, -0.38];
+    if (front) r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(front[0], front[1], front[2]), M.scale(0.09, 0.08, 0.12))), SK);
+    if (p.grenPrime) { const g = M.mul(M.translate(-0.5, -0.28, -0.42), M.rotY(0.4)); r.drawMesh(r.cube, M.mul(g, M.scale(0.13, 0.13, 0.13)), SK); r.drawMesh(r.cube, M.mul(g, M.mul(M.translate(0, 0.12, -0.02), M.scale(0.12, 0.14, 0.12))), [0.25, 0.35, 0.25]); }
     r.endViewModel();
+  }
+  // Debug: draw every weapon model in a grid (window.__showcase = true)
+  function drawShowcase() {
+    const ids = ['crowbar', 'knife', 'spanner', 'medkit', 'shotgun', 'supershotgun', 'nailgun', 'supernailgun', 'rpg', 'gl', 'pl', 'sniper', 'autorifle', 'ac', 'flamer', 'ic', 'tranq', 'railgun'];
+    ids.forEach((id, i) => {
+      const col = i % 6, row = Math.floor(i / 6);
+      const m = M.mul(M.translate(-1.25 + col * 0.5, 0.45 - row * 0.45, -1.3), M.mul(M.rotY(0.9), M.scale(0.45, 0.45, 0.45)));
+      drawWeapon(renderer, m, id, { drum: 0.3, spin: 0.5, charge: 1, time: game.time, pump: 0.5 });
+    });
   }
 
   // --------------------------------------------------------------- loop
@@ -459,11 +510,12 @@
       acc -= DT; steps++;
     }
     flashAmt = Math.max(0, flashAmt - dt * 2); shakeAmt = Math.max(0, shakeAmt - dt * 2.5);
+    updateViewModel(dt);
     renderer.time = game.time;
     renderer.fov = settings.fov * Math.PI / 180;
     // camera
     let camPos, yaw = human.yaw, pitch = human.pitch;
-    if (human.alive) camPos = human.eye();
+    if (human.alive) { camPos = human.eye(); pitch += vm.camKick; }
     else if (human.spawnT === undefined) { camPos = [0, 9, -30]; yaw = Math.PI + Math.sin(now / 9000) * 0.6; pitch = -0.25; }
     else { camPos = V.add(human.pos, [0, 0.6, 0]); pitch = Math.max(pitch, -0.3); }
     if (shakeAmt > 0) camPos = V.add(camPos, [rand(-1, 1) * shakeAmt * 0.08, rand(-1, 1) * shakeAmt * 0.08, rand(-1, 1) * shakeAmt * 0.08]);
@@ -476,7 +528,7 @@
     for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
     drawFlags(); drawItems(); drawSentries(); drawProjectiles();
     // sniper laser dot
-    if (human.alive && human.charge >= 0) { const h = game.trace(human.eye(), V.forward(human.yaw, human.pitch), 300, human); if (h) renderer.sphereAt(h.point, 0.06 + h.dist * 0.002, [1, 0.1, 0.1], { emissive: 1 }); }
+    if (human.alive && human.charge >= 0) { const h = game.trace(human.eye(), V.forward(human.yaw, human.pitch), 300, human); if (h) renderer.sphereAt(h.point, 0.025 + h.dist * 0.0012, [1, 0.1, 0.1], { emissive: 1 }); }
     // ceiling light fixtures glow
     drawParticles();
     renderer.end();

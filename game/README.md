@@ -66,18 +66,18 @@ with the spanner to repair, or upgrade it for 130 cells).
 
 ## Hosting on Firebase
 
-The folder already contains a `firebase.json` that serves this directory as a
-static site. When you create the Firebase project:
+The folder already contains `firebase.json` (serves this directory as a static
+site) and `.firebaserc` pointing at the project **team-fort-4925a**. To publish:
 
 ```
 npm install -g firebase-tools
 firebase login
 cd game
-firebase use --add            # pick your project
 firebase deploy --only hosting
 ```
 
-Send your friends the hosting URL. Each of them gets their own game against
+The game is then live at **https://team-fort-4925a.web.app** (also
+`https://team-fort-4925a.firebaseapp.com`). Send your friends that link. Each of them gets their own game against
 bots — this version is **single-player with bots**. Online multiplayer is the
 natural next step: the simulation (`js/sim.js`) is deterministic and
 DOM-free, so a host-authoritative netcode over Firebase Realtime Database or

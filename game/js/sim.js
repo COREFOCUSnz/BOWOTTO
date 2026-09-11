@@ -210,8 +210,13 @@
     }
 
     // ------------------------------------------------------------------ weapons
+    ejectShell(p, n) {
+      const right = V.right(p.yaw), fwd = V.forward(p.yaw, p.pitch);
+      for (let i = 0; i < n; i++) this.effects.particle({ pos: V.madd(V.madd(p.eye(), right, 0.22), fwd, 0.35), vel: V.madd(V.madd(V.scale(right, rand(1.5, 2.5)), [0, rand(1.5, 2.5), 0], 1), p.vel, 1), life: 1.2, size: 0.035, color: [0.8, 0.65, 0.25], gravity: 14, collide: true });
+    }
     updateWeapon(p, dt) {
       const w = p.weapon(); const inp = p.input;
+      if (p.pumpAt && this.time >= p.pumpAt) { p.pumpAt = 0; this.effects.sound(w.model === 'sniper' ? 'bolt' : 'pump', p.pos); }
       if (p.spinup > 0 && !(inp.fire && p.weapons[p.wi] === 'ac')) p.spinup = Math.max(0, p.spinup - dt * 2);
       if (w.type === 'charge') {
         if (inp.fire && p.charge < 0 && p.cooldown <= 0 && p.canFire(w)) { p.charge = 0; }
@@ -225,9 +230,11 @@
       if (inp.fire && p.cooldown <= 0) this.fire(p, w);
     }
     fire(p, w) {
-      if (!p.canFire(w)) { if (p === this.human && p.cooldown <= 0) { this.effects.sound('beep', null); p.cooldown = 0.4; } return; }
-      p.cooldown = w.rate; p.fireAnim = 1; p.lastFire = this.time;
+      if (!p.canFire(w)) { if (p === this.human && p.cooldown <= 0) { this.effects.sound('click', null); p.cooldown = 0.4; } return; }
+      p.cooldown = w.rate; p.fireAnim = 1; p.lastFire = this.time; p.shots = (p.shots || 0) + 1;
       if (w.ammo) p.ammo[w.ammo] -= w.perShot || 1;
+      if (w.model === 'shotgun' || w.model === 'supershotgun') p.pumpAt = this.time + w.rate * 0.35;
+      if (w.ammo === 'shells' && w.type === 'hitscan') this.ejectShell(p, w.model === 'ac' ? 1 : w.perShot || 1);
       if (p.disguise >= 0) { p.disguise = -1; }
       const eye = p.eye(); const fwd = V.forward(p.yaw, p.pitch);
       switch (w.type) {
@@ -282,11 +289,15 @@
       if (!h) return;
       if (h.player) this.damage(h.player, dmg, p, 'hitscan', d, dmg * 0.02);
       else if (h.sentry) this.damageSentry(h.sentry, dmg, p);
-      else this.effects.particle({ pos: h.point, vel: V.madd(V.scale(h.normal, 2), [rand(-1, 1), rand(-1, 1), rand(-1, 1)], 1), life: 0.4, size: 0.06, color: [0.8, 0.8, 0.7], gravity: 10 });
+      else this.impact(h.point, h.normal);
+    }
+    impact(point, normal) {
+      for (let i = 0; i < 3; i++) this.effects.particle({ pos: point, vel: V.madd(V.scale(normal, rand(1, 4)), [rand(-2, 2), rand(-1, 2), rand(-2, 2)], 1), life: rand(0.25, 0.5), size: 0.04, color: [1, 0.85, 0.4], emissive: 1, gravity: 12 });
+      this.effects.particle({ pos: V.madd(point, normal, 0.05), vel: V.scale(normal, 0.6), life: 0.5, size: 0.15, grow: 0.35, color: [0.6, 0.58, 0.55], alpha: 0.45, sphere: true });
     }
     fireSniper(p, w) {
       if (!p.canFire(w) || p.cooldown > 0) return;
-      p.cooldown = w.rate; p.fireAnim = 1; p.ammo.shells -= 1; p.lastFire = this.time;
+      p.cooldown = w.rate; p.fireAnim = 1; p.ammo.shells -= 1; p.lastFire = this.time; p.shots = (p.shots || 0) + 1; p.pumpAt = this.time + w.rate * 0.3; this.ejectShell(p, 1);
       const t = clamp(p.charge / w.chargeTime, 0, 1);
       const dmg = w.dmg + (w.maxDmg - w.dmg) * t;
       const eye = p.eye(), fwd = V.forward(p.yaw, p.pitch);

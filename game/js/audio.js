@@ -29,8 +29,11 @@
       const osc = (type, f0, f1, dur) => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur); o.connect(g); o.start(t); o.stop(t + dur + 0.05); return o; };
       const filtNoise = (len, type, f0, f1) => { const n = this.noise(len); const f = ctx.createBiquadFilter(); f.type = type; f.frequency.setValueAtTime(f0, t); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + len); n.connect(f); f.connect(g); n.start(t); return n; };
       switch (name) {
-        case 'shotgun': env(0.9, 0.005, 0.25); filtNoise(0.3, 'lowpass', 3000, 300); osc('square', 120, 40, 0.15); break;
-        case 'supershotgun': env(1.0, 0.005, 0.35); filtNoise(0.4, 'lowpass', 2500, 200); osc('square', 90, 30, 0.2); break;
+        case 'shotgun': env(1.0, 0.004, 0.32); filtNoise(0.35, 'lowpass', 3500, 250); osc('square', 110, 35, 0.18); osc('sine', 70, 40, 0.25); break;
+        case 'supershotgun': env(1.2, 0.004, 0.45); filtNoise(0.5, 'lowpass', 3000, 180); osc('square', 85, 28, 0.25); osc('sine', 55, 30, 0.35); break;
+        case 'pump': env(0.5, 0.003, 0.07); filtNoise(0.08, 'bandpass', 1800); setTimeout(() => { if (this.ctx) { const g2 = this.ctx.createGain(); g2.connect(this.master); const t2 = this.ctx.currentTime; g2.gain.setValueAtTime(0.5 * vol, t2); g2.gain.exponentialRampToValueAtTime(0.0001, t2 + 0.08); const n2 = this.noise(0.08); const f2 = this.ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1200; n2.connect(f2); f2.connect(g2); n2.start(t2); } }, 90); break;
+        case 'bolt': env(0.4, 0.003, 0.1); filtNoise(0.1, 'bandpass', 2500); osc('square', 1800, 900, 0.05); break;
+        case 'click': env(0.35, 0.002, 0.05); filtNoise(0.05, 'bandpass', 3000); break;
         case 'nail': env(0.35, 0.002, 0.08); filtNoise(0.1, 'bandpass', 2500); osc('square', 700, 300, 0.06); break;
         case 'rocket': env(0.8, 0.01, 0.5); filtNoise(0.6, 'lowpass', 1500, 200); osc('sawtooth', 200, 60, 0.4); break;
         case 'gl': env(0.6, 0.005, 0.2); filtNoise(0.25, 'lowpass', 1200, 300); osc('sine', 150, 60, 0.15); break;

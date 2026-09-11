@@ -20,6 +20,10 @@ const path = require('path');
   await page.waitForTimeout(500);
   const info = await page.evaluate(() => ({ alive: window.__human.alive, cls: window.__human.cls, players: window.__game.players.length, pos: window.__human.pos }));
   console.log('joined:', JSON.stringify(info));
+  await page.evaluate(() => { window.__showcase = true; });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: (process.env.SHOT_DIR || '/tmp') + '/showcase.png' });
+  await page.evaluate(() => { window.__showcase = false; });
   // walk forward + fire for a while
   await page.evaluate(() => { window.__closeMenu(); });
   await page.keyboard.down('KeyW');
