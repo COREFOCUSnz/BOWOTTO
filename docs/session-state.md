@@ -304,6 +304,31 @@ regardless. Verified on the hosted build: correct nose orientation (rear
 chase-cam shot confirms driving forward, not backward), wheel spin,
 ROSSO MARS repaint, and the HUD showing 770 CV (not the Revuelto's 1015).
 
+**Settings/credits collapse + garage STUDIO/SHOWROOM/SHOP split, 2026-09-11:**
+two quick UX asks after the SC18. (1) Settings' CREDITS block used to always
+show the full attribution list; now it defaults to one line (LAMBO SIM ·
+CORE FOCUS PRODUCTIONS · AUCKLAND, NEW ZEALAND -- dropping the personal
+name that was there before) behind a SHOW/HIDE ADDITIONAL CREDITS toggle,
+and the Lamborghini link moved from between VOLUME and CREDITS to the very
+bottom of the panel under a new "VISIT THE OFFICIAL WEBSITE" line. (2) The
+garage's room picker (STUDIO/SHOWROOM) and its shopping tabs (PARTS/PAINT/
+THE SHOP/CAREER) used to be two independent rows -- you could be looking at
+the buy-parts list while the 3D room span underneath, cluttering the "look
+at your car" experience. Merged into one three-way tab (STUDIO/SHOWROOM/
+SHOP): the first two just switch the 3D room and show a small "your paints,
+tap to switch" strip (owned paints only, no prices, no buying -- reuses the
+same swatch technique as the start screen's `#paints` bar); SHOP hides that
+strip and reveals the existing PARTS/PAINT/CARS/CAREER sub-tabs where all
+buying and upgrading actually happens. New `garageSetView()` drives the
+switch (`garageRoom()` already no-ops for a room name it doesn't recognize,
+so calling it with 'shop' is harmless). One real bug caught by screenshot,
+not by the automated checks: `#g-quickpaint{display:flex}` (an ID selector)
+was beating `.g-pane.hidden{display:none}` (a class selector) on
+specificity, so the paint strip stayed visible even when JS had added the
+hidden class and the state checks reported it correctly hidden -- fixed
+with a same-element `#g-quickpaint.hidden{display:none}` rule, which wins
+by having one more class in its selector.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

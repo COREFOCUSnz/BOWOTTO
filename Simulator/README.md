@@ -221,7 +221,11 @@ entry below.
   scratch scripts (`prev.js`, `sprite.js`) against the built page; rerun
   them when a world changes shape.
 - **Menu and saving.** The menu (gear button on desktop, **☰ MENU** top-right
-  on a phone) holds settings, volume, credits and two career buttons:
+  on a phone) holds settings, volume, credits and two career buttons. Credits
+  default to one short line (LAMBO SIM · CORE FOCUS PRODUCTIONS · AUCKLAND,
+  NEW ZEALAND) behind a SHOW ADDITIONAL CREDITS button that reveals every
+  model attribution; the Lamborghini link sits at the very bottom of the
+  panel, under VISIT THE OFFICIAL WEBSITE.
   **SAVE GAME** writes the career record to this device and, when signed in
   on the hosted site, to the cloud, and shows when it last saved; **BACK TO
   MENU** ends the current race and returns to the start screen. The game
@@ -234,8 +238,12 @@ entry below.
 
 Every finish pays. The money is spent in the **GARAGE** (the gold button on the
 start screen) on parts that change the real physics numbers, and on paints.
-The car turns on the photo camera behind the panel while you shop. Escape or
-BACK returns to the start screen.
+The garage has three tabs: **STUDIO** and **SHOWROOM** just put the car in
+plain view on Corey's own rendered sets, turning on the camera, with nothing
+to buy — only a small strip of the paints you already own, tap to switch;
+**SHOP** is where the buying and upgrading happens, behind its own PARTS /
+PAINT / THE SHOP (cars) / CAREER sub-tabs. Escape or BACK returns to the
+start screen.
 
 **Prize money.** Versus pays by finishing position, more for harder rivals and
 longer races: a three-lap win is 8k on Easy, 15k on Medium, 20k on Hard and

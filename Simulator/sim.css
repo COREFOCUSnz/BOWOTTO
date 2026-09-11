@@ -157,6 +157,9 @@ body.touch .touchonly{display:flex!important}
 #settings .rows button:hover{border-color:var(--amber)}
 #settings .cred{font-size:11px;letter-spacing:.16em;color:var(--dim);line-height:1.8;margin:0 0 16px}
 #settings .cred a{color:var(--amber);text-decoration:none}
+#settings .cred button.link{font:inherit;font-size:11px;letter-spacing:.3em;color:var(--dim);background:none;border:1px solid rgba(255,255,255,.14);box-shadow:none;padding:6px 14px;margin:0;font-weight:600;cursor:pointer;border-radius:4px}
+#settings .cred button.link:hover{color:var(--hud);border-color:var(--amber)}
+#cred-more.hidden{display:none}
 #lambo-link{display:inline-block;font-size:12px;letter-spacing:.24em;font-weight:700;border:1px solid var(--amber);border-radius:999px;padding:7px 16px;margin:2px 0 6px}
 #lambo-link:hover{background:rgba(46,230,255,.12)}
 #settings .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -234,6 +237,15 @@ body.garage #start,body.garage #hud{display:none}
 #g-room{display:flex;gap:6px;margin-top:8px}
 #g-room button{font:inherit;font-size:10px;letter-spacing:.2em;font-weight:700;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;cursor:pointer}
 #g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}
+#g-shop.hidden{display:none}
+#g-quickpaint{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+#g-quickpaint.hidden{display:none}
+#g-quickpaint p{width:100%;margin:0 0 2px;font-size:10px;letter-spacing:.2em;color:var(--dim)}
+#g-quickpaint button{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
+#g-quickpaint button:hover{transform:scale(1.1)}
+#g-quickpaint button.on{border-color:#fff;box-shadow:0 0 12px rgba(46,230,255,.6)}
+#g-quickpaint button.livery{background:linear-gradient(135deg,#15181f 0 40%,#2ee6ff 40% 50%,#ff7a00 50% 55%,#15181f 55%)}
+#g-quickpaint button.tron{background:conic-gradient(from 0deg,#0a2a6a,#2ee6ff,#7a3cff,#0a2a6a,#2ee6ff);animation:tronspin 3s linear infinite}
 #g-shop-head,.g-shop-head{margin:2px 0 12px}
 .g-shop-head b{display:block;font-size:22px;letter-spacing:.3em;color:var(--amber)}
 .g-shop-head span{display:block;font-size:12px;letter-spacing:.16em;color:var(--dim);margin-top:5px}

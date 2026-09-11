@@ -128,12 +128,15 @@
     <p class="credit"><button id="garage-btn" class="link gold">GARAGE · $5,000</button> · <button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
   </div>
   <div id="garage" class="hidden">
-    <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button></div></div>
-    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">THE SHOP</button><button data-t="career">CAREER</button></div>
-    <div id="g-parts" class="g-pane"></div>
-    <div id="g-paint" class="g-pane hidden"></div>
-    <div id="g-cars" class="g-pane hidden"></div>
-    <div id="g-career" class="g-pane hidden"></div>
+    <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button><button data-r="shop">SHOP</button></div></div>
+    <div id="g-quickpaint" class="g-pane"></div>
+    <div id="g-shop" class="hidden">
+      <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">THE SHOP</button><button data-t="career">CAREER</button></div>
+      <div id="g-parts" class="g-pane"></div>
+      <div id="g-paint" class="g-pane hidden"></div>
+      <div id="g-cars" class="g-pane hidden"></div>
+      <div id="g-career" class="g-pane hidden"></div>
+    </div>
     <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
   </div>
   <div id="confirm" class="hidden">
@@ -169,19 +172,23 @@
       <div><span>EFFECTS</span><input type="range" min="0" max="100" data-vol="fx"><em>80%</em></div>
       <div><span>MUSIC</span><input type="range" min="0" max="100" data-vol="music"><em>80%</em></div>
     </div>
-    <p class="cred"><a id="lambo-link" href="https://www.lamborghini.com/en-en/models/revuelto-models/revuelto" target="_blank" rel="noopener">LAMBORGHINI.COM · THE REAL REVUELTO ▶</a></p>
     <h2>CREDITS</h2>
-    <p class="cred">LAMBO SIM <span id="cred-ver">V1.0.0</span> · CORE FOCUS PRODUCTIONS · COREY FRIEDLANDER<br>
+    <p class="cred">LAMBO SIM <span id="cred-ver">V1.0.0</span> · CORE FOCUS PRODUCTIONS · AUCKLAND, NEW ZEALAND</p>
+    <p class="cred"><button id="cred-more-btn" class="link">SHOW ADDITIONAL CREDITS</button></p>
+    <p class="cred hidden" id="cred-more">
     CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
     GARAGE · "STUDIO V1 FOR CAR" BY VELOCITY MOTION · SKETCHFAB · CC BY 4.0<br>
     SHOWROOM · "SCIFI TRON STUDIO | BAKED" BY CHRISTYHSU · SKETCHFAB · CC BY 4.0<br>
     AVENTADOR · "800 000 VIEWS - SPECIAL MODEL - SDC" BY SDC PERFORMANCE · SKETCHFAB · CC BY-NC 4.0<br>
     COUNTACH · "LAMBORGHINI COUNTACH 25TH ANNIVERSARY" BY AMOGUSSTRIKESBACK2 · SKETCHFAB · CC BY 4.0<br>
     COUNTACH LPI 800-4 · "2022_LAMBORGHINI_COUNTACH_LPI_800-4" BY 007 · SKETCHFAB · CC BY 4.0<br>
+    SC18 ALSTON · "2019 LAMBORGHINI SC18 ALSTON" BY DDIAZ DESIGN · SKETCHFAB · CC BY-NC-SA 4.0<br>
     GT WING · "SPOILER || WING" BY VR DESIGNER · SKETCHFAB · CC BY 4.0<br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
     <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
     <p id="set-saved" class="cred"></p>
+    <p class="cred">VISIT THE OFFICIAL WEBSITE</p>
+    <p class="cred"><a id="lambo-link" href="https://www.lamborghini.com/en-en/models/revuelto-models/revuelto" target="_blank" rel="noopener">LAMBORGHINI.COM · THE REAL REVUELTO ▶</a></p>
   </div>
 </div>
 <script src="vendor/three.min.js"></script>

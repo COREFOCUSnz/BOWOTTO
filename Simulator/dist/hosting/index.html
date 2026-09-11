@@ -167,6 +167,9 @@ body.touch .touchonly{display:flex!important}
 #settings .rows button:hover{border-color:var(--amber)}
 #settings .cred{font-size:11px;letter-spacing:.16em;color:var(--dim);line-height:1.8;margin:0 0 16px}
 #settings .cred a{color:var(--amber);text-decoration:none}
+#settings .cred button.link{font:inherit;font-size:11px;letter-spacing:.3em;color:var(--dim);background:none;border:1px solid rgba(255,255,255,.14);box-shadow:none;padding:6px 14px;margin:0;font-weight:600;cursor:pointer;border-radius:4px}
+#settings .cred button.link:hover{color:var(--hud);border-color:var(--amber)}
+#cred-more.hidden{display:none}
 #lambo-link{display:inline-block;font-size:12px;letter-spacing:.24em;font-weight:700;border:1px solid var(--amber);border-radius:999px;padding:7px 16px;margin:2px 0 6px}
 #lambo-link:hover{background:rgba(46,230,255,.12)}
 #settings .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -244,6 +247,15 @@ body.garage #start,body.garage #hud{display:none}
 #g-room{display:flex;gap:6px;margin-top:8px}
 #g-room button{font:inherit;font-size:10px;letter-spacing:.2em;font-weight:700;color:var(--dim);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:4px 12px;cursor:pointer}
 #g-room button.on{color:#02121a;background:var(--amber);border-color:var(--amber)}
+#g-shop.hidden{display:none}
+#g-quickpaint{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+#g-quickpaint.hidden{display:none}
+#g-quickpaint p{width:100%;margin:0 0 2px;font-size:10px;letter-spacing:.2em;color:var(--dim)}
+#g-quickpaint button{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .15s,border-color .15s}
+#g-quickpaint button:hover{transform:scale(1.1)}
+#g-quickpaint button.on{border-color:#fff;box-shadow:0 0 12px rgba(46,230,255,.6)}
+#g-quickpaint button.livery{background:linear-gradient(135deg,#15181f 0 40%,#2ee6ff 40% 50%,#ff7a00 50% 55%,#15181f 55%)}
+#g-quickpaint button.tron{background:conic-gradient(from 0deg,#0a2a6a,#2ee6ff,#7a3cff,#0a2a6a,#2ee6ff);animation:tronspin 3s linear infinite}
 #g-shop-head,.g-shop-head{margin:2px 0 12px}
 .g-shop-head b{display:block;font-size:22px;letter-spacing:.3em;color:var(--amber)}
 .g-shop-head span{display:block;font-size:12px;letter-spacing:.16em;color:var(--dim);margin-top:5px}
@@ -467,12 +479,15 @@ body.garage #start,body.garage #hud{display:none}
     <p class="credit"><button id="garage-btn" class="link gold">GARAGE · $5,000</button> · <button id="settings-btn" class="link">SETTINGS · CREDITS</button></p>
   </div>
   <div id="garage" class="hidden">
-    <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button></div></div>
-    <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">THE SHOP</button><button data-t="career">CAREER</button></div>
-    <div id="g-parts" class="g-pane"></div>
-    <div id="g-paint" class="g-pane hidden"></div>
-    <div id="g-cars" class="g-pane hidden"></div>
-    <div id="g-career" class="g-pane hidden"></div>
+    <div id="g-head"><h2>GARAGE</h2><div id="g-cash">$5,000</div><div id="g-rating">STOCK CAR</div><div id="g-room"><button data-r="studio" class="on">STUDIO</button><button data-r="showroom">SHOWROOM</button><button data-r="shop">SHOP</button></div></div>
+    <div id="g-quickpaint" class="g-pane"></div>
+    <div id="g-shop" class="hidden">
+      <div id="g-tabs"><button data-t="parts" class="on">PARTS</button><button data-t="paint">PAINT</button><button data-t="cars">THE SHOP</button><button data-t="career">CAREER</button></div>
+      <div id="g-parts" class="g-pane"></div>
+      <div id="g-paint" class="g-pane hidden"></div>
+      <div id="g-cars" class="g-pane hidden"></div>
+      <div id="g-career" class="g-pane hidden"></div>
+    </div>
     <div class="btns"><button id="g-name" class="ghost">CHANGE NAME</button><button id="g-signin" class="ghost">SIGN IN · SAVE TO CLOUD</button><button id="g-close">BACK</button></div>
   </div>
   <div id="confirm" class="hidden">
@@ -508,19 +523,23 @@ body.garage #start,body.garage #hud{display:none}
       <div><span>EFFECTS</span><input type="range" min="0" max="100" data-vol="fx"><em>80%</em></div>
       <div><span>MUSIC</span><input type="range" min="0" max="100" data-vol="music"><em>80%</em></div>
     </div>
-    <p class="cred"><a id="lambo-link" href="https://www.lamborghini.com/en-en/models/revuelto-models/revuelto" target="_blank" rel="noopener">LAMBORGHINI.COM · THE REAL REVUELTO ▶</a></p>
     <h2>CREDITS</h2>
-    <p class="cred">LAMBO SIM <span id="cred-ver">V1.0.0</span> · CORE FOCUS PRODUCTIONS · COREY FRIEDLANDER<br>
+    <p class="cred">LAMBO SIM <span id="cred-ver">V1.0.0</span> · CORE FOCUS PRODUCTIONS · AUCKLAND, NEW ZEALAND</p>
+    <p class="cred"><button id="cred-more-btn" class="link">SHOW ADDITIONAL CREDITS</button></p>
+    <p class="cred hidden" id="cred-more">
     CAR MODEL · "LAMBORGHINI REVUELTO" BY DRIVER-FIRE · SKETCHFAB · CC BY 4.0 · <a href="https://skfb.ly/pM6pA" target="_blank" rel="noopener">SKFB.LY/PM6PA</a><br>
     GARAGE · "STUDIO V1 FOR CAR" BY VELOCITY MOTION · SKETCHFAB · CC BY 4.0<br>
     SHOWROOM · "SCIFI TRON STUDIO | BAKED" BY CHRISTYHSU · SKETCHFAB · CC BY 4.0<br>
     AVENTADOR · "800 000 VIEWS - SPECIAL MODEL - SDC" BY SDC PERFORMANCE · SKETCHFAB · CC BY-NC 4.0<br>
     COUNTACH · "LAMBORGHINI COUNTACH 25TH ANNIVERSARY" BY AMOGUSSTRIKESBACK2 · SKETCHFAB · CC BY 4.0<br>
     COUNTACH LPI 800-4 · "2022_LAMBORGHINI_COUNTACH_LPI_800-4" BY 007 · SKETCHFAB · CC BY 4.0<br>
+    SC18 ALSTON · "2019 LAMBORGHINI SC18 ALSTON" BY DDIAZ DESIGN · SKETCHFAB · CC BY-NC-SA 4.0<br>
     GT WING · "SPOILER || WING" BY VR DESIGNER · SKETCHFAB · CC BY 4.0<br>
     3D · THREE.JS · MUSIC AND ENGINE · GENERATED IN WEB AUDIO · FONTS · ORBITRON, BARLOW CONDENSED</p>
     <div class="btns"><button id="set-save" class="alt">SAVE GAME</button><button id="set-menu" class="alt hidden">BACK TO MENU</button><button id="settings-close">CLOSE</button></div>
     <p id="set-saved" class="cred"></p>
+    <p class="cred">VISIT THE OFFICIAL WEBSITE</p>
+    <p class="cred"><a id="lambo-link" href="https://www.lamborghini.com/en-en/models/revuelto-models/revuelto" target="_blank" rel="noopener">LAMBORGHINI.COM · THE REAL REVUELTO ▶</a></p>
   </div>
 </div>
 <script>
@@ -7437,7 +7456,7 @@ function setPaint(i) {
   const P = PAINTS[paintIdx];
   if (!P.shader) paintMat.color.setHex(P.hex);
   $('paint-name').textContent = P.name; if (typeof roofClip !== 'undefined') setTimeout(applyRoofClip, 0); try { localStorage.setItem('revuelto.paint', String(paintIdx)); } catch (e) {}
-  document.querySelectorAll('#paints button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
+  document.querySelectorAll('#paints button, #g-quickpaint button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
   (customModel || procBody).traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
     if (P.shader) { o.material = tronMat; return; }                          // living hologram paint
@@ -7549,7 +7568,12 @@ function garageFrame(dt, now) {
   const rp = bloomOn && composer && composer.passes && composer.passes.find(q => q.scene && q.camera);
   if (rp) { const s0 = rp.scene, c0 = rp.camera; rp.scene = s; rp.camera = c; composer.render(); rp.scene = s0; rp.camera = c0; } else renderer.render(s, c);
 }
-document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageRoom(b.dataset.r); }); });
+function garageSetView(name) {
+  document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
+  $('g-shop').classList.toggle('hidden', name !== 'shop'); $('g-quickpaint').classList.toggle('hidden', name === 'shop');
+  if (name !== 'shop') garageRoom(name); else garageRefresh();
+}
+document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageSetView(b.dataset.r); }); });
 { // orbit with a finger or the mouse, zoom with the wheel or a pinch
   const cv = renderer.domElement, ptr = {};
   cv.addEventListener('pointerdown', e => { if (!garage.on) return; ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; garage.drag = { x: e.clientX, y: e.clientY }; });
@@ -8276,6 +8300,7 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
   settingsRefresh(); audioBtns();
 }));
 document.querySelectorAll('#settings input[data-vol]').forEach(r => { const upd = () => { audio.setVolume(r.dataset.vol, r.value / 100); r.nextElementSibling.textContent = r.value + '%'; }; r.addEventListener('input', upd); r.addEventListener('change', upd); r.addEventListener('click', e => e.stopPropagation()); });
+$('cred-more-btn').addEventListener('click', e => { e.stopPropagation(); const on = $('cred-more').classList.toggle('hidden'); e.target.textContent = on ? 'SHOW ADDITIONAL CREDITS' : 'HIDE ADDITIONAL CREDITS'; });
 $('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
 $('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
 $('t-menu').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
@@ -8384,6 +8409,8 @@ let paintOpen = false;
         (nxt ? `<div class="g-next"><b>${nxt.name}</b><span>${nxt.sub}</span><em>${effect(nxt)}</em></div><button data-buy="${key}"${career.cash < nxt.price ? ' disabled' : ''}>BUY · ${fmtCash(nxt.price)}</button>` : '<div class="g-next"><em>FULLY UPGRADED</em></div>');
       parts.appendChild(card);
     }
+    const qp = $('g-quickpaint'); qp.innerHTML = '<p>YOUR PAINTS · TAP TO SWITCH</p>';
+    for (const i of career.paints) { const P = PAINTS[i], b = document.createElement('button'); b.dataset.p = String(i); b.title = P.name; b.className = (i === paintIdx ? 'on ' : '') + (P.shader ? 'tron' : P.livery ? 'livery' : ''); if (!P.shader && !P.livery) b.style.background = hex(P); qp.appendChild(b); }
     const pp = $('g-paint'); pp.innerHTML = '';
     if (!paintOpen) { pp.innerHTML = '<button id="g-paint-toggle">PAINTS<span>' + PAINTS.length + ' COLOURS · CLICK TO SEE THEM ALL</span></button>'; }
     else PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
@@ -8402,6 +8429,7 @@ let paintOpen = false;
   };
   $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], nxt = SHOP[key].tiers[t];
     confirmAsk('BUY THIS?', SHOP[key].brand + ' · ' + nxt.name + ' · ' + fmtCash(nxt.price), () => { const r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + nxt.name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); }); });
+  $('g-quickpaint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } });
   $('g-paint').addEventListener('click', e => {
     if (e.target.closest('#g-paint-toggle')) { e.stopPropagation(); paintOpen = true; garageRefresh(); return; }
     const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p;

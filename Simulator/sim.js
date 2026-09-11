@@ -1860,7 +1860,7 @@ function setPaint(i) {
   const P = PAINTS[paintIdx];
   if (!P.shader) paintMat.color.setHex(P.hex);
   $('paint-name').textContent = P.name; if (typeof roofClip !== 'undefined') setTimeout(applyRoofClip, 0); try { localStorage.setItem('revuelto.paint', String(paintIdx)); } catch (e) {}
-  document.querySelectorAll('#paints button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
+  document.querySelectorAll('#paints button, #g-quickpaint button').forEach(b => b.classList.toggle('on', +b.dataset.p === paintIdx));
   (customModel || procBody).traverse(o => {
     if (!(o.isMesh && o.userData.paint)) return;
     if (P.shader) { o.material = tronMat; return; }                          // living hologram paint
@@ -1972,7 +1972,12 @@ function garageFrame(dt, now) {
   const rp = bloomOn && composer && composer.passes && composer.passes.find(q => q.scene && q.camera);
   if (rp) { const s0 = rp.scene, c0 = rp.camera; rp.scene = s; rp.camera = c; composer.render(); rp.scene = s0; rp.camera = c0; } else renderer.render(s, c);
 }
-document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageRoom(b.dataset.r); }); });
+function garageSetView(name) {
+  document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
+  $('g-shop').classList.toggle('hidden', name !== 'shop'); $('g-quickpaint').classList.toggle('hidden', name === 'shop');
+  if (name !== 'shop') garageRoom(name); else garageRefresh();
+}
+document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('on', b.dataset.r === garage.room); b.addEventListener('click', e => { e.stopPropagation(); garageSetView(b.dataset.r); }); });
 { // orbit with a finger or the mouse, zoom with the wheel or a pinch
   const cv = renderer.domElement, ptr = {};
   cv.addEventListener('pointerdown', e => { if (!garage.on) return; ptr[e.pointerId] = { x: e.clientX, y: e.clientY }; garage.drag = { x: e.clientX, y: e.clientY }; });
@@ -2699,6 +2704,7 @@ document.querySelectorAll('#settings [data-set]').forEach(b => b.addEventListene
   settingsRefresh(); audioBtns();
 }));
 document.querySelectorAll('#settings input[data-vol]').forEach(r => { const upd = () => { audio.setVolume(r.dataset.vol, r.value / 100); r.nextElementSibling.textContent = r.value + '%'; }; r.addEventListener('input', upd); r.addEventListener('change', upd); r.addEventListener('click', e => e.stopPropagation()); });
+$('cred-more-btn').addEventListener('click', e => { e.stopPropagation(); const on = $('cred-more').classList.toggle('hidden'); e.target.textContent = on ? 'SHOW ADDITIONAL CREDITS' : 'HIDE ADDITIONAL CREDITS'; });
 $('settings-btn').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.remove('hidden'); });
 $('settings-close').addEventListener('click', e => { e.stopPropagation(); $('settings').classList.add('hidden'); });
 $('t-menu').addEventListener('click', e => { e.stopPropagation(); settingsRefresh(); $('settings').classList.toggle('hidden'); });
@@ -2807,6 +2813,8 @@ let paintOpen = false;
         (nxt ? `<div class="g-next"><b>${nxt.name}</b><span>${nxt.sub}</span><em>${effect(nxt)}</em></div><button data-buy="${key}"${career.cash < nxt.price ? ' disabled' : ''}>BUY · ${fmtCash(nxt.price)}</button>` : '<div class="g-next"><em>FULLY UPGRADED</em></div>');
       parts.appendChild(card);
     }
+    const qp = $('g-quickpaint'); qp.innerHTML = '<p>YOUR PAINTS · TAP TO SWITCH</p>';
+    for (const i of career.paints) { const P = PAINTS[i], b = document.createElement('button'); b.dataset.p = String(i); b.title = P.name; b.className = (i === paintIdx ? 'on ' : '') + (P.shader ? 'tron' : P.livery ? 'livery' : ''); if (!P.shader && !P.livery) b.style.background = hex(P); qp.appendChild(b); }
     const pp = $('g-paint'); pp.innerHTML = '';
     if (!paintOpen) { pp.innerHTML = '<button id="g-paint-toggle">PAINTS<span>' + PAINTS.length + ' COLOURS · CLICK TO SEE THEM ALL</span></button>'; }
     else PAINTS.forEach((P, i) => { const owned = ownsPaint(i), on = i === paintIdx, b = document.createElement('button'); b.className = 'g-swatch' + (on ? ' on' : '') + (owned ? ' owned' : '') + (!owned && career.cash < P.price ? ' dear' : ''); b.dataset.p = String(i);
@@ -2825,6 +2833,7 @@ let paintOpen = false;
   };
   $('g-parts').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (!b) return; e.stopPropagation(); const key = b.dataset.buy, t = career.tiers[key], nxt = SHOP[key].tiers[t];
     confirmAsk('BUY THIS?', SHOP[key].brand + ' · ' + nxt.name + ' · ' + fmtCash(nxt.price), () => { const r = buyPart(key); if (r === 'OK') { flash('FITTED · ' + SHOP[key].brand + ' ' + nxt.name, 1300, '#ffd21f'); audio.beep(1320, 0.2); } else flash(r, 1000); garageRefresh(); }); });
+  $('g-quickpaint').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p; if (ownsPaint(i)) { setPaint(i); flash(PAINTS[i].name, 900); } });
   $('g-paint').addEventListener('click', e => {
     if (e.target.closest('#g-paint-toggle')) { e.stopPropagation(); paintOpen = true; garageRefresh(); return; }
     const b = e.target.closest('[data-p]'); if (!b) return; e.stopPropagation(); const i = +b.dataset.p;
