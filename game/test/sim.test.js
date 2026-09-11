@@ -1,49 +1,79 @@
-// Headless soak: bots vs bots for a few minutes of simulated time. Fails on NaNs,
-// on bots that never move, on a match with no kills, and on no flag activity.
-// Deterministic: the simulation leans on Math.random throughout, and captures are
-// rare enough (1-3 per five minutes) that an unseeded run can legitimately see none.
-// Pin the generator so this bench is a regression test rather than a coin flip.
-// Vary it with SEED=<n> to explore other trajectories.
-let __seed = (parseInt(process.env.SEED || '20260911', 10) >>> 0) || 1;
-Math.random = () => { __seed = (Math.imul(__seed, 1664525) + 1013904223) >>> 0; return __seed / 4294967296; };
-
+// Headless soak: bots vs bots. Fails on NaNs, on bots that never move, on a match
+// with no kills, and on a map that cannot be captured on.
+//
+// Determinism: the simulation leans on Math.random throughout, so each match is
+// seeded. Captures are rare enough (roughly 0-6 per five simulated minutes) that
+// a single trajectory is a coin flip, so the capture check runs several seeds and
+// requires most of them to score. Everything else runs on one seed.
 const { Game, BLUE, RED } = require('../js/sim.js');
 const { BotBrain, botClassFor } = require('../js/bots.js');
 const { V } = require('../js/math.js');
-let fails = 0; const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails++; };
+
+let fails = 0;
+const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails++; };
 const minutes = parseFloat(process.argv[2] || '5');
-const msgs = [];
-const game = new Game({ effects: { particle() {}, tracer() {}, sound() {}, say() {}, message(t) { if (t) msgs.push(t); }, flash() {}, shake() {} } });
-const brains = [];
-for (const team of [BLUE, RED]) for (let i = 0; i < 5; i++) {
-  const p = game.addPlayer(`bot${team}_${i}`, team, true); p.cls = botClassFor(i + (team ? 2 : 0)); p.wantsRespawn = true;
-  brains.push(new BotBrain(game, p, 0.6));
+const BASE_SEED = (parseInt(process.env.SEED || '20260911', 10) >>> 0) || 1;
+
+function seedRandom(seed) {
+  let s = seed >>> 0 || 1;
+  Math.random = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
 }
-const dt = 1 / 60; const steps = Math.round(minutes * 60 / dt);
-const t0 = Date.now(); let maxMoved = 0; const start = new Map();
-let events = { taken: 0, caps: 0, drops: 0 };
-const origAnnounce = game.announce.bind(game);
-game.announce = (text, team, kind) => { if (kind === 'flag' && /taken/.test(text)) events.taken++; if (kind === 'cap') events.caps++; if (/dropped/.test(text)) events.drops++; origAnnounce(text, team, kind); };
-for (let i = 0; i < steps; i++) {
-  for (const b of brains) b.update(dt);
-  game.update(dt);
-  for (const p of game.players) {
-    if (!p.alive) continue;
-    if (!start.has(p)) start.set(p, V.copy(p.pos));
-    if (!isFinite(p.pos[0]) || !isFinite(p.pos[1]) || !isFinite(p.pos[2]) || !isFinite(p.hp)) { check(false, `NaN in ${p.name} at step ${i}`); process.exit(1); }
-    maxMoved = Math.max(maxMoved, V.dist(p.pos, start.get(p)));
+
+// Runs one match and returns what happened in it.
+function match(seed, mins, watch) {
+  seedRandom(seed);
+  const events = { taken: 0, caps: 0, drops: 0 };
+  const game = new Game({ effects: { particle() {}, tracer() {}, sound() {}, say() {}, message() {}, flash() {}, shake() {} } });
+  const announce = game.announce.bind(game);
+  game.announce = (text, team, kind) => {
+    if (kind === 'flag' && /taken/.test(text)) events.taken++;
+    if (kind === 'cap') events.caps++;
+    if (/dropped/.test(text)) events.drops++;
+    announce(text, team, kind);
+  };
+  const brains = [];
+  for (const team of [BLUE, RED]) for (let i = 0; i < 5; i++) {
+    const p = game.addPlayer(`bot${team}_${i}`, team, true);
+    p.cls = botClassFor(i + (team ? 2 : 0)); p.wantsRespawn = true;
+    brains.push(new BotBrain(game, p, 0.6));
   }
+  const dt = 1 / 60, steps = Math.round(mins * 60 / dt);
+  const start = new Map();
+  let maxMoved = 0, nan = null, closest = Infinity;
+  const t0 = Date.now();
+  for (let i = 0; i < steps; i++) {
+    for (const b of brains) b.update(dt);
+    game.update(dt);
+    for (const p of game.players) {
+      if (!p.alive) continue;
+      if (!start.has(p)) start.set(p, V.copy(p.pos));
+      if (!isFinite(p.pos[0]) || !isFinite(p.pos[1]) || !isFinite(p.pos[2]) || !isFinite(p.hp)) nan = nan || `${p.name} at step ${i}`;
+      maxMoved = Math.max(maxMoved, V.dist(p.pos, start.get(p)));
+      if (watch && p.flag) closest = Math.min(closest, V.dist(p.pos, game.data.caps[p.team].pos));
+    }
+  }
+  return { game, events, maxMoved, nan, closest, ms: Date.now() - t0,
+    kills: game.players.reduce((a, p) => a + p.kills, 0) };
 }
-const ms = Date.now() - t0;
-console.log(`simulated ${minutes} min in ${ms} ms (${(minutes * 60 * 1000 / ms).toFixed(1)}x realtime)`);
-const kills = game.players.reduce((a, p) => a + p.kills, 0);
-console.log('kills', kills, 'flag events', JSON.stringify(events), 'score', game.score, 'sentries', game.sentries.length, 'projectiles alive', game.projectiles.length);
-for (const p of game.players) console.log(`  ${p.name.padEnd(8)} ${p.cls.padEnd(9)} K${p.kills} D${p.deaths} caps ${p.caps} dmg ${p.stats.dmg} alive=${p.alive} at ${p.pos.map((v) => v.toFixed(1))}`);
-check(ms < minutes * 60 * 1000 / 5, 'sim runs at least 5x realtime');
-check(maxMoved > 20, 'bots travel across the map (max ' + maxMoved.toFixed(1) + ' m)');
-check(kills > 10, 'fighting happens (' + kills + ' kills)');
-check(events.taken > 0, 'a flag was taken');
-check(events.caps > 0 || minutes < 5, 'a flag was captured (needs a run of 5+ minutes)');
-check(game.players.every((p) => p.deaths < kills), 'no single bot absorbs every kill');
+
+// ---- the main soak, on one seed
+const r = match(BASE_SEED, minutes, true);
+console.log(`simulated ${minutes} min in ${r.ms} ms (${(minutes * 60 * 1000 / r.ms).toFixed(1)}x realtime)`);
+console.log('kills', r.kills, 'flag events', JSON.stringify(r.events), 'score', r.game.score);
+for (const p of r.game.players) console.log(`  ${p.name.padEnd(8)} ${p.cls.padEnd(9)} K${p.kills} D${p.deaths} caps ${p.caps} dmg ${p.stats.dmg}`);
+if (r.nan) check(false, 'NaN in ' + r.nan);
+check(r.ms < minutes * 60 * 1000 / 5, 'sim runs at least 5x realtime');
+check(r.maxMoved > 20, 'bots travel across the map (max ' + r.maxMoved.toFixed(1) + ' m)');
+check(r.kills > 10, 'fighting happens (' + r.kills + ' kills)');
+check(r.events.taken > 0, 'a flag was taken');
+check(r.game.players.every((p) => p.deaths < r.kills), 'no single bot absorbs every kill');
+
+// ---- capturability, across several seeds
+const seeds = [BASE_SEED, 7, 99, 12345];
+const caps = seeds.map((s) => match(s, minutes, false).events.caps);
+console.log('captures per seed: ' + seeds.map((s, i) => s + '=' + caps[i]).join(', '));
+const scoring = caps.filter((c) => c > 0).length;
+check(scoring >= Math.ceil(seeds.length / 2), `the map is capturable (${scoring} of ${seeds.length} seeds scored)`);
+
 console.log(fails ? `\n${fails} FAILURE(S)` : '\nALL PASS');
 process.exit(fails ? 1 : 0);

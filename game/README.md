@@ -111,6 +111,24 @@ natural next step: the simulation (`js/sim.js`) is deterministic and
 DOM-free, so a host-authoritative netcode over Firebase Realtime Database or
 WebRTC can drive the same code with remote inputs.
 
+## Lighting and materials
+
+The world is a voxel grid, and flat-lit voxels are what read as blocky. Two
+things fix that, both baked into the mesh when the map loads:
+
+- **Ambient occlusion.** Every face corner samples its three neighbouring voxels,
+  so creases, doorways and the undersides of ledges darken. Greedy meshing only
+  merges faces whose occlusion matches, which is why the mesh grew from about
+  4,400 to 18,000 vertices — still trivial, and worth it.
+- **Baked fixture light.** The 32 ceiling lamps cast real light with a visibility
+  check, so interiors are lit by lamps in pools rather than by a flat ambient
+  term. Indoors the sun contributes little, which is what gives the basement its
+  gloom and the flag room its warm patch of floor.
+
+Materials carry per-brick variation, grime, panel seams, bolts and plank grain
+rather than a single flat tint. Team-coloured rooms are concrete with a band at
+eye height instead of six faces of solid colour.
+
 ## Skins
 
 Character sets are chosen in game under **Skins** on the main menu. Two ship:

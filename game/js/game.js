@@ -31,7 +31,7 @@
     shake(a) { shakeAmt = Math.min(1, shakeAmt + a); },
   };
   const game = new Game({ effects });
-  renderer.setWorld(game.world);
+  renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })) });
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
   const brains = new Map();
@@ -46,6 +46,9 @@
   // the mercenaries had; a Heavy still reads as bigger than a Scout.
   const CLASS_SCALE = { scout: 0.98, sniper: 1.04, soldier: 1.02, demoman: 1.02, medic: 1.01, hwguy: 1.06, pyro: 0.96, spy: 1.0, engineer: 0.92 };
   const TEAM_GLOW = [[0.40, 1.30, 2.40], [2.40, 0.55, 0.18]];   // blue: cyan, red: orange
+  // In the class set the Demoman borrows the Soldier's model, so give him a
+  // shorter, stockier stance rather than an identical twin.
+  const SHARED_SCALE = { demoman: 0.95 };
   const GRIP_FOR = { ac: 'heavy', flamer: 'heavy', rpg: 'launcher', ic: 'launcher', gl: 'launcher', pl: 'launcher', tranq: 'pistol', railgun: 'pistol' };
   if (renderer.skinProg) models.load('assets/models/').then((ok) => { modelsReady = ok; if (ok && menu) renderMenu(); });
   function poseFor(p, model) {
@@ -561,7 +564,7 @@
       if (!visible(p.pos, cull.char)) continue;
       const model = modelFor(p); if (!model) continue;
       const pose = poseFor(p, model);
-      const scale = model.glow ? (CLASS_SCALE[p.cls] || 1) : 1;
+      const scale = model.glow ? (CLASS_SCALE[p.cls] || 1) : (SHARED_SCALE[p.cls] || 1);
       pose.scale = scale;
       const st = poseState(p); st.root = playerRoot(p, scale);
       animate(pose, st);
@@ -888,5 +891,5 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

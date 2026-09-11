@@ -5,18 +5,18 @@
   const { M, V } = root;
 
   const VS = `
-attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat; attribute float aLit;
+attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat; attribute vec3 aLight;
 uniform mat4 uProj, uView, uModel;
-varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying float vLit; varying float vDepth;
+varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec3 vLight; varying float vDepth;
 void main(){
   vec4 w = uModel * vec4(aPos,1.0);
-  vWorld = w.xyz; vNrm = normalize(mat3(uModel) * aNrm); vMat = aMat; vLit = aLit;
+  vWorld = w.xyz; vNrm = normalize(mat3(uModel) * aNrm); vMat = aMat; vLight = aLight;
   vec4 v = uView * w; vDepth = -v.z;
   gl_Position = uProj * v;
 }`;
   const FS = `
 precision mediump float;
-varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying float vLit; varying float vDepth;
+varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec3 vLight; varying float vDepth;
 uniform vec3 uColor; uniform float uUseMat; uniform float uAlpha; uniform float uEmissive; uniform float uTime;
 uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uLightDir; uniform float uFlash;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -35,18 +35,29 @@ void main(){
       float row = floor(uv.y * 4.0); vec2 b = vec2(uv.x * 2.0 + mod(row, 2.0) * 0.5, uv.y * 4.0);
       vec2 f = fract(b); float mortar = step(f.x, 0.08) + step(f.y, 0.12);
       vec3 base = m == 1 ? vec3(0.62, 0.45, 0.33) : vec3(0.42, 0.30, 0.24);
-      base *= 0.85 + 0.3 * hash(floor(b));
-      col = mix(base, vec3(0.55, 0.52, 0.48), clamp(mortar, 0.0, 1.0)) * (0.9 + 0.2 * nz);
+      base *= 0.78 + 0.42 * hash(floor(b));                       // per-brick variation
+      base *= 1.0 - 0.22 * noise(uv * 14.0);                      // pitting
+      col = mix(base, vec3(0.55, 0.52, 0.48) * (0.85 + 0.3 * noise(uv * 20.0)), clamp(mortar, 0.0, 1.0));
+      col *= 0.88 + 0.24 * noise(uv * 1.3);                       // broad grime
     } else if (m == 2) { // concrete panels
       vec2 f = fract(uv * 0.5); float seam = step(f.x, 0.03) + step(f.y, 0.03);
-      col = vec3(0.58, 0.57, 0.54) * (0.85 + 0.25 * nz) * (1.0 - 0.35 * clamp(seam, 0.0, 1.0));
+      float stain = noise(uv * 0.7) * noise(uv * 2.3);
+      col = vec3(0.58, 0.57, 0.54) * (0.80 + 0.3 * nz) * (1.0 - 0.45 * clamp(seam, 0.0, 1.0));
+      col *= 1.0 - 0.28 * stain;
+      col *= 0.94 + 0.12 * noise(uv * 11.0);
+      float riv = step(length(fract(uv * 0.5) - 0.5) , 0.035);    // panel bolts
+      col += riv * 0.06;
     } else if (m == 3) { // metal plates with rivets
       vec2 f = fract(uv); float seam = step(f.x, 0.04) + step(f.y, 0.04);
       float riv = step(length(fract(uv * 2.0) - 0.5), 0.07);
-      col = vec3(0.36, 0.38, 0.42) * (0.9 + 0.2 * nz) * (1.0 - 0.4 * clamp(seam, 0.0, 1.0)) + riv * 0.12;
+      col = vec3(0.36, 0.38, 0.42) * (0.85 + 0.3 * nz) * (1.0 - 0.45 * clamp(seam, 0.0, 1.0)) + riv * 0.14;
+      col *= 1.0 - 0.22 * noise(uv * 3.1) * noise(uv * 0.9);      // streaked wear
     } else if (m == 4) { // wood planks
       float plank = floor(uv.x * 4.0); float gap = step(fract(uv.x * 4.0), 0.08);
-      col = vec3(0.55, 0.38, 0.22) * (0.8 + 0.3 * hash(vec2(plank, 1.0))) * (0.9 + 0.2 * noise(vec2(uv.x * 8.0, uv.y * 1.5))) * (1.0 - 0.5 * gap);
+      col = vec3(0.55, 0.38, 0.22) * (0.72 + 0.45 * hash(vec2(plank, 1.0)))
+          * (0.85 + 0.3 * noise(vec2(uv.x * 26.0, uv.y * 1.4)))   // grain along the plank
+          * (1.0 - 0.6 * gap);
+      col *= 0.9 + 0.2 * noise(uv * 0.9);
     } else if (m == 6) { // dirt / grass
       vec3 grass = vec3(0.32, 0.45, 0.2), dirt = vec3(0.45, 0.36, 0.26);
       col = (an.y > 0.5 ? grass : dirt) * (0.8 + 0.4 * noise(uv * 6.0));
@@ -63,9 +74,13 @@ void main(){
   }
   float diff = max(dot(n, uLightDir), 0.0);
   float fill = max(dot(n, vec3(-0.5, 0.3, -0.6)), 0.0);
-  float light = 0.5 + 0.42 * diff + 0.12 * fill;
-  if (vLit > 0.5) light *= 0.8;
-  vec3 c = mix(col * light, col, emis);
+  float ao = mix(1.0, vLight.y, 0.85);   // keep a floor so creases darken without going black
+  float lamp = vLight.z;
+  // Indoors the sun barely reaches; the ceiling fixtures do the work.
+  float sky = (0.52 + 0.40 * diff + 0.12 * fill) * mix(1.0, 0.66, vLight.x);
+  vec3 lampCol = vec3(1.0, 0.87, 0.66) * lamp * 2.2;
+  vec3 c = col * (sky * ao) + col * lampCol * (0.35 + 0.65 * ao);
+  c = mix(c, col, emis);
   float fog = 1.0 - exp(-uFogDensity * uFogDensity * vDepth * vDepth);
   c = mix(c, uFogColor, clamp(fog, 0.0, 1.0));
   c = mix(c, vec3(1.0, 0.95, 0.8), uFlash);
@@ -198,7 +213,7 @@ void main(){
       } catch (e) { this.skinProg = null; this.skinError = e.message; console.warn('skinned shader unavailable:', e.message); }
       this.u = {};
       for (const n of ['uProj', 'uView', 'uModel', 'uColor', 'uUseMat', 'uAlpha', 'uEmissive', 'uTime', 'uFogColor', 'uFogDensity', 'uLightDir', 'uFlash']) this.u[n] = gl.getUniformLocation(this.prog, n);
-      this.a = { aPos: gl.getAttribLocation(this.prog, 'aPos'), aNrm: gl.getAttribLocation(this.prog, 'aNrm'), aMat: gl.getAttribLocation(this.prog, 'aMat'), aLit: gl.getAttribLocation(this.prog, 'aLit') };
+      this.a = { aPos: gl.getAttribLocation(this.prog, 'aPos'), aNrm: gl.getAttribLocation(this.prog, 'aNrm'), aMat: gl.getAttribLocation(this.prog, 'aMat'), aLight: gl.getAttribLocation(this.prog, 'aLight') };
       this.su = {}; for (const n of ['uFwd', 'uRight', 'uUp', 'uTanX', 'uTanY', 'uFogColor']) this.su[n] = gl.getUniformLocation(this.sky, n);
       this.sa = gl.getAttribLocation(this.sky, 'aXY');
       this.skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuf);
@@ -220,11 +235,11 @@ void main(){
       o.pos = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.pos); gl.bufferData(gl.ARRAY_BUFFER, geo.pos, gl.STATIC_DRAW);
       o.nrm = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.nrm); gl.bufferData(gl.ARRAY_BUFFER, geo.nrm, gl.STATIC_DRAW);
       if (geo.mat) { o.mat = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.mat); gl.bufferData(gl.ARRAY_BUFFER, geo.mat, gl.STATIC_DRAW); }
-      if (geo.lit) { o.lit = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.lit); gl.bufferData(gl.ARRAY_BUFFER, geo.lit, gl.STATIC_DRAW); }
+      if (geo.lig) { o.lig = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, o.lig); gl.bufferData(gl.ARRAY_BUFFER, geo.lig, gl.STATIC_DRAW); }
       return o;
     }
-    setWorld(world) {
-      this.worldMesh = this.upload(world.buildMesh());
+    setWorld(world, opts) {
+      this.worldMesh = this.upload(world.buildMesh(opts));
       // water surface quads
       const pos = [], nrm = [];
       for (const w of world.water) {
@@ -234,7 +249,8 @@ void main(){
         for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(q[i][0], q[i][1], q[i][2]); nrm.push(0, -1, 0); }
       }
       const n = pos.length / 3;
-      this.waterMesh = this.upload({ pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(n).fill(5), lit: new Float32Array(n) });
+      const wl = new Float32Array(n * 3); for (let i = 0; i < n; i++) { wl[i * 3] = 0; wl[i * 3 + 1] = 1; wl[i * 3 + 2] = 0; }
+      this.waterMesh = this.upload({ pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(n).fill(5), lig: wl });
     }
     resize() {
       const c = this.canvas, dpr = Math.min(window.devicePixelRatio || 1, this.dprCap || 1.5);
@@ -249,10 +265,10 @@ void main(){
       gl.bindBuffer(gl.ARRAY_BUFFER, mesh.nrm); gl.enableVertexAttribArray(a.aNrm); gl.vertexAttribPointer(a.aNrm, 3, gl.FLOAT, false, 0, 0);
       if (staticMats && mesh.mat) {
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.mat); gl.enableVertexAttribArray(a.aMat); gl.vertexAttribPointer(a.aMat, 1, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.lit); gl.enableVertexAttribArray(a.aLit); gl.vertexAttribPointer(a.aLit, 1, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.lig); gl.enableVertexAttribArray(a.aLight); gl.vertexAttribPointer(a.aLight, 3, gl.FLOAT, false, 0, 0);
       } else {
         gl.disableVertexAttribArray(a.aMat); gl.vertexAttrib1f(a.aMat, 0);
-        gl.disableVertexAttribArray(a.aLit); gl.vertexAttrib1f(a.aLit, 0);
+        gl.disableVertexAttribArray(a.aLight); gl.vertexAttrib3f(a.aLight, 0, 1, 0);
       }
     }
     begin(cam) {

@@ -214,32 +214,54 @@
       return { pos: p, flags };
     }
 
-    // ---- Greedy meshing. Emits quads: {positions[], normals[], mats[], lights[]}.
-    buildMesh() {
+    // ---- Greedy meshing with baked lighting.
+    // Emits quads carrying per-vertex ambient occlusion and a baked contribution
+    // from the ceiling fixtures. Flat-lit voxels are what read as "blocky"; corner
+    // darkening and pools of lamplight are what fix it.
+    buildMesh(opts) {
+      opts = opts || {};
+      const lights = opts.lights || [];
       const { nx, ny, nz, res } = this;
       const dims = [nx, ny, nz];
-      const pos = [], nrm = [], mat = [], lit = [];
-      const skyLight = new Uint8Array(nx * nz); // column has open sky above height? we compute per cell lazily
-      const isIndoor = (x, y, z) => { for (let yy = y + 1; yy < ny; yy++) if (this.cells[this.idx(x, yy, z)]) return true; return false; };
+      const pos = [], nrm = [], mat = [], lig = [];
+      const indoorCache = new Map();
+      const isIndoor = (x, y, z) => {
+        const k = (x * ny + y) * nz + z;
+        let v = indoorCache.get(k);
+        if (v === undefined) { v = 0; for (let yy = y + 1; yy < ny; yy++) if (this.cells[this.idx(x, yy, z)]) { v = 1; break; } indoorCache.set(k, v); }
+        return v;
+      };
+      const solid = (x, y, z) => (this.inGrid(x, y, z) ? (this.cells[this.idx(x, y, z)] ? 1 : 0) : 0);
+      // Standard voxel corner occlusion: two edge neighbours and the diagonal.
+      const cornerAO = (s1, s2, c) => (s1 && s2 ? 0 : 3 - (s1 + s2 + c));
+
       const mask = new Int32Array(Math.max(nx * ny, ny * nz, nx * nz));
+      const aoOf = new Uint8Array(4);
       for (let d = 0; d < 3; d++) {
         const u = (d + 1) % 3, v = (d + 2) % 3;
         const x = [0, 0, 0], q = [0, 0, 0]; q[d] = 1;
         for (x[d] = -1; x[d] < dims[d];) {
-          // build mask
           let n = 0;
           for (x[v] = 0; x[v] < dims[v]; x[v]++) for (x[u] = 0; x[u] < dims[u]; x[u]++) {
             const a = x[d] >= 0 ? this.cells[this.idx(x[0], x[1], x[2])] : MAT.STONE;
             const b = x[d] < dims[d] - 1 ? this.cells[this.idx(x[0] + q[0], x[1] + q[1], x[2] + q[2])] : (d === 1 ? 0 : MAT.STONE);
             let val = 0;
             if ((a !== 0) !== (b !== 0)) {
-              if (a) { // face of a pointing +d ; light sampled from the air cell b
-                const l = isIndoor(x[0] + q[0], x[1] + q[1], x[2] + q[2]) ? 1 : 0;
-                val = a | (l << 8) | (1 << 9);
-              } else {
-                const l = isIndoor(x[0], x[1], x[2]) ? 1 : 0;
-                val = b | (l << 8) | (2 << 9);
+              const side = a ? 1 : 2;                       // 1: face points +d, 2: -d
+              const air = side === 1 ? [x[0] + q[0], x[1] + q[1], x[2] + q[2]] : [x[0], x[1], x[2]];
+              const m = a || b;
+              const l = isIndoor(air[0], air[1], air[2]);
+              // four corner occlusion values, sampled in the air cell's plane
+              let packed = 0;
+              for (let c = 0; c < 4; c++) {
+                const cu = (c === 1 || c === 2) ? 1 : -1;
+                const cv = (c === 2 || c === 3) ? 1 : -1;
+                const p1 = air.slice(), p2 = air.slice(), p3 = air.slice();
+                p1[u] += cu; p2[v] += cv; p3[u] += cu; p3[v] += cv;
+                const ao = cornerAO(solid(p1[0], p1[1], p1[2]), solid(p2[0], p2[1], p2[2]), solid(p3[0], p3[1], p3[2]));
+                packed |= ao << (c * 2);
               }
+              val = (m & 0xff) | (l << 8) | (side << 9) | (packed << 11);
             }
             mask[n++] = val;
           }
@@ -248,6 +270,7 @@
           for (let j = 0; j < dims[v]; j++) for (let i = 0; i < dims[u];) {
             const c = mask[n];
             if (c) {
+              // merge only across faces whose material, light and occlusion all match
               let w = 1; while (i + w < dims[u] && mask[n + w] === c) w++;
               let h = 1, done = false;
               for (; j + h < dims[v]; h++) {
@@ -256,26 +279,60 @@
               }
               x[u] = i; x[v] = j;
               const du = [0, 0, 0], dv = [0, 0, 0]; du[u] = w; dv[v] = h;
-              const m = c & 0xff, l = (c >> 8) & 1, side = (c >> 9) & 3;
+              const m = c & 0xff, l = (c >> 8) & 1, side = (c >> 9) & 3, packed = c >> 11;
+              for (let k = 0; k < 4; k++) aoOf[k] = (packed >> (k * 2)) & 3;
               const base = [this.min[0] + x[0] * res, this.min[1] + x[1] * res, this.min[2] + x[2] * res];
               const p0 = base, p1 = V.madd(base, du, res), p2 = V.madd(V.madd(base, du, res), dv, res), p3 = V.madd(base, dv, res);
               const nn = [0, 0, 0]; nn[d] = side === 1 ? 1 : -1;
-              const quad = side === 1 ? [p0, p1, p2, p0, p2, p3] : [p0, p3, p2, p0, p2, p1];
-              for (const p of quad) { pos.push(p[0], p[1], p[2]); nrm.push(nn[0], nn[1], nn[2]); mat.push(m); lit.push(l); }
+              const corners = [p0, p1, p2, p3];
+              const shade = [aoOf[0], aoOf[1], aoOf[2], aoOf[3]].map((a) => 0.45 + 0.55 * (a / 3));
+              const lamp = corners.map((cp) => this.bakeLight(cp, nn, lights));
+              const order = side === 1 ? [0, 1, 2, 0, 2, 3] : [0, 3, 2, 0, 2, 1];
+              for (const k of order) {
+                const p = corners[k];
+                pos.push(p[0], p[1], p[2]); nrm.push(nn[0], nn[1], nn[2]); mat.push(m);
+                lig.push(l, shade[k], lamp[k]);
+              }
               for (let hh = 0; hh < h; hh++) for (let k = 0; k < w; k++) mask[n + k + hh * dims[u]] = 0;
               i += w; n += w;
             } else { i++; n++; }
           }
         }
       }
-      // wedges
+      // wedges: no voxel neighbours to sample, so they take open occlusion
       for (const r of this.ramps) {
         const wedge = World.wedgeGeometry(r, this);
         for (let i = 0; i < wedge.pos.length; i++) pos.push(wedge.pos[i]);
         for (let i = 0; i < wedge.nrm.length; i++) nrm.push(wedge.nrm[i]);
-        for (let i = 0; i < wedge.pos.length / 3; i++) { mat.push(r.mat || MAT.CONCRETE); lit.push(r.indoor ? 1 : 0); }
+        for (let i = 0; i < wedge.pos.length / 3; i++) {
+          mat.push(r.mat || MAT.CONCRETE);
+          const p = [wedge.pos[i * 3], wedge.pos[i * 3 + 1], wedge.pos[i * 3 + 2]];
+          const nv = [wedge.nrm[i * 3], wedge.nrm[i * 3 + 1], wedge.nrm[i * 3 + 2]];
+          lig.push(r.indoor ? 1 : 0, 1, this.bakeLight(p, nv, lights));
+        }
       }
-      return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(mat), lit: new Float32Array(lit) };
+      return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(mat), lig: new Float32Array(lig) };
+    }
+    // Light reaching a surface point from the map's fixtures, with a visibility check.
+    bakeLight(p, n, lights) {
+      if (!lights.length) return 0;
+      let acc = 0;
+      const off = [p[0] + n[0] * 0.06, p[1] + n[1] * 0.06, p[2] + n[2] * 0.06];
+      for (const L of lights) {
+        const r = L.radius || 9;
+        const dx = L.pos[0] - p[0], dy = L.pos[1] - p[1], dz = L.pos[2] - p[2];
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 > r * r) continue;
+        const d = Math.sqrt(d2) || 1e-4;
+        const ndl = (dx * n[0] + dy * n[1] + dz * n[2]) / d;
+        if (ndl <= 0.02) continue;
+        const atten = 1 - d / r;
+        const contrib = ndl * atten * atten;
+        if (contrib < 0.01) continue;
+        if (!this.lineClear(off, L.pos)) continue;
+        acc += contrib;
+      }
+      return Math.min(1.6, acc);
     }
     static wedgeGeometry(r, world) {
       // Right-triangle prism with flat bottom at r.min[1]; top surface rises along axis*dir.

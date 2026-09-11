@@ -109,11 +109,14 @@ const path = require('path');
   const after = await page.evaluate(() => { const h = window.__human; return h.stats.dmg + h.ammo.rockets + h.ammo.shells + h.ammo.nails + h.ammo.cells; });
   after < before ? pass('fire button consumed ammo') : fail('fire button did nothing');
 
-  // --- jump
-  await page.evaluate(() => { window.__human.vel[1] = 0; });
+  // --- jump. Stand on known flat floor first; the earlier drags leave the player
+  // wherever they wandered to, which is not a fair test of the button.
+  await page.evaluate(() => { const h = window.__human; h.pos = [0, 0.05, -36]; h.vel = [0, 0, 0]; });
+  await page.waitForFunction(() => window.__human.onGround, null, { timeout: 5000 }).catch(() => {});
+  const groundY = await page.evaluate(() => window.__human.pos[1]);
   await page.dispatchEvent('#touch .jump', 'touchstart', { touches: [], changedTouches: [], targetTouches: [] });
-  await page.waitForTimeout(120);
-  const jumped = await page.evaluate(() => window.__human.pos[1] > 0.15 || window.__human.vel[1] > 1);
+  await page.waitForTimeout(150);
+  const jumped = await page.evaluate((y) => window.__human.pos[1] > y + 0.15 || window.__human.vel[1] > 1, groundY);
   await page.dispatchEvent('#touch .jump', 'touchend', { touches: [], changedTouches: [], targetTouches: [] });
   jumped ? pass('jump button left the ground') : fail('jump button did nothing');
 

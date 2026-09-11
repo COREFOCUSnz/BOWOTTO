@@ -118,8 +118,13 @@
       PAINT([[10, -5, -40], [16, -1, -30]], MAT.STONE);
       PAINT([[13, -5, -29], [19, 2, -24]], MAT.METAL);
       PAINT([[14, -5, -24], [18, -1, -8]], MAT.METAL);
-      PAINT([[-8, 0, -42], [8, 5, -32]], teamMat);
-      PAINT([[-3, 0, -32], [3, 4, -30]], teamMat);
+      // Spawn room: concrete with a team band at eye height, rather than a solid
+      // wall of team colour on every surface.
+      PAINT([[-8, 0, -42], [8, 5, -32]], MAT.CONCRETE);
+      PAINT([[-8, 2.0, -42], [8, 2.9, -32]], teamMat);
+      PAINT([[-3, 0, -32], [3, 4, -30]], MAT.CONCRETE);
+      PAINT([[-3, 2.0, -32], [3, 2.9, -30]], teamMat);
+      F([[-8, -0.45, -42], [8, -0.05, -41.5]], teamMat);   // recolour the floor slab, do not add one
       // deck floor metal, parapet band team colored
       F([[-13, 5.5, -20], [19, 6, -13]], MAT.METAL);
       PAINT([[-20, 4.5, -12.5], [20, 6.5, -12]], teamMat);
@@ -130,7 +135,16 @@
       // flag room floor accent + cap zone ring
       F([[-1, -5.5, -39], [5, -5, -33]], teamMat);
       // ceiling lights
-      const lights = [[0, 5.5, -18.5], [0, 5, -27.5], [0, 5, -37], [12, 10, -25.5], [2, -1, -34], [-2, -1, -28], [16, 2, -26.5], [10.5, 4, -36], [-12, 1.5, -40], [-17, 1.5, -34]];
+      const lights = [
+        [0, 5.5, -18.5], [0, 5, -27.5], [0, 5, -37], [12, 10, -25.5],
+        [2, -1, -34], [-2, -1, -28], [7, -1, -30],          // flag room
+        [16, 2, -26.5], [10.5, 4, -36],
+        [-12, 1.5, -40], [-17, 1.5, -34],                    // spiral
+        [14, -1, -35], [14, 0, -31],                         // sump corridor; the second sits in the
+                                                             // drop vestibule ceiling, which is carved to y=0
+        [16, -1, -12], [16, -1, -20],                        // water tunnel
+        [-12, -1, -27.5],                                    // basement corridor
+      ];
       for (const l of lights) {
         const b = [[l[0] - 1, l[1], l[2] - 1], [l[0] + 1, l[1] + 0.5, l[2] + 1]];
         F(b, MAT.LIGHT);
