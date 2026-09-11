@@ -329,6 +329,38 @@ hidden class and the state checks reported it correctly hidden -- fixed
 with a same-element `#g-quickpaint.hidden{display:none}` rule, which wins
 by having one more class in its selector.
 
+**Sprite quality pass, 2026-09-11:** Corey: "the rotating car at the start
+looks horrible", then "this is for the start and loading" -- both the
+welcome-screen hero and the LOADING <WORLD> spinner needed work, for two
+different reasons. The hero's camera framing had a real bug (inherited from
+copying the loading-spinner render script): `rad` was computed as the car's
+FULL length, not a half-length/radius, and the orbit-distance multiplier was
+bumped 2.1->2.3 on top of that, so the car filled only ~50% of the frame at
+its widest (side-on) angle and as little as ~24% face-on -- confirmed by
+computing the actual horizontal FOV (a `PerspectiveCamera`'s fov argument is
+VERTICAL, so the earlier back-of-envelope check that assumed it was
+horizontal was itself wrong by the aspect ratio factor of 1.6). Fixed by
+sizing the camera distance directly off the worst-case diagonal footprint
+(`hypot(length, width)`, the widest silhouette across any yaw) so a target
+fill fraction is honest at every angle, not just one. The loading spinner's
+framing was already fine (that script correctly halved the length into a
+radius); its problem was pure resolution -- 144x88 source blown up through
+`transform:scale(1.6)` plus device pixel ratio. Both got bigger frames
+(400x250 hero / 216x132 loading, up from 320x200 / 144x88). Hit WebP's own
+16383px dimension cap doing it naively: a horizontal frame-strip is
+`frameWidth * frameCount` wide, and 480x36 frames (17280px) silently failed
+`toDataURL` with an empty result and no thrown error -- the failure mode to
+watch for if resolution goes up again. The artifact's 16 MiB cap was the
+real ceiling: the two sprites together only had about 230 KB of headroom to
+grow into (checked by rebuilding and reading `dist/revuelto.artifact.html`'s
+actual size, not by trusting the base64-inflation math alone), so the hero
+settled at 30 frames (down from 36 -- imperceptible at a 14s rotation) and
+both got a WebP quality trim (0.82 / 0.80) to land around 100 KB of
+headroom. Scripts live only in the session scratchpad (not committed):
+`spritehero2.js` (hero, configurable frame count/size/fill/quality) and
+`spriteload2.js` (loading spinner, same idea) -- rerun either if the
+paint, framing or size budget needs to move again.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

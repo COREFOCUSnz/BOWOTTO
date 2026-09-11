@@ -198,7 +198,7 @@ body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hid
    ran behind it, so the map list appears instantly) */
 #welcome{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,#0d1c34,#05070d 72%);overflow:hidden;padding:24px;box-sizing:border-box}
 #welcome.hidden{display:none}
-#welcome-car{position:absolute;left:50%;top:5%;width:min(620px,80vw);aspect-ratio:320/200;transform:translateX(-50%);background-image:url("");background-repeat:no-repeat;background-size:3600% 100%;animation:carspinhero 14s steps(35) infinite;filter:drop-shadow(0 0 50px rgba(46,230,255,.35)) drop-shadow(0 16px 30px rgba(0,0,0,.6));pointer-events:none}
+#welcome-car{position:absolute;left:50%;top:5%;width:min(620px,80vw);aspect-ratio:400/250;transform:translateX(-50%);background-image:url("");background-repeat:no-repeat;background-size:3000% 100%;animation:carspinhero 14s steps(29) infinite;filter:drop-shadow(0 0 50px rgba(46,230,255,.35)) drop-shadow(0 16px 30px rgba(0,0,0,.6));pointer-events:none}
 @keyframes carspinhero{from{background-position:0% 0}to{background-position:100% 0}}
 #welcome-text{position:relative;z-index:1;text-align:center;margin-top:min(36vh,340px);display:flex;flex-direction:column;align-items:center;gap:14px}
 #welcome-pres{font-size:13px;letter-spacing:.4em;color:var(--amber);text-shadow:0 0 14px rgba(46,230,255,.5)}
@@ -211,8 +211,8 @@ body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hid
 @media (max-width:600px){#welcome-car{top:14%;width:78vw}#welcome-text{margin-top:min(20vh,190px)}#welcome-tag{font-size:11px}#welcome-play{font-size:15px;padding:12px 40px}}
 @media (max-height:480px){#welcome-car{width:min(260px,44vw);top:2%}#welcome-text{margin-top:min(13vh,86px);gap:8px}#welcome-pres{font-size:10px}#welcome-title{font-size:clamp(26px,7vw,44px)}#welcome-tag{font-size:10px}#welcome-play{padding:9px 30px;font-size:13px;margin-top:2px}}
 /* the loading car: a 24-frame strip of the Revuelto in the CORE FOCUS livery turning on the spot */
-#load-car{width:144px;height:88px;transform:scale(1.6);margin:30px 0 24px;filter:brightness(1.15) drop-shadow(0 6px 10px rgba(0,0,0,.6));background-repeat:no-repeat;background-size:3456px 88px;animation:carspin 1.6s steps(24) infinite}
-@keyframes carspin{from{background-position:0 0}to{background-position:-3456px 0}}
+#load-car{width:144px;height:88px;transform:scale(1.6);margin:30px 0 24px;filter:brightness(1.15) drop-shadow(0 6px 10px rgba(0,0,0,.6));background-repeat:no-repeat;background-size:5184px 132px;animation:carspin 1.6s steps(24) infinite}
+@keyframes carspin{from{background-position:0 0}to{background-position:-5184px 0}}
 #load-text{animation:loadpulse 1.2s ease-in-out infinite alternate}
 @keyframes loadpulse{from{opacity:.55}to{opacity:1}}
 #load-tip{position:absolute;left:24px;right:24px;bottom:34px;font-size:13px;letter-spacing:.16em;color:var(--hud);line-height:1.7;max-width:760px;margin:0 auto}
