@@ -208,6 +208,7 @@ void main(){
       this.time = 0;
       this.flash = 0;
       this.fov = 75 * Math.PI / 180;
+      this.dprCap = 1.25;
       gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
     }
     upload(geo) {
@@ -232,7 +233,7 @@ void main(){
       this.waterMesh = this.upload({ pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(n).fill(5), lit: new Float32Array(n) });
     }
     resize() {
-      const c = this.canvas, dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const c = this.canvas, dpr = Math.min(window.devicePixelRatio || 1, this.dprCap || 1.5);
       const w = Math.floor(c.clientWidth * dpr), h = Math.floor(c.clientHeight * dpr);
       if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
       this.gl.viewport(0, 0, c.width, c.height);

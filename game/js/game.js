@@ -4,7 +4,11 @@
   const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
-  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
+  const stored = JSON.parse(localStorage.getItem('tfc2fort.settings') || 'null');
+  const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches);
+  // A phone gets a smaller match, a lower render scale and some aim help on first run.
+  const firstRunDefaults = coarse ? { teamSize: 4, resolution: 0.75, aimAssist: 0.6, particleBudget: 220 } : {};
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
   const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
   if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
@@ -18,7 +22,7 @@
   const messages = []; // {text, time, kind}
   let flashAmt = 0, shakeAmt = 0;
   const effects = {
-    particle(o) { const n = o.count || 1; for (let i = 0; i < n; i++) { const q = Object.assign({ maxLife: o.life, gravity: 0 }, o); q.pos = V.copy(o.pos); q.vel = n > 1 ? [rand(-2, 2), rand(0, 3), rand(-2, 2)] : V.copy(o.vel); game.particles.push(q); } if (game.particles.length > 1500) game.particles.splice(0, game.particles.length - 1500); },
+    particle(o) { const n = o.count || 1; for (let i = 0; i < n; i++) { const q = Object.assign({ maxLife: o.life, gravity: 0 }, o); q.pos = V.copy(o.pos); q.vel = n > 1 ? [rand(-2, 2), rand(0, 3), rand(-2, 2)] : V.copy(o.vel); game.particles.push(q); } const cap = settings.particleBudget; if (game.particles.length > cap) game.particles.splice(0, game.particles.length - cap); },
     tracer(a, b, color, life) { game.tracers.push({ a, b, color, life, maxLife: life }); },
     sound(name, pos) { audio.play(name, pos); },
     say(text) { audio.say(text); },
@@ -31,6 +35,7 @@
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
   const brains = new Map();
+  const touch = new TouchControls(canvas);
 
   // ---- character models (async; the blocky players stay as the fallback)
   const models = new ModelSet(renderer.gl);
@@ -74,7 +79,7 @@
   let fallbackLook = false; const edgeTurn = [0, 0];
   function requestLock() {
     try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => enableFallback()); } catch (e) { enableFallback(); }
-    setTimeout(() => { if (!locked && !menu && !fallbackLook) enableFallback(); }, 700);
+    setTimeout(() => { if (!locked && !menu && !fallbackLook && !touch.enabled) enableFallback(); }, 700);
   }
   function enableFallback() {
     if (fallbackLook) return; fallbackLook = true; canvas.style.cursor = 'none';
@@ -84,7 +89,7 @@
   let menu = 'main'; // 'main' | 'class' | 'team' | 'settings' | 'help' | null | 'end'
   let showScores = false;
   const lastWeapon = { i: 0 };
-  canvas.addEventListener('click', () => { if (!menu && !locked) requestLock(); });
+  canvas.addEventListener('click', () => { if (!menu && !locked && !touch.enabled) requestLock(); });
   document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; if (locked) { fallbackLook = false; canvas.style.cursor = 'crosshair'; } if (!locked && !menu && !fallbackLook) openMenu('main'); });
   document.addEventListener('mousemove', (e) => {
     if (menu || (!locked && !fallbackLook)) return;
@@ -135,28 +140,82 @@
 
   function humanInput() {
     const inp = human.input;
-    const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    let f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+    if (touch.enabled && !menu) {
+      const l = touch.read();
+      const ts = settings.touchSens * (zoomed ? 0.4 : 1);
+      human.yaw -= l[0] * ts;
+      human.pitch = clamp(human.pitch - l[1] * ts, -1.5, 1.5);
+      f += touch.move[1]; s += touch.move[0];
+      const m = Math.hypot(f, s); if (m > 1) { f /= m; s /= m; }
+    }
     const fwd = V.forward(human.yaw, 0), right = V.right(human.yaw);
     let d = V.madd(V.scale(fwd, f), right, s);
     const l = Math.hypot(d[0], d[2]); if (l > 1) d = V.scale(d, 1 / l);
     if (human.inWater && f !== 0) d[1] = Math.sin(human.pitch) * f;
     inp.dir = d;
-    inp.jump = !!keys.Space; inp.up = keys.ControlLeft || keys.ShiftLeft ? -1 : 0;
-    inp.fire = mouseDown[0] && (locked || fallbackLook); inp.alt = mouseDown[2] && (locked || fallbackLook);
+    const t = touch.enabled && !menu ? touch.btn : null;
+    inp.jump = !!keys.Space || !!(t && t.jump);
+    inp.up = (keys.ControlLeft || keys.ShiftLeft || (t && t.down)) ? -1 : 0;
+    inp.fire = (mouseDown[0] && (locked || fallbackLook)) || !!(t && t.fire);
+    inp.alt = (mouseDown[2] && (locked || fallbackLook)) || !!(t && t.alt);
     if (fallbackLook && !menu) { human.yaw -= edgeTurn[0] * 2.2 * DT; human.pitch = clamp(human.pitch - edgeTurn[1] * 1.2 * DT, -1.5, 1.5); }
-    inp.gren = [!!keys.KeyG, !!keys.KeyF];
+    inp.gren = [!!keys.KeyG || !!(t && t.gren), !!keys.KeyF || !!(t && t.gren2)];
     if (!human.alive && game.time >= human.respawnAt && !menu) human.wantsRespawn = true;
   }
+
+  // --------------------------------------------------------------- touch
+  function actionFor(p) {
+    if (!p.alive) return 'RESPAWN';
+    if (p.cls === 'engineer') return 'BUILD';
+    if (p.cls === 'demoman') return 'BOOM';
+    if (p.cls === 'spy') return 'DISGUISE';
+    if (p.weapon().zoom) return zoomed ? 'UNZOOM' : 'ZOOM';
+    return 'SWAP';
+  }
+  function doAction() {
+    const p = human;
+    const a = actionFor(p);
+    if (a === 'RESPAWN') { p.wantsRespawn = true; return; }
+    if (a === 'BUILD') game.startBuild(p);
+    else if (a === 'BOOM') game.detonatePipes(p);
+    else if (a === 'DISGUISE') game.startDisguise(p);
+    else if (a === 'ZOOM' || a === 'UNZOOM') { zoomed = !zoomed; audio.play('zoom'); }
+    else switchWeapon(lastWeapon.i);
+  }
+  function goFullscreen() {
+    const el = document.documentElement;
+    try { if (!document.fullscreenElement && el.requestFullscreen) { const r = el.requestFullscreen(); if (r && r.catch) r.catch(() => {}); } } catch (e) { /* not allowed here */ }
+    try { if (screen.orientation && screen.orientation.lock) { const r = screen.orientation.lock('landscape'); if (r && r.catch) r.catch(() => {}); } } catch (e) { /* unsupported */ }
+  }
+  function checkOrientation() {
+    const el = $('rotate');
+    if (el) el.hidden = !(touch.enabled && window.innerHeight > window.innerWidth);
+  }
+  function enableTouch() {
+    if (touch.enabled) return;
+    touch.enable();
+    touch.on('weapon', (i) => { if (human.alive && i < human.weapons.length) switchWeapon(i); });
+    touch.on('menu', () => { if (menu) closeMenu(); else openMenu('main'); });
+    touch.on('scores', (v) => { showScores = v; });
+    touch.on('action', () => { if (!menu) doAction(); });
+    touch.on('firsttouch', () => { audio.init(); audio.resume(); goFullscreen(); });
+    checkOrientation();
+  }
+  if (coarse) enableTouch();
+  window.addEventListener('touchstart', enableTouch, { passive: true });
+  window.addEventListener('resize', checkOrientation);
+  window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 350));
 
   // --------------------------------------------------------------- menus
   const menuEl = $('menu');
   function openMenu(which) {
     if (window.__traceMenu) console.log('openMenu ' + which + ' ' + new Error().stack.split('\n').slice(1, 4).join(' / '));
-    menu = which; menuEl.hidden = false; canvas.style.cursor = 'crosshair'; edgeTurn[0] = edgeTurn[1] = 0; if (document.pointerLockElement) document.exitPointerLock();
+    menu = which; menuEl.hidden = false; document.body.classList.add('inmenu'); canvas.style.cursor = 'crosshair'; edgeTurn[0] = edgeTurn[1] = 0; if (document.pointerLockElement) document.exitPointerLock();
     for (const k in keys) keys[k] = false; mouseDown = [false, false, false]; showScores = false;
     renderMenu();
   }
-  function closeMenu() { menu = null; menuEl.hidden = true; if (fallbackLook) canvas.style.cursor = 'none'; requestLock(); }
+  function closeMenu() { menu = null; menuEl.hidden = true; document.body.classList.remove('inmenu'); if (touch.enabled) { goFullscreen(); return; } if (fallbackLook) canvas.style.cursor = 'none'; requestLock(); }
   function renderMenu() {
     let html = '';
     const title = '<div class="title">TEAM FORTRESS <span>2FORT</span></div><div class="sub">A browser tribute to Team Fortress Classic</div>';
@@ -190,6 +249,10 @@
         <label>Players per team <input id="s_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="s_size_v">${settings.teamSize}</span></label>
         <label>Bot difficulty <select id="s_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
+        ${touch.enabled ? `<label>Touch look speed <input id="s_tsens" type="range" min="0.0015" max="0.009" step="0.0001" value="${settings.touchSens}"></label>
+        <label>Aim assist <select id="s_assist"><option value="0"${settings.aimAssist === 0 ? ' selected' : ''}>Off</option><option value="0.6"${settings.aimAssist === 0.6 ? ' selected' : ''}>Light</option><option value="1.2"${settings.aimAssist === 1.2 ? ' selected' : ''}>Strong</option></select></label>` : ''}
+        <label>Effects <select id="s_fx"><option value="220"${settings.particleBudget === 220 ? ' selected' : ''}>Low</option><option value="900"${settings.particleBudget === 900 ? ' selected' : ''}>Normal</option><option value="1600"${settings.particleBudget === 1600 ? ' selected' : ''}>Heavy</option></select></label>
+        <label>Resolution <select id="s_res"><option value="0.6"${settings.resolution === 0.6 ? ' selected' : ''}>Low (fastest)</option><option value="0.75"${settings.resolution === 0.75 ? ' selected' : ''}>Medium</option><option value="1.25"${settings.resolution === 1.25 ? ' selected' : ''}>High</option><option value="2"${settings.resolution === 2 ? ' selected' : ''}>Sharpest</option></select></label>
         <label>Field of view <input id="s_fov" type="range" min="60" max="110" value="${settings.fov}"> <span id="s_fov_v">${settings.fov}</span></label>
         <label>Volume <input id="s_vol" type="range" min="0" max="1" step="0.05" value="${settings.volume}"></label>
         <label>Announcer voice <input id="s_ann" type="checkbox"${settings.announcer ? ' checked' : ''}></label>
@@ -213,6 +276,9 @@
         <tr><td>Esc</td><td>This menu</td></tr>
         <tr><td>F1 / F2</td><td>Controls / How to play</td></tr>
         </table>
+        <p><b>On a phone or tablet</b> the game switches to touch controls: drag the left half of the screen to
+        move, drag the right half to look, and use the on-screen buttons to fire, jump, throw grenades and pick
+        weapons. Hold the screen sideways. Aim assist is on by default and can be changed under Settings.</p>
         <p>New here? <b>How to play</b> on the main menu covers the objective, the routes into the enemy fort,
         every class, and how to run a sentry gun.</p>
         <button data-k="0"><b>0</b> Back</button></div>`;
@@ -306,6 +372,10 @@
     $('s_size').addEventListener('input', (e) => { settings.teamSize = parseInt(e.target.value, 10); $('s_size_v').textContent = settings.teamSize; saveSettings(); syncBots(); });
     $('s_skill').addEventListener('change', (e) => { settings.difficulty = e.target.value; saveSettings(); syncBots(); });
     $('s_sens').addEventListener('input', (e) => { settings.sens = parseFloat(e.target.value); saveSettings(); });
+    if ($('s_tsens')) $('s_tsens').addEventListener('input', (e) => { settings.touchSens = parseFloat(e.target.value); saveSettings(); });
+    if ($('s_assist')) $('s_assist').addEventListener('change', (e) => { settings.aimAssist = parseFloat(e.target.value); saveSettings(); });
+    $('s_res').addEventListener('change', (e) => { settings.resolution = parseFloat(e.target.value); saveSettings(); });
+    $('s_fx').addEventListener('change', (e) => { settings.particleBudget = parseInt(e.target.value, 10); saveSettings(); });
     $('s_fov').addEventListener('input', (e) => { settings.fov = parseInt(e.target.value, 10); $('s_fov_v').textContent = settings.fov; saveSettings(); });
     $('s_vol').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); audio.setVolume(settings.volume); saveSettings(); });
     $('s_ann').addEventListener('change', (e) => { settings.announcer = e.target.checked; audio.announcer = settings.announcer; saveSettings(); });
@@ -399,9 +469,27 @@
       tags += `<div class="tag ${q.team ? 'red' : 'blue'}" style="left:${s[0]}px;top:${s[1]}px">${escapeHtml(q.name)}<br><small>${CLASSES[q.cls].name} ${Math.max(0, q.hp)}</small></div>`;
     }
     hud.tags.innerHTML = tags;
+    if (touch.enabled) touch.sync(p, {
+      actionLabel: actionFor(p),
+      inWater: p.alive && p.inWater,
+      grenades: p.def.gren.map((g, i) => (g ? (p.alive ? p.gren[i] : '') : null)),
+      weapons: p.alive ? p.weapons.map((id) => { const w = WEAPONS[id]; return { short: w.short || w.name, ammo: w.ammo ? p.ammo[w.ammo] : null }; }) : [],
+      wi: p.wi,
+    });
   }
 
   // --------------------------------------------------------------- drawing
+  // Characters, guns, particles and projectiles are each their own draw call, which
+  // is what actually costs on a phone. Cull by distance and by the camera's cone.
+  const cull = { pos: [0, 0, 0], fwd: [0, 0, -1], char: 90, weapon: 26, fx: 48 };
+  function visible(p, maxDist) {
+    const dx = p[0] - cull.pos[0], dy = p[1] - cull.pos[1], dz = p[2] - cull.pos[2];
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > maxDist * maxDist) return false;
+    if (d2 < 9) return true;
+    const d = Math.sqrt(d2);
+    return (dx * cull.fwd[0] + dy * cull.fwd[1] + dz * cull.fwd[2]) / d > -0.35;
+  }
   const SKIN = [0.85, 0.68, 0.55];
   const CLASS_HAT = { scout: [0.2, 0.2, 0.2], sniper: [0.35, 0.3, 0.2], soldier: [0.25, 0.3, 0.2], demoman: [0.15, 0.15, 0.15], medic: [0.95, 0.95, 0.95], hwguy: [0.3, 0.3, 0.3], pyro: [0.1, 0.1, 0.1], spy: [0.2, 0.2, 0.25], engineer: [0.95, 0.8, 0.2] };
   function teamColor(t) { return TEAM_COLORS[t]; }
@@ -432,6 +520,7 @@
     for (const p of game.players) {
       if (p === human && human.alive) continue;
       if (!p.alive && game.time - p.deadAt > 8) continue;
+      if (!visible(p.pos, cull.char)) continue;
       const model = modelFor(p); if (!model) continue;
       const pose = poseFor(p, model);
       const st = poseState(p); st.root = playerRoot(p);
@@ -447,6 +536,7 @@
     const r = renderer;
     for (const p of game.players) {
       if (!p.alive || (p === human && human.alive)) continue;
+      if (!visible(p.pos, cull.weapon)) continue;
       const e = poses.get(p); if (!e || !e.pose.weapon) continue;
       const wp = e.pose.weapon;
       const w = p.weapon();
@@ -535,7 +625,7 @@
   function drawItems() {
     const r = renderer;
     for (const it of game.items) {
-      if (it.respawnAt > game.time) continue;
+      if (it.respawnAt > game.time || !visible(it.pos, cull.fx)) continue;
       const y = it.pos[1] + 0.35 + Math.sin(game.time * 2 + it.pos[0]) * 0.08;
       const m = M.mul(M.translate(it.pos[0], y, it.pos[2]), M.rotY(game.time));
       if (it.type === 'health') { r.drawMesh(r.cube, M.mul(m, M.scale(0.5, 0.35, 0.5)), [0.95, 0.95, 0.95]); r.drawMesh(r.cube, M.mul(m, M.mul(M.translate(0, 0.18, 0), M.scale(0.32, 0.02, 0.1))), [0.9, 0.1, 0.1]); r.drawMesh(r.cube, M.mul(m, M.mul(M.translate(0, 0.18, 0), M.scale(0.1, 0.02, 0.32))), [0.9, 0.1, 0.1]); }
@@ -550,6 +640,7 @@
   function drawSentries() {
     const r = renderer;
     for (const s of game.sentries) {
+      if (!visible(s.pos, cull.char)) continue;
       const col = teamColor(s.team);
       const root = M.mul(M.translate(s.pos[0], s.pos[1], s.pos[2]), M.rotY(s.baseYaw || 0));
       drawSentry(r, root, s.level, col, { yaw: (s.yaw || 0) - (s.baseYaw || 0), pitch: s.pitch || 0, recoil: s.recoil || 0, flash: s.flash || 0, target: !!s.target });
@@ -576,6 +667,7 @@
   function drawProjectiles() {
     const r = renderer;
     for (const q of game.projectiles) {
+      if (!visible(q.pos, cull.char)) continue;
       const v = q.vel, l = V.len(v);
       const yaw = l > 0.01 ? Math.atan2(-v[0], -v[2]) : q.spin, pitch = l > 0.01 ? Math.asin(clamp(v[1] / l, -1, 1)) : 0;
       switch (q.type) {
@@ -597,6 +689,7 @@
   function drawParticles() {
     const r = renderer;
     for (const q of game.particles) {
+      if (!visible(q.pos, cull.fx)) continue;
       const t = 1 - q.life / q.maxLife; const size = q.size + (q.grow || 0) * t;
       const opts = { emissive: q.emissive || 0 };
       if (q.alpha !== undefined) opts.alpha = q.alpha * (1 - t);
@@ -673,6 +766,31 @@
     });
   }
 
+  // Gentle pull toward an enemy near the crosshair. Touch only, and off by default
+  // on a desktop where the mouse does not need the help.
+  function aimAssist(dt) {
+    const p = human;
+    if (!p.alive || !settings.aimAssist || !touch.enabled || menu) return;
+    const eye = p.eye(), fwd = V.forward(p.yaw, p.pitch);
+    let best = null, bestErr = 0.13;
+    for (const q of game.players) {
+      if (!q.alive || q === p || q.team === p.team || q.disguise === p.team) continue;
+      const to = V.sub(q.center(), eye), d = V.len(to);
+      if (d > 60) continue;
+      const dot = V.dot(V.scale(to, 1 / d), fwd);
+      if (dot < 0.9) continue;
+      const err = Math.acos(Math.min(1, dot));
+      if (err > bestErr) continue;
+      if (!game.world.lineClear(eye, q.center())) continue;
+      best = q; bestErr = err;
+    }
+    if (!best) return;
+    const c = best.center();
+    const rate = settings.aimAssist * 2.0 * dt;
+    p.yaw += clamp(angleDiff(p.yaw, V.yawTo(eye, c)), -rate, rate);
+    p.pitch = clamp(p.pitch + clamp(V.pitchTo(eye, c) - p.pitch, -rate, rate), -1.5, 1.5);
+  }
+
   // --------------------------------------------------------------- loop
   let last = performance.now(), acc = 0; const DT = 1 / 60;
   function frame(now) {
@@ -682,6 +800,7 @@
     let steps = 0;
     while (acc >= DT && steps < 4) {
       humanInput();
+      aimAssist(DT);
       for (const [, br] of brains) br.update(DT);
       game.update(DT);
       if (game.roundOver && menu !== 'end') openMenu('end');
@@ -691,6 +810,7 @@
     updateViewModel(dt);
     renderer.time = game.time;
     renderer.fov = settings.fov * Math.PI / 180;
+    renderer.dprCap = settings.resolution;
     // camera
     let camPos, yaw = human.yaw, pitch = human.pitch;
     if (human.alive) { camPos = human.eye(); pitch += vm.camKick; }
@@ -701,6 +821,7 @@
     renderer.fogColor = underwater ? [0.12, 0.3, 0.38] : [0.62, 0.68, 0.76];
     renderer.fogDensity = underwater ? 0.09 : 0.011;
     audio.listener = camPos;
+    cull.pos = camPos; cull.fwd = V.forward(yaw, pitch);
     renderer.begin({ pos: camPos, yaw, pitch, zoom: zoomed && human.alive && human.weapon().zoom ? 0.3 : 1 });
     renderer.drawWorld();
     const skinned = drawCharacters();
@@ -722,5 +843,5 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__models = models; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__models = models; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

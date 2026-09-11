@@ -29,6 +29,21 @@ python3 -m http.server 8080        # or: npx http-server -p 8080
 
 Click the game to capture the mouse. `Esc` opens the menu.
 
+## On a phone
+
+Open the same URL on a phone or tablet, turn it sideways, and the game switches
+itself to touch: drag the left of the screen to move (the stick appears under
+your thumb), drag the right to look, and use the on-screen buttons to fire,
+jump, throw grenades, pick weapons and trigger the class action (build, detonate,
+disguise or zoom). A portrait phone is asked to rotate, and the first tap goes
+fullscreen and locks to landscape where the browser allows it.
+
+Phones get smaller defaults on first run: four players per team, a lower render
+scale and light aim assist. All three are in Settings, along with touch look
+speed and an effects budget. Characters, weapons, projectiles and particles are
+culled by distance and by the camera's cone, because each of those is its own
+draw call and that is what actually costs on a phone.
+
 ## Controls
 
 | Key | Action |
@@ -150,6 +165,7 @@ test/             benches (see below)
 ```
 npm test                 # map bench + bot match + difficulty bench (node, no browser)
 node test/sim.test.js 8  # longer bot match
+npm run test:mobile      # emulated landscape phone: drives the touch controls end to end
 npm run test:browser     # headless Chromium over file:// (checks the blocky fallback)
 GAME_URL=http://localhost:8080/index.html npm run test:browser   # ...and the model path
 ```
