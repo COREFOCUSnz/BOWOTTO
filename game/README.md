@@ -120,10 +120,17 @@ things fix that, both baked into the mesh when the map loads:
   so creases, doorways and the undersides of ledges darken. Greedy meshing only
   merges faces whose occlusion matches, which is why the mesh grew from about
   4,400 to 18,000 vertices — still trivial, and worth it.
-- **Baked fixture light.** The 32 ceiling lamps cast real light with a visibility
+- **Baked fixture light.** The 35 ceiling lamps cast real light with a visibility
   check, so interiors are lit by lamps in pools rather than by a flat ambient
   term. Indoors the sun contributes little, which is what gives the basement its
   gloom and the flag room its warm patch of floor.
+- **Baked sun shadows.** Every outward face that points at the sun traces one ray
+  to see whether anything blocks it. Faces merge only when their shadow state
+  matches, so shadow edges stay crisp at voxel resolution rather than smearing
+  across a wall. The bridge and the fort walls now throw shadows onto the ground.
+- **Contact shadows.** A soft ellipse under each character and sentry, sized and
+  faded by how far above the floor they are, so nothing looks like it is
+  hovering.
 
 Materials carry per-brick variation, grime, panel seams, bolts and plank grain
 rather than a single flat tint. Team-coloured rooms are concrete with a band at

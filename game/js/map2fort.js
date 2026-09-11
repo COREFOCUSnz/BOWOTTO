@@ -229,8 +229,11 @@
     // bridge mid to water (drop off the bridge)
     data.links.push({ a: 'mid', b: 'water_mid', oneWay: 1, cost: 4 });
 
-    // lights in the moat under the bridge for a bit of glow
-    W.fill([[-3, 3, -0.5], [3, 3.5, 0.5]], MAT.LIGHT);
+    // the covered bridge is roofed, so it needs its own lamps to stay fightable
+    for (const z of [-5.5, 0, 5.5]) {
+      W.fill([[-1, 3.2, z - 0.6], [1, 3.6, z + 0.6]], MAT.LIGHT);
+      data.lights.push([0, 3.1, z]);
+    }
 
     // graph: build adjacency
     const byName = {}; data.nodes.forEach((n, i) => { n.id = i; n.adj = []; byName[n.name] = n; });

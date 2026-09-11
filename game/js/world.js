@@ -101,7 +101,9 @@
     pointSolid(p) { return this.solidAt(p[0], p[1], p[2]) || !!this.pointInRamp(p); }
 
     // ---- raycast: returns {dist, point, normal} or null (voxels + ramps).
-    raycast(o, d, maxDist) {
+    // `outsideEmpty` treats leaving the grid as open sky. Collision needs the grid
+    // edge to read as solid, but a ray traced at the sun must escape through it.
+    raycast(o, d, maxDist, outsideEmpty) {
       const res = this.res;
       let best = null;
       // DDA through voxels
@@ -123,6 +125,7 @@
         if (tMax[2] < tMax[axis]) axis = 2;
         t = tMax[axis]; if (t > maxDist) break;
         cell[axis] += step[axis]; tMax[axis] += tDelta[axis]; lastAxis = axis;
+        if (outsideEmpty && !this.inGrid(cell[0], cell[1], cell[2])) break;
         const m = this.get(cell[0], cell[1], cell[2]);
         if (m) { const n = [0, 0, 0]; n[axis] = -step[axis]; best = { dist: t, point: V.madd(o, d, t), normal: n, mat: m }; break; }
       }
@@ -221,6 +224,8 @@
     buildMesh(opts) {
       opts = opts || {};
       const lights = opts.lights || [];
+      const sun = opts.sun ? V.norm(opts.sun) : null;   // direction TOWARD the sun
+      let sunRays = 0;
       const { nx, ny, nz, res } = this;
       const dims = [nx, ny, nz];
       const pos = [], nrm = [], mat = [], lig = [];
@@ -261,7 +266,22 @@
                 const ao = cornerAO(solid(p1[0], p1[1], p1[2]), solid(p2[0], p2[1], p2[2]), solid(p3[0], p3[1], p3[2]));
                 packed |= ao << (c * 2);
               }
-              val = (m & 0xff) | (l << 8) | (side << 9) | (packed << 11);
+              // Direct sunlight, traced once per face. Packed into the key so greedy
+              // merging never smears a shadow edge across a lit face.
+              let sv = 0;
+              if (sun && !l) {
+                const nd = side === 1 ? 1 : -1;
+                if (nd * sun[d] > 0.01) {
+                  const fc = [0, 0, 0];
+                  fc[d] = this.min[d] + (x[d] + 1) * res;
+                  fc[u] = this.min[u] + (x[u] + 0.5) * res;
+                  fc[v] = this.min[v] + (x[v] + 0.5) * res;
+                  const o = [fc[0] + sun[0] * 0.35, fc[1] + sun[1] * 0.35, fc[2] + sun[2] * 0.35];
+                  sunRays++;
+                  if (!this.raycast(o, sun, 70, true)) sv = 1;
+                } 
+              } else if (!sun) sv = 1;
+              val = (m & 0xff) | (l << 8) | (side << 9) | (sv << 11) | (packed << 12);
             }
             mask[n++] = val;
           }
@@ -279,7 +299,7 @@
               }
               x[u] = i; x[v] = j;
               const du = [0, 0, 0], dv = [0, 0, 0]; du[u] = w; dv[v] = h;
-              const m = c & 0xff, l = (c >> 8) & 1, side = (c >> 9) & 3, packed = c >> 11;
+              const m = c & 0xff, l = (c >> 8) & 1, side = (c >> 9) & 3, sv = (c >> 11) & 1, packed = c >> 12;
               for (let k = 0; k < 4; k++) aoOf[k] = (packed >> (k * 2)) & 3;
               const base = [this.min[0] + x[0] * res, this.min[1] + x[1] * res, this.min[2] + x[2] * res];
               const p0 = base, p1 = V.madd(base, du, res), p2 = V.madd(V.madd(base, du, res), dv, res), p3 = V.madd(base, dv, res);
@@ -291,7 +311,7 @@
               for (const k of order) {
                 const p = corners[k];
                 pos.push(p[0], p[1], p[2]); nrm.push(nn[0], nn[1], nn[2]); mat.push(m);
-                lig.push(l, shade[k], lamp[k]);
+                lig.push(l, shade[k], lamp[k], sv);
               }
               for (let hh = 0; hh < h; hh++) for (let k = 0; k < w; k++) mask[n + k + hh * dims[u]] = 0;
               i += w; n += w;
@@ -308,9 +328,12 @@
           mat.push(r.mat || MAT.CONCRETE);
           const p = [wedge.pos[i * 3], wedge.pos[i * 3 + 1], wedge.pos[i * 3 + 2]];
           const nv = [wedge.nrm[i * 3], wedge.nrm[i * 3 + 1], wedge.nrm[i * 3 + 2]];
-          lig.push(r.indoor ? 1 : 0, 1, this.bakeLight(p, nv, lights));
+          const wsun = sun && !r.indoor && (nv[0] * sun[0] + nv[1] * sun[1] + nv[2] * sun[2]) > 0.01
+            && !this.raycast([p[0] + sun[0] * 0.35, p[1] + sun[1] * 0.35, p[2] + sun[2] * 0.35], sun, 70, true) ? 1 : 0;
+          lig.push(r.indoor ? 1 : 0, 1, this.bakeLight(p, nv, lights), wsun);
         }
       }
+      if (sun) this.sunRays = sunRays;
       return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(mat), lig: new Float32Array(lig) };
     }
     // Light reaching a surface point from the map's fixtures, with a visibility check.

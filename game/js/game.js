@@ -31,7 +31,7 @@
     shake(a) { shakeAmt = Math.min(1, shakeAmt + a); },
   };
   const game = new Game({ effects });
-  renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })) });
+  renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })), sun: renderer.lightDir });
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
   const brains = new Map();
@@ -579,6 +579,28 @@
     renderer.endSkinned();
     return true;
   }
+  // A soft contact shadow under anything standing on the map. Without one,
+  // characters read as floating regardless of how well they are lit.
+  function drawGroundShadows() {
+    const r = renderer;
+    const cast = (pos, radius, maxDrop) => {
+      const from = [pos[0], pos[1] + 0.15, pos[2]];
+      const hit = game.world.raycast(from, [0, -1, 0], maxDrop);
+      if (!hit) return;
+      const drop = hit.dist;
+      const fade = 1 - Math.min(1, drop / maxDrop);
+      const a = 0.42 * fade * fade;
+      if (a < 0.02) return;
+      const w = radius * (1 + drop * 0.35);
+      r.drawMesh(r.sphere, M.trs([hit.point[0], hit.point[1] + 0.04, hit.point[2]], 0, 0, w * 2, 0.05, w * 2), [0, 0, 0], { alpha: a });
+    };
+    for (const p of game.players) {
+      if (!p.alive || (p === human && human.alive)) continue;
+      if (!visible(p.pos, 42)) continue;
+      cast(p.pos, 0.42, 3.5);
+    }
+    for (const s of game.sentries) { if (visible(s.pos, 42)) cast(s.pos, 0.5, 1.2); }
+  }
   // The gun a character carries, placed at the right hand and aimed with the player.
   function drawCharacterWeapons() {
     const r = renderer;
@@ -873,7 +895,7 @@
     renderer.begin({ pos: camPos, yaw, pitch, zoom: zoomed && human.alive && human.weapon().zoom ? 0.3 : 1 });
     renderer.drawWorld();
     const skinned = drawCharacters();
-    if (skinned) drawCharacterWeapons();
+    if (skinned) { drawCharacterWeapons(); drawGroundShadows(); }
     else for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
     drawFlags(); drawItems(); drawSentries(); drawProjectiles();
     // sniper laser dot

@@ -5,9 +5,9 @@
   const { M, V } = root;
 
   const VS = `
-attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat; attribute vec3 aLight;
+attribute vec3 aPos; attribute vec3 aNrm; attribute float aMat; attribute vec4 aLight;
 uniform mat4 uProj, uView, uModel;
-varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec3 vLight; varying float vDepth;
+varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec4 vLight; varying float vDepth;
 void main(){
   vec4 w = uModel * vec4(aPos,1.0);
   vWorld = w.xyz; vNrm = normalize(mat3(uModel) * aNrm); vMat = aMat; vLight = aLight;
@@ -16,7 +16,7 @@ void main(){
 }`;
   const FS = `
 precision mediump float;
-varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec3 vLight; varying float vDepth;
+varying vec3 vWorld; varying vec3 vNrm; varying float vMat; varying vec4 vLight; varying float vDepth;
 uniform vec3 uColor; uniform float uUseMat; uniform float uAlpha; uniform float uEmissive; uniform float uTime;
 uniform vec3 uFogColor; uniform float uFogDensity; uniform vec3 uLightDir; uniform float uFlash;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
@@ -76,8 +76,10 @@ void main(){
   float fill = max(dot(n, vec3(-0.5, 0.3, -0.6)), 0.0);
   float ao = mix(1.0, vLight.y, 0.85);   // keep a floor so creases darken without going black
   float lamp = vLight.z;
+  float sunVis = vLight.w;               // baked: is this face in the sun's shadow
   // Indoors the sun barely reaches; the ceiling fixtures do the work.
-  float sky = (0.52 + 0.40 * diff + 0.12 * fill) * mix(1.0, 0.66, vLight.x);
+  float ambient = (0.44 + 0.14 * fill) * mix(1.0, 0.62, vLight.x);
+  float sky = ambient + 0.55 * diff * sunVis;
   vec3 lampCol = vec3(1.0, 0.87, 0.66) * lamp * 2.2;
   vec3 c = col * (sky * ao) + col * lampCol * (0.35 + 0.65 * ao);
   c = mix(c, col, emis);
@@ -249,7 +251,7 @@ void main(){
         for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(q[i][0], q[i][1], q[i][2]); nrm.push(0, -1, 0); }
       }
       const n = pos.length / 3;
-      const wl = new Float32Array(n * 3); for (let i = 0; i < n; i++) { wl[i * 3] = 0; wl[i * 3 + 1] = 1; wl[i * 3 + 2] = 0; }
+      const wl = new Float32Array(n * 4); for (let i = 0; i < n; i++) { wl[i * 4 + 1] = 1; wl[i * 4 + 3] = 1; }
       this.waterMesh = this.upload({ pos: new Float32Array(pos), nrm: new Float32Array(nrm), mat: new Float32Array(n).fill(5), lig: wl });
     }
     resize() {
@@ -265,10 +267,10 @@ void main(){
       gl.bindBuffer(gl.ARRAY_BUFFER, mesh.nrm); gl.enableVertexAttribArray(a.aNrm); gl.vertexAttribPointer(a.aNrm, 3, gl.FLOAT, false, 0, 0);
       if (staticMats && mesh.mat) {
         gl.bindBuffer(gl.ARRAY_BUFFER, mesh.mat); gl.enableVertexAttribArray(a.aMat); gl.vertexAttribPointer(a.aMat, 1, gl.FLOAT, false, 0, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.lig); gl.enableVertexAttribArray(a.aLight); gl.vertexAttribPointer(a.aLight, 3, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.lig); gl.enableVertexAttribArray(a.aLight); gl.vertexAttribPointer(a.aLight, 4, gl.FLOAT, false, 0, 0);
       } else {
         gl.disableVertexAttribArray(a.aMat); gl.vertexAttrib1f(a.aMat, 0);
-        gl.disableVertexAttribArray(a.aLight); gl.vertexAttrib3f(a.aLight, 0, 1, 0);
+        gl.disableVertexAttribArray(a.aLight); gl.vertexAttrib4f(a.aLight, 0, 1, 0, 1);
       }
     }
     begin(cam) {
