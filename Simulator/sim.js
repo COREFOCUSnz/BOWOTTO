@@ -2078,17 +2078,11 @@ function fitWing() {
   if (!wingRoot) { wingLoad(fitWing); return; }
   const body = customModel || procBody; if (!body) return;
   car.updateMatrixWorld(true);
-  const targets = []; body.traverse(o => { if (o.isMesh) targets.push(o); });
-  // find the real rear bumper and roof height by raycasting, the same technique fitPlates() uses just below: an
-  // AABB can be inflated by an outlying part (a mirror stalk, an exhaust tip) far past the actual bodywork, so the
-  // surface hit point is trusted, not the box extent
-  const ray = new THREE.Raycaster();
-  const alongX = (fromX, dirX, y, z) => { const origin = new THREE.Vector3(fromX, y, z).applyMatrix4(car.matrixWorld); ray.set(origin, new THREE.Vector3(dirX, 0, 0).applyQuaternion(car.quaternion)); const hit = ray.intersectObjects(targets, false)[0]; return hit ? fromX + dirX * hit.distance : null; };
-  const rear = alongX(-8, 1, 0.5, 0) ?? -CAR.length / 2;
-  const wl = alongX(0, -1, 0.5, -CAR.width * 0.45) ?? -CAR.width / 2, wr = alongX(0, -1, 0.5, CAR.width * 0.45) ?? CAR.width / 2;
-  const width = Math.abs(wr - wl) || CAR.width;
-  const downAt = x => { const origin = new THREE.Vector3(x, 2, 0).applyMatrix4(car.matrixWorld); ray.set(origin, new THREE.Vector3(0, -1, 0).applyQuaternion(car.quaternion)); const hit = ray.intersectObjects(targets, false)[0]; return hit ? 2 - hit.distance : null; };
-  const top = downAt(rear + 0.35) ?? downAt(0) ?? CAR.height * 0.62;
+  // the car's own physics spec, not a mesh raycast: a raycast against the visual body is fragile (a merged mesh's
+  // triangle winding, a single-sided material facing the wrong way, an interior panel sitting closer than the
+  // outer skin can all make a ray hit the wrong surface) and CAR.width/length/height is exactly this car's real
+  // size already, valid for every model the game loads
+  const rear = -CAR.length / 2, width = CAR.width, top = CAR.height * 0.62;
   const w = wingRoot.clone(true);
   const wb = new THREE.Box3().setFromObject(w), ws = wb.getSize(new THREE.Vector3()), wc = wb.getCenter(new THREE.Vector3());
   const k = (width * 0.94) / ws.x;   // the model's span is its X; the car's width is its Z

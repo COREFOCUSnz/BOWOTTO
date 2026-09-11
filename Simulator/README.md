@@ -423,6 +423,45 @@ the car model uses 12.5 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
 MP4. While the game is running you can also drag a picture or a clip onto
 the page to preview it on the board without rebuilding.
 
+## Draw calls: the Revuelto's own model, merged
+
+Phones pay for every separate mesh a frame draws, and the shipped
+`revuelto.glb` had 853 of them — most a few dozen triangles each, split out
+by whoever first exported it. `Tools/merge_car_draws.html` +
+`Tools/merge_car_draws_run.js` merge every mesh sharing a material into one
+(853 -> 64 meshes), except the four road wheels (`wheel_fl/fr/rl/rr`),
+which stay their own group with their own child meshes because the game
+spins and steers them by rotating that exact named node every frame.
+
+Two bugs surfaced doing this and are worth knowing about if the tool is
+run again: this vendored three.js's `BufferGeometryUtils.mergeBufferGeometries`
+can't merge `InterleavedBufferAttribute`s (common GLTFLoader output), so
+every attribute is rebuilt as a plain one first; and its
+`InterleavedBufferAttribute.getX/Y/Z/W` ignore the `normalized` flag and
+return the raw quantized integer instead of the decoded float, which
+silently inflated the whole car by ~32,767x until the tool was changed to
+read the underlying typed array itself and normalize by hand. Its
+`GLTFExporter` also can't write the compact quantized attribute types the
+source uses, so the merged file trades size for draw calls: **19.7 MB**,
+up from 15.4 MB, textures re-encoded from lossless PNG back to JPEG
+afterwards to claw a good chunk of that back (a 30 MB naive first pass).
+
+That trade only lands on the hosted site (`models/revuelto_hosted.glb`,
+picked up by `build.py` automatically when present): the artifact and the
+single-file page keep the original small model so they stay inside the 16
+MiB artifact cap, at 853 draw calls same as always. Real players on
+lambo-sim.web.app get the fast one; anyone previewing here gets the
+familiar one.
+
+The GT wing (LEGGERA tier 2) used to raycast the car's own body mesh to
+find the rear bumper and roof height for its mount point. That raycast is
+fragile against exactly this kind of merge (a flipped triangle winding, a
+single-sided material, an interior panel sitting closer than the outer
+skin can all make a ray hit the wrong surface first) and broke silently,
+shrinking the wing to a few centimetres. `fitWing()` now reads the car's
+own physics-spec width/length/height instead of ray-casting the visual
+mesh — more robust for every car the game loads, not just this one.
+
 ## Making it look like the real car
 
 The sim ships with a 505k-triangle Revuelto model baked in (see Credits). A

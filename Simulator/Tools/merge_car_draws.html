@@ -1,0 +1,91 @@
+<!doctype html><html><body>
+<script src="../vendor/three.min.js"></script>
+<script src="../vendor/GLTFLoader.js"></script>
+<script src="../vendor/BufferGeometryUtils.js"></script>
+<script src="../vendor/GLTFExporter.js"></script>
+<script>
+// Merge the car by material for far fewer draw calls, EXCEPT the four road wheels (wheel_fl/fr/rl/rr): those must stay
+// as their own group with their own child meshes intact, because the game spins/steers them by rotating that exact
+// named node every frame. Everything else (body panels, interior, glass, badges, the steering wheel, etc.) is fair
+// game: the paint/light/chrome logic in installModel() reads MATERIAL name, not mesh identity, so merging same-material
+// meshes into one changes nothing about how a part looks or behaves, only how many draw calls it costs.
+const WHEEL_RE = /wheel[_\-\s]?(fl|fr|rl|rr)/i;
+// this vendored three.js's BufferGeometryUtils can't merge InterleavedBufferAttributes (common in GLTFLoader output,
+// one buffer per primitive with stride); rebuild every attribute as a plain, non-interleaved BufferAttribute first
+// InterleavedBufferAttributes can't be merged directly by this version's BufferGeometryUtils, so every attribute is
+// rebuilt as a plain, non-interleaved BufferAttribute. The exporter here can't serialize the compact quantized types
+// the source uses (normalized Int8/Int16), so this de-interleaves to Float32 -- bigger per-vertex, but the only
+// storage type this GLTFExporter build will actually write out correctly.
+// this build's InterleavedBufferAttribute.getX/Y/Z/W ignore the `normalized` flag and return the raw quantized
+// integer (e.g. an Int16 in [-32767,32767]) instead of the decoded float -- confirmed by direct inspection: a
+// `normalized:true` Int16 position came back as raw 30168 instead of ~0.92, inflating the whole car by ~32767x once
+// baked into world space. So this reads the underlying typed array by hand (stride-aware) and normalizes itself,
+// rather than trusting getX/Y/Z/W to have done it.
+function rangeOf(Ctor) { return Ctor === Int8Array ? 127 : Ctor === Uint8Array ? 255 : Ctor === Int16Array ? 32767 : Ctor === Uint16Array ? 65535 : 1; }
+function readComp(a, i, k) {
+  const arr = a.data ? a.data.array : a.array;
+  const stride = a.data ? a.data.stride : a.itemSize;
+  const offset = a.data ? (a.offset || 0) : 0;
+  const v = arr[i * stride + offset + k];
+  return a.normalized ? v / rangeOf(arr.constructor) : v;
+}
+function deinterleave(geo) {
+  const out = new THREE.BufferGeometry();
+  for (const name in geo.attributes) {
+    const a = geo.attributes[name], n = a.count, sz = a.itemSize, arr = new Float32Array(n * sz);
+    for (let i = 0; i < n; i++) for (let k = 0; k < sz; k++) arr[i*sz+k] = readComp(a, i, k);
+    out.setAttribute(name, new THREE.BufferAttribute(arr, sz));
+  }
+  if (geo.index) out.setIndex(geo.index.clone());
+  return out;
+}
+window.__log = [];
+window.__go = (file) => new Promise((res, rej) => {
+  window.__log.push('loading '+file);
+  new THREE.GLTFLoader().load(file, g => {
+    window.__log.push('loaded');
+    const src = g.scene; src.updateMatrixWorld(true);
+    // find the four wheel group nodes and mark their entire subtree as "preserve"
+    const wheelGroups = [], preserve = new Set();
+    src.traverse(o => { if (WHEEL_RE.test(o.name || '')) { wheelGroups.push(o); o.traverse(d => preserve.add(d)); } });
+    window.__log.push('wheel groups found: '+wheelGroups.length);
+    const groups = new Map(); let before = 0, skipped = 0;
+    src.traverse(o => { if (!o.isMesh) return; before++;
+      if (preserve.has(o)) { skipped++; return; }
+      const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+      const attrs = Object.keys(o.geometry.attributes).sort().join(',');
+      const key = mat.uuid + '|' + attrs;
+      const geo = deinterleave(o.geometry); geo.applyMatrix4(o.matrixWorld);
+      for (const k in geo.attributes) if (!['position','normal','uv','color'].includes(k)) geo.deleteAttribute(k);   // TEXCOORD_1/tangent are unused by this game (no lightmap/aoMap, tangent unused) -- dead weight
+      if (!geo.index) { const n = geo.attributes.position.count; const idx = new Uint32Array(n); for (let i=0;i<n;i++) idx[i]=i; geo.setIndex(new THREE.BufferAttribute(idx,1)); }
+      if (!groups.has(key)) groups.set(key, { mat, geos: [] });
+      groups.get(key).geos.push(geo);
+    });
+    window.__log.push('traverse done, groups='+groups.size+' before='+before+' skipped='+skipped);
+    const out = new THREE.Group(); out.name = 'RevueltoBody';
+    let after = 0, verts = 0;
+    for (const [key, gset] of groups) {
+      const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(gset.geos, false);
+      if (!merged) { console.warn('merge failed', gset.mat.name); continue; }
+      merged.computeBoundingBox(); merged.computeBoundingSphere();
+      const m = new THREE.Mesh(merged, gset.mat); m.name = (gset.mat.name || 'part').replace(/[^A-Za-z0-9_]/g,'_'); out.add(m); after++; verts += merged.attributes.position.count;
+    }
+    // the four wheels: rebuild each group at its own world position, with its child meshes' geometry made LOCAL to
+    // that position (so the group's own rotation still spins them correctly, exactly like before the merge)
+    window.__log.push('material merges done, after='+after);
+    let wheelMeshesKept = 0;
+    for (const wg of wheelGroups) {
+      const wm = new THREE.Matrix4().copy(wg.matrixWorld), inv = new THREE.Matrix4().copy(wm).invert();
+      const wrap = new THREE.Group(); wrap.name = wg.name;
+      wrap.matrix.copy(wm); wrap.matrix.decompose(wrap.position, wrap.quaternion, wrap.scale);
+      wg.traverse(d => { if (!d.isMesh) return; const geo = deinterleave(d.geometry); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, d.matrixWorld));
+        geo.computeBoundingBox(); geo.computeBoundingSphere();
+        const mm = new THREE.Mesh(geo, d.material); mm.name = d.name; wrap.add(mm); wheelMeshesKept++; });
+      out.add(wrap);
+    }
+    window.__log.push('wheels rebuilt, kept='+wheelMeshesKept);
+    window.__stats = { before, after, verts, skipped, wheelGroups: wheelGroups.length, wheelMeshesKept };
+    window.__log.push('exporting...'); new THREE.GLTFExporter().parse(out, buf => { window.__log.push('exported, bytes='+buf.byteLength); res([Array.from(new Uint8Array(buf)), window.__stats]); }, { binary: true, onlyVisible: false, embedImages: true }, e=>{ window.__log.push('export error '+e); rej(e); });
+  }, undefined, e => rej(new Error(String(e && e.message || e))));
+});
+</script></body></html>

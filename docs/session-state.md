@@ -219,7 +219,31 @@ scale. Found and fixed by relocating the whole ROOMS/garage block earlier
 in sim.js: boot() calls garageRefresh() and installModel() runs before
 that block's old position, hitting the same TDZ class as GIFTS/sceneReady
 before it -- moving the block, not patching call sites one at a time,
-should prevent the next one. Still to come: part anchors on the car, more cars. Balance is
+should prevent the next one. Still to come: part anchors on the car, more cars.
+
+**Phone performance pass 2026-09-11:** the shipped Revuelto model had 853
+separate meshes (one draw call each); merged to 64 by material, wheels kept
+as their own named group (wheel_fl/fr/rl/rr) since the game spins them by
+name every frame. Tool: Tools/merge_car_draws.html + _run.js. Found two
+real bugs in this vendored three.js while building it: BufferGeometryUtils
+can't merge InterleavedBufferAttributes, and InterleavedBufferAttribute's
+getX/Y/Z/W ignore `normalized` and return the raw quantized int, which
+silently inflated the whole car ~32767x until fixed to read the underlying
+array and normalize by hand. The exporter also can't write the source's
+compact quantized types, so the merged file is bigger: 19.7 MB vs 15.4 MB,
+after re-encoding textures PNG->JPEG to claw back ~10 MB of a 30 MB naive
+first pass. That trade only ships on the hosted site
+(models/revuelto_hosted.glb, picked up by build.py automatically); the
+artifact and single-file page keep the original small model, unchanged,
+853 draw calls, so they still fit the 16 MiB artifact cap. fitWing() used
+to raycast the car's own body mesh for the rear bumper / roof height --
+fragile against exactly this kind of merge (flipped winding, single-sided
+material, an interior panel closer than the outer skin) and broke
+silently, shrinking the wing to a few centimetres; it now reads
+CAR.width/length/height (the physics spec) instead, which is more robust
+for every car, not just this one. Verified: lap regression on two tracks,
+wing fit + garage rooms + reload persistence, wheel spin and paint
+targeting, all on both the embedded and hosted-fetch loading paths. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys
