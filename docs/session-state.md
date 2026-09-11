@@ -183,7 +183,43 @@ Model pipeline now covers three shapes of download: named bones, axle groups
 (axleWheels), and loose-piece models merged offline by material with wheel
 corners kept as pivoted groups (scratchpad/studio/merge.html + mergerun.js;
 LPI went 1748 meshes / 20 MB -> 33 meshes / 12.5 MB). All extra cars are
-hosted-only. Still to come: part anchors on the car, more cars. Balance is
+hosted-only. THE SHOP UX pass: confirm-before-buy on every purchase (parts, paint,
+cars), PAINT tab collapsed behind a reveal button, bigger shop card text,
+click-to-preview a not-owned shop car in the garage scene without buying or
+switching what you drive (garagePreview/garagePreviewShow, a throwaway
+scaled clone, real car hidden underneath). Garage camera now clamps
+per-room (STUDIO 3.0-5.6, SHOWROOM 6-16 + yaw locked to -1.2..2.3 to avoid
+its screen-wall side) and shows the car at a smaller, better-reading scale
+per room (STUDIO 0.5x, SHOWROOM 0.8x) without touching the real driving
+scale. Found and fixed by relocating the whole ROOMS/garage block earlier
+in sim.js: boot() calls garageRefresh() and installModel() runs before
+that block's old position, hitting the same TDZ class as GIFTS/sceneReady
+before it -- moving the block, not patching call sites one at a time,
+should prevent the next one. THE SHOP UX pass: confirm-before-buy on every purchase (parts, paint,
+cars), PAINT tab collapsed behind a reveal button, bigger shop card text,
+click-to-preview a not-owned shop car in the garage scene without buying or
+switching what you drive (garagePreview/garagePreviewShow, a throwaway
+scaled clone, real car hidden underneath). Garage camera now clamps
+per-room (STUDIO 3.0-5.6, SHOWROOM 6-16 + yaw locked to -1.2..2.3 to avoid
+its screen-wall side) and shows the car at a smaller, better-reading scale
+per room (STUDIO 0.5x, SHOWROOM 0.8x) without touching the real driving
+scale. Found and fixed by relocating the whole ROOMS/garage block earlier
+in sim.js: boot() calls garageRefresh() and installModel() runs before
+that block's old position, hitting the same TDZ class as GIFTS/sceneReady
+before it -- moving the block, not patching call sites one at a time,
+should prevent the next one. THE SHOP UX pass: confirm-before-buy on every purchase (parts, paint,
+cars), PAINT tab collapsed behind a reveal button, bigger shop card text,
+click-to-preview a not-owned shop car in the garage scene without buying or
+switching what you drive (garagePreview/garagePreviewShow, a throwaway
+scaled clone, real car hidden underneath). Garage camera now clamps
+per-room (STUDIO 3.0-5.6, SHOWROOM 6-16 + yaw locked to -1.2..2.3 to avoid
+its screen-wall side) and shows the car at a smaller, better-reading scale
+per room (STUDIO 0.5x, SHOWROOM 0.8x) without touching the real driving
+scale. Found and fixed by relocating the whole ROOMS/garage block earlier
+in sim.js: boot() calls garageRefresh() and installModel() runs before
+that block's old position, hitting the same TDZ class as GIFTS/sceneReady
+before it -- moving the block, not patching call sites one at a time,
+should prevent the next one. Still to come: part anchors on the car, more cars. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
 rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys

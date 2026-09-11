@@ -171,15 +171,28 @@ entry below.
   merged offline by material, keeping each wheel corner as its own pivoted
   group (`scratchpad/studio/merge.html`, which cut the LPI from 1,748 meshes
   and 20 MB to 33 meshes and 12.5 MB).
+- **THE SHOP has confirmations and a look-before-you-buy view.** Every
+  purchase (parts, paint, cars) now asks ARE YOU SURE with the item and
+  price before it spends anything; YES buys, NO cancels with nothing
+  changed. The PAINT tab starts collapsed behind a PAINTS button so the
+  full colour grid only appears once you ask for it. THE SHOP's cards are
+  bigger to read, and clicking a card you do not own drops that car into
+  the garage scene to look at (a VIEWING banner with BACK TO MY CAR) without
+  spending a cent or touching what you actually drive.
 - **The 3D garage.** Two rooms, switched at the top of the garage panel and
   remembered. STUDIO is Velocity Motion's "Studio V1 For Car" (Sketchfab,
   CC BY 4.0): a long lit corridor with a slate floor and light bars, the
   camera orbiting the car. SHOWROOM is ChristyHsu's "Scifi Tron Studio |
   Baked" (Sketchfab, CC BY 4.0): a blue stage with a raised platform that the
   car turns on like a turntable. Drag to turn the camera, wheel or pinch to
-  zoom. The car is moved into the room, the world pauses, and the reflection
-  cube is re-shot inside the room so the paint mirrors it. The rooms are
-  small GLBs in `models/` (textures cut to 1K JPEG, 278 KB and 387 KB; the
+  zoom, each room clamped to its own safe range (STUDIO's corridor is
+  narrow, SHOWROOM can pull back much further and cannot swing around to
+  the side where its tall screen wall would block the view). The car shows
+  at the size that reads best in each room (half size in STUDIO, 20%
+  smaller in SHOWROOM) without touching its real driving scale. The car is
+  moved into the room, the world pauses, and the reflection cube is
+  re-shot inside the room so the paint mirrors it. The rooms are small
+  GLBs in `models/` (textures cut to 1K JPEG, 278 KB and 387 KB; the
   Sketchfab originals stay out of git), baked into the page and served as
   files on the hosted site.
 - **The lobby.** The page opens on LOADING ALL MAPS while the bird's-eye
