@@ -65,6 +65,12 @@ Medic (medikit heals teammates and infects enemies, super nailgun), HWGuy
 Spy (disguise, tranquilizer, backstab), Engineer (railgun, sentry gun — hit it
 with the spanner to repair, or upgrade it for 130 cells).
 
+The sentry is modelled per level: a tripod with a single barrel at level 1,
+twin barrels and an ammo hopper at level 2, and an armoured head with a
+four-tube rocket pod at level 3. Barrels recoil when it fires, the status light
+turns red on a target, a damaged gun smokes, and while it is being built it
+rises out of the engineer's toolbox.
+
 ## Hosting on Firebase
 
 The folder already contains `firebase.json` (serves this directory as a static
@@ -122,7 +128,7 @@ js/world.js       voxel world: fill/carve, ramps, water, collision, raycast, gre
 js/map2fort.js    the map — rooms, ramps, water, spawns, items, bot waypoint graph
 js/defs.js        classes, weapons, grenades (TFC numbers scaled to metres)
 js/render.js      WebGL renderer: procedural brick/concrete/metal/wood/water shaders, sky, fog, skinned characters
-js/weaponmodels.js cube-built models for all 18 weapons, shared by view and world
+js/weaponmodels.js cube-built models for all 18 weapons and the three sentry levels
 js/model.js       .tfm loader, bone hierarchy, GPU skinning, procedural animation + IK
 js/audio.js       synthesized sound effects + speech announcer
 js/sim.js         movement, weapons, projectiles, grenades, damage, flags, items, sentries

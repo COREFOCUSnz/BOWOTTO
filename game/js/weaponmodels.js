@@ -15,17 +15,28 @@
   };
 
   // st: { kick, pump, drum, spin, charge, bolt, hasAmmo, time, swing }
-  function drawWeapon(r, base, model, st) {
-    st = st || {};
+  // Box and pseudo-cylinder helpers bound to one parent transform.
+  function parts(r, base) {
     const P = (t, s, c, o, rot) => {
       let m = M.translate(t[0], t[1], t[2]); if (rot) m = M.mul(m, rot);
       r.drawMesh(r.cube, M.mul(base, M.mul(m, M.scale(s[0], s[1], s[2]))), c, o);
     };
-    // octagon-ish cylinder along Z: a plus of two boxes and a 45° square
+    // octagon-ish cylinder along Z: a plus of two boxes and a 45 degree square
     const CYL = (t, rad, len, c, o) => {
       P(t, [rad * 2, rad * 0.85, len], c, o); P(t, [rad * 0.85, rad * 2, len], c, o);
       P(t, [rad * 1.5, rad * 1.5, len], c, o, M.rotZ(Math.PI / 4));
     };
+    // same, standing along Y
+    const CYLY = (t, rad, len, c, o) => {
+      P(t, [rad * 2, len, rad * 0.85], c, o); P(t, [rad * 0.85, len, rad * 2], c, o);
+      P(t, [rad * 1.5, len, rad * 1.5], c, o, M.rotY(Math.PI / 4));
+    };
+    return { P, CYL, CYLY };
+  }
+
+  function drawWeapon(r, base, model, st) {
+    st = st || {};
+    const { P, CYL } = parts(r, base);
     const kick = st.kick || 0, pump = st.pump || 0;
     switch (model) {
       case 'shotgun':
@@ -161,6 +172,109 @@
       }
     }
   }
+
+  // ------------------------------------------------------------------ sentry gun
+  // Local space: origin on the ground, +Y up, -Z is the base's facing.
+  const SENTRY_LEVELS = [
+    { hub: 0.50, headY: 0.70, house: [0.40, 0.26, 0.44], barrels: 1, blen: 0.46, brad: 0.045, legR: 0.34, legT: 0.07 },
+    { hub: 0.54, headY: 0.78, house: [0.52, 0.32, 0.52], barrels: 2, blen: 0.52, brad: 0.05,  legR: 0.38, legT: 0.085 },
+    { hub: 0.56, headY: 0.82, house: [0.58, 0.36, 0.56], barrels: 2, blen: 0.54, brad: 0.055, legR: 0.40, legT: 0.095 },
+  ];
+  const SENTRY_HEIGHT = [1.0, 1.15, 1.3];
+
+  function drawSentry(r, root, level, teamCol, st) {
+    st = st || {};
+    const L = SENTRY_LEVELS[Math.min(2, Math.max(0, level - 1))];
+    const DARK = [0.19, 0.20, 0.22], METAL = [0.46, 0.48, 0.51], MID = [0.32, 0.33, 0.36];
+    const RUB = [0.11, 0.11, 0.12], WARN = [0.82, 0.66, 0.12];
+    const team = teamCol, teamDim = [teamCol[0] * 0.55, teamCol[1] * 0.55, teamCol[2] * 0.55];
+    const { P, CYLY } = parts(r, root);
+
+    // ---- tripod: three splayed legs with feet
+    for (let i = 0; i < 3; i++) {
+      const a = (st.baseSpin || 0) + i * Math.PI * 2 / 3 + Math.PI;
+      const fx = Math.sin(a) * L.legR, fz = Math.cos(a) * L.legR;
+      const len = Math.hypot(L.legR, L.hub);
+      // tilt so the box's +Z runs exactly from the hub down to the foot
+      const tilt = Math.atan2(L.hub, L.legR);
+      const legM = M.mul(M.translate(fx / 2, L.hub / 2, fz / 2), M.mul(M.rotY(a), M.rotX(tilt)));
+      r.drawMesh(r.cube, M.mul(root, M.mul(legM, M.scale(L.legT, L.legT * 0.9, len))), MID);
+      r.drawMesh(r.cube, M.mul(root, M.mul(legM, M.scale(L.legT * 0.45, L.legT * 1.15, len * 0.55))), DARK);
+      // foot pad
+      r.drawMesh(r.cube, M.mul(root, M.mul(M.translate(fx, 0.03, fz), M.mul(M.rotY(a), M.scale(0.17, 0.06, 0.13)))), DARK);
+      if (level >= 2) r.drawMesh(r.cube, M.mul(root, M.mul(M.translate(fx * 0.5, L.hub * 0.46, fz * 0.5), M.mul(M.rotY(a), M.scale(0.12, 0.04, 0.04)))), METAL);
+    }
+    // ---- hub and turntable
+    CYLY([0, L.hub, 0], 0.13, 0.16, MID);
+    CYLY([0, L.hub + 0.11, 0], 0.17, 0.07, DARK);
+    if (level >= 2) CYLY([0, L.hub + 0.15, 0], 0.2, 0.04, teamDim);
+
+    // ---- head (yaw then pitch)
+    const head = M.mul(root, M.mul(M.translate(0, L.headY, 0), M.mul(M.rotY(st.yaw || 0), M.rotX(st.pitch || 0))));
+    const H = parts(r, head);
+    const h = L.house;
+    // main housing
+    H.P([0, 0, 0], [h[0], h[1], h[2]], MID);
+    // team side plates
+    H.P([h[0] / 2 + 0.012, 0, -0.02], [0.03, h[1] * 0.82, h[2] * 0.8], team);
+    H.P([-h[0] / 2 - 0.012, 0, -0.02], [0.03, h[1] * 0.82, h[2] * 0.8], team);
+    // sloped front armour with a team band
+    H.P([0, 0.02, -h[2] / 2 - 0.03], [h[0] * 0.86, h[1] * 0.78, 0.07], DARK);
+    H.P([0, h[1] * 0.3, -h[2] / 2 - 0.07], [h[0] * 0.7, h[1] * 0.2, 0.02], team);
+    H.P([0, h[1] / 2 + 0.005, 0.02], [h[0] * 0.7, 0.02, h[2] * 0.7], teamDim);
+    // rear counterweight / motor
+    H.P([0, -0.02, h[2] / 2 + 0.06], [h[0] * 0.62, h[1] * 0.7, 0.14], DARK);
+    // ---- barrels with recoil
+    const rec = (st.recoil || 0) * 0.07;
+    const bx = L.barrels === 2 ? [-0.10, 0.10] : [0];
+    for (const x of bx) {
+      H.CYL([x, 0.01, -h[2] / 2 - 0.1 - L.blen / 2 + rec], L.brad, L.blen, DARK);
+      H.CYL([x, 0.01, -h[2] / 2 - 0.1 - L.blen + 0.04 + rec], L.brad * 1.35, 0.07, [0.15, 0.15, 0.16]);
+      // cooling rings
+      for (let k = 0; k < 3; k++) H.CYL([x, 0.01, -h[2] / 2 - 0.16 - k * 0.11 + rec], L.brad * 1.25, 0.03, METAL);
+    }
+    // ---- ammo feed
+    if (level >= 2) {
+      H.P([h[0] / 2 - 0.02, h[1] / 2 + 0.07, 0.06], [0.16, 0.14, 0.26], DARK);
+      H.P([h[0] / 2 - 0.02, h[1] / 2 + 0.07, 0.06], [0.17, 0.03, 0.27], WARN);
+    } else {
+      H.P([h[0] / 2 + 0.03, 0.0, 0.1], [0.08, 0.16, 0.16], DARK);
+    }
+    // ---- sight and status light
+    H.P([0, h[1] / 2 + 0.03, -0.06], [0.05, 0.05, 0.14], METAL);
+    H.P([0, h[1] / 2 + 0.03, -0.14], [0.025, 0.025, 0.03], st.target ? [1, 0.2, 0.15] : [0.2, 1, 0.3], { emissive: 1 });
+    // ---- level 3 rocket pod
+    if (level >= 3) {
+      const pod = M.mul(head, M.translate(0, h[1] / 2 + 0.12, 0.02));
+      const Pd = parts(r, pod);
+      Pd.P([0, 0, 0], [0.34, 0.2, 0.3], DARK);
+      Pd.P([0, 0.11, 0], [0.35, 0.03, 0.31], WARN);
+      for (const rx of [-0.08, 0.08]) for (const ry of [-0.045, 0.045]) Pd.CYL([rx, ry, -0.17], 0.035, 0.08, [0.1, 0.1, 0.11]);
+      for (const rx of [-0.08, 0.08]) for (const ry of [-0.045, 0.045]) Pd.CYL([rx, ry, -0.2], 0.022, 0.05, [0.7, 0.25, 0.1], { emissive: 0.3 });
+    }
+    // ---- muzzle flash
+    if (st.flash > 0) {
+      for (const x of bx) {
+        const m = M.mul(head, M.translate(x, 0.01, -h[2] / 2 - 0.12 - L.blen));
+        const f = st.flash;
+        for (let i = 0; i < 2; i++) r.drawMesh(r.cube, M.mul(m, M.mul(M.rotZ(f * 7 + i * 1.57), M.scale(0.11 * f, 0.025, 0.07))), [1, 0.85, 0.4], { emissive: 1 });
+        r.drawMesh(r.sphere, M.mul(m, M.scale(0.055, 0.055, 0.12)), [1, 0.95, 0.7], { emissive: 1 });
+      }
+    }
+  }
+  // The toolbox an engineer drops before the gun assembles itself.
+  function drawToolbox(r, root, teamCol, open) {
+    const { P } = parts(r, root);
+    const DARK = [0.2, 0.21, 0.23], MID = [0.35, 0.36, 0.39];
+    P([0, 0.12, 0], [0.62, 0.24, 0.42], MID);
+    P([0, 0.245, 0], [0.64, 0.03, 0.44], teamCol);
+    P([0, 0.3, -0.19], [0.5, 0.1, 0.05], DARK);
+    if (open > 0) {
+      const a = -open * 1.5;
+      r.drawMesh(r.cube, M.mul(root, M.mul(M.translate(0, 0.26, 0.21), M.mul(M.rotX(a), M.mul(M.translate(0, 0.03, -0.21), M.scale(0.62, 0.06, 0.42))))), DARK);
+    }
+  }
+
   // 3 crossed emissive blades + core, pointing along -Z at the muzzle
   function drawMuzzleFlash(r, base, model, seed) {
     const mz = MUZZLE[model]; if (!mz) return;
@@ -172,5 +286,5 @@
     }
     r.drawMesh(r.sphere, M.mul(m, M.scale(0.14, 0.14, 0.3)), [1, 0.95, 0.7], { emissive: 1 });
   }
-  Object.assign(root, { drawWeapon, drawMuzzleFlash, WEAPON_MUZZLE: MUZZLE });
+  Object.assign(root, { drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, SENTRY_HEIGHT, WEAPON_MUZZLE: MUZZLE });
 })(window);

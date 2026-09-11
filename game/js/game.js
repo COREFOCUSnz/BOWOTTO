@@ -1,7 +1,7 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
   const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, fov: 80, volume: 0.5, announcer: true, name: 'Player' }, JSON.parse(localStorage.getItem('tfc2fort.settings') || '{}'));
@@ -475,14 +475,27 @@
     const r = renderer;
     for (const s of game.sentries) {
       const col = teamColor(s.team);
-      r.drawMesh(r.cube, M.mul(M.translate(s.pos[0], s.pos[1] + 0.2, s.pos[2]), M.scale(0.9, 0.4, 0.9)), [0.3, 0.3, 0.32]);
-      r.drawMesh(r.cube, M.mul(M.translate(s.pos[0], s.pos[1] + 0.6, s.pos[2]), M.scale(0.25, 0.5, 0.25)), [0.25, 0.25, 0.28]);
-      const head = M.mul(M.translate(s.pos[0], s.pos[1] + 1.0, s.pos[2]), M.mul(M.rotY(s.yaw), M.rotX(s.pitch || 0)));
-      r.drawMesh(r.cube, M.mul(head, M.scale(0.55, 0.35, 0.6)), col);
-      for (const x of s.level >= 2 ? [-0.15, 0.15] : [0]) r.drawMesh(r.cube, M.mul(head, M.mul(M.translate(x, 0, -0.55), M.scale(0.1, 0.1, 0.7))), [0.15, 0.15, 0.15]);
-      if (s.level >= 3) r.drawMesh(r.cube, M.mul(head, M.mul(M.translate(0, 0.3, -0.1), M.scale(0.5, 0.2, 0.4))), [0.2, 0.2, 0.22]);
+      const root = M.mul(M.translate(s.pos[0], s.pos[1], s.pos[2]), M.rotY(s.baseYaw || 0));
+      drawSentry(r, root, s.level, col, { yaw: (s.yaw || 0) - (s.baseYaw || 0), pitch: s.pitch || 0, recoil: s.recoil || 0, flash: s.flash || 0, target: !!s.target });
+      // damaged sentries smoke
+      const frac = s.hp / s.maxHp;
+      if (frac < 0.5 && Math.random() < (0.5 - frac) * 2.2 * 0.35) {
+        effects.particle({ pos: [s.pos[0] + rand(-0.15, 0.15), s.pos[1] + 0.85, s.pos[2] + rand(-0.15, 0.15)], vel: [rand(-0.2, 0.2), rand(0.6, 1.2), rand(-0.2, 0.2)], life: 1.1, size: 0.12, grow: 0.4, color: frac < 0.25 ? [0.15, 0.15, 0.15] : [0.5, 0.5, 0.5], alpha: 0.45 });
+      }
     }
-    for (const p of game.players) if (p.alive && p.building > 0 && p.buildSpot) { const h = (1 - p.building / 4); r.drawMesh(r.cube, M.mul(M.translate(p.buildSpot[0], p.buildSpot[1] + h * 0.5, p.buildSpot[2]), M.scale(0.9, h, 0.9)), [0.4, 0.4, 0.42]); }
+    // under construction: the toolbox is down, the gun rises out of the floor
+    for (const p of game.players) {
+      if (!p.alive || p.building <= 0 || !p.buildSpot) continue;
+      const prog = 1 - p.building / 4;
+      const root = M.mul(M.translate(p.buildSpot[0], p.buildSpot[1], p.buildSpot[2]), M.rotY(p.yaw));
+      drawToolbox(r, root, teamColor(p.team), Math.min(1, prog * 4));
+      if (prog > 0.22) {
+        const rise = (1 - (prog - 0.22) / 0.78) * SENTRY_HEIGHT[0];
+        const shake = Math.sin(game.time * 40) * 0.012 * (1 - prog);
+        const sunk = M.mul(M.translate(p.buildSpot[0] + shake, p.buildSpot[1] - rise, p.buildSpot[2]), M.rotY(p.yaw));
+        drawSentry(r, sunk, 1, teamColor(p.team), { yaw: 0, pitch: 0 });
+      }
+    }
   }
   function drawProjectiles() {
     const r = renderer;

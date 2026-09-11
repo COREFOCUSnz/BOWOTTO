@@ -652,7 +652,7 @@
     }
     finishSentry(p) {
       if (!p.alive || !p.buildSpot) return;
-      const s = { pos: p.buildSpot, yaw: p.yaw, team: p.team, owner: p, hp: 150, maxHp: 150, level: 1, cooldown: 0, target: null, scanT: 0 };
+      const s = { pos: p.buildSpot, yaw: p.yaw, baseYaw: p.yaw, pitch: 0, team: p.team, owner: p, hp: 150, maxHp: 150, level: 1, cooldown: 0, target: null, scanT: 0, recoil: 0, flash: 0, builtAt: this.time };
       this.sentries.push(s); p.sentry = s; this.effects.sound('resupply', s.pos);
       this.effects.message('Sentry gun built', p.team, 'info', p);
     }
@@ -671,6 +671,7 @@
     updateSentries(dt) {
       for (const s of this.sentries) {
         s.cooldown = Math.max(0, s.cooldown - dt); s.scanT -= dt;
+        s.recoil = Math.max(0, s.recoil - dt * 7); s.flash = Math.max(0, s.flash - dt * 18);
         const head = V.add(s.pos, [0, 1.0, 0]);
         if (s.scanT <= 0) {
           s.scanT = 0.15; let best = null, bd = 28;
@@ -691,6 +692,7 @@
         if (Math.abs(angleDiff(s.yaw, want)) < 0.12 && s.cooldown <= 0) {
           s.cooldown = s.level >= 3 ? 0.07 : s.level === 2 ? 0.1 : 0.14;
           this.effects.sound('sentry', s.pos);
+          s.recoil = 1; s.flash = 1;
           const d = this.spreadDir(V.forward(s.yaw, s.pitch), 0.03);
           const h = this.trace(head, d, 60, null);
           this.effects.tracer(V.madd(head, d, 0.6), h ? h.point : V.madd(head, d, 60), [1, 0.9, 0.6], 0.05);
