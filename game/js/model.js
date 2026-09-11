@@ -82,7 +82,9 @@
       this.indexType = indexBits === 32 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
       this.indexBytes = indexBits === 32 ? 4 : 2;
       this.groups = meta.groups.map((gr) => ({ offset: gr.offset, count: gr.count, material: gr.material,
-        texFile: manifest.textures[gr.material], emisFile: (manifest.emissive || {})[gr.material] }));
+        // model-scoped first, then the shared per-material map the class set uses
+        texFile: manifest.textures[name + '::' + gr.material] || manifest.textures[gr.material],
+        emisFile: (manifest.emissive || {})[name + '::' + gr.material] || (manifest.emissive || {})[gr.material] }));
       this.glow = !!meta.glow;
       this.tris = meta.tris;
       // rest-pose world matrices, used for bone lengths and anchor heights
@@ -216,7 +218,7 @@
         this.bone = BONE;
         const texFiles = [...new Set([...Object.values(manifest.textures), ...Object.values(manifest.emissive || {})])];
         await Promise.all(texFiles.map((f) => this.loadTexture(base + f, f)));
-        const all = Object.assign({}, manifest.classes, manifest.characters || {});
+        const all = Object.assign({}, manifest.classes, manifest.characters || {}, manifest.props || {});
         await Promise.all(Object.entries(all).map(async ([name, meta]) => {
           const r = await fetch(base + meta.file);
           if (!r.ok) throw new Error(meta.file + ' ' + r.status);
@@ -251,6 +253,7 @@
       });
     }
     get(cls) { return this.models[cls] || null; }
+    prop(name) { return this.models[name] || null; }
   }
 
   // ---------------------------------------------------------------- animation

@@ -576,8 +576,25 @@
         flash: Math.min(0.32, Math.max(0, p.hitFlash) * 2.1),   // fades out; a flat 0.45 whited-out dark suits
       });
     }
-    renderer.endSkinned();
-    return true;
+    return true;   // the caller closes the pass once props have drawn too
+  }
+  // Static props placed on the map, read from the asset manifest.
+  let placements = null;
+  function propPlacements() {
+    if (placements) return placements;
+    const mf = models.manifest;
+    placements = (mf && mf.placements) || [];
+    for (const pl of placements) pl._m = M.mul(M.mul(M.translate(pl.pos[0], pl.pos[1], pl.pos[2]), M.rotY(pl.yaw || 0)),
+      M.scale(pl.scale || 1, pl.scale || 1, pl.scale || 1));
+    return placements;
+  }
+  function drawProps() {
+    if (!modelsReady) return;
+    for (const pl of propPlacements()) {
+      const m = models.prop(pl.prop); if (!m) continue;
+      if (!visible(pl.pos, cull.char)) continue;
+      renderer.drawStatic(m, pl._m, { textures: models.textures, teamSwap: 0, glow: pl.glow ? TEAM_GLOW[pl.team === 1 ? 1 : 0] : null, flash: 0 });
+    }
   }
   // A soft contact shadow under anything standing on the map. Without one,
   // characters read as floating regardless of how well they are lit.
@@ -895,7 +912,7 @@
     renderer.begin({ pos: camPos, yaw, pitch, zoom: zoomed && human.alive && human.weapon().zoom ? 0.3 : 1 });
     renderer.drawWorld();
     const skinned = drawCharacters();
-    if (skinned) { drawCharacterWeapons(); drawGroundShadows(); }
+    if (skinned) { drawProps(); renderer.endSkinned(); drawCharacterWeapons(); drawGroundShadows(); }
     else for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
     drawFlags(); drawItems(); drawSentries(); drawProjectiles();
     // sniper laser dot

@@ -392,7 +392,17 @@ void main(){
       this._skinOn = true;
       return true;
     }
-    drawSkinned(model, pose, opts) {
+    drawSkinned(model, pose, opts) { this.drawSkinnedPalette(model, pose.skin, opts); }
+    // A static prop is a one-bone model whose single bone is its placement matrix,
+    // so it reuses the whole skinned path without a second shader.
+    drawStatic(model, m, opts) {
+      const p = this._staticPalette || (this._staticPalette = new Float32Array(12));
+      p[0] = m[0]; p[1] = m[4]; p[2] = m[8];  p[3] = m[12];
+      p[4] = m[1]; p[5] = m[5]; p[6] = m[9];  p[7] = m[13];
+      p[8] = m[2]; p[9] = m[6]; p[10] = m[10]; p[11] = m[14];
+      this.drawSkinnedPalette(model, p, opts);
+    }
+    drawSkinnedPalette(model, palette, opts) {
       const gl = this.gl; if (!this._skinOn) return;
       opts = opts || {};
       const a = this.sa2, S = 24;
@@ -403,7 +413,7 @@ void main(){
       gl.vertexAttribPointer(a.aJoints, 4, gl.UNSIGNED_BYTE, false, S, 14);
       gl.vertexAttribPointer(a.aWeights, 4, gl.UNSIGNED_BYTE, true, S, 18);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.ibo);
-      gl.uniform4fv(this.su2.uBones, pose.skin);
+      gl.uniform4fv(this.su2.uBones, palette);
       gl.uniform3fv(this.su2.uPosMin, model.posMin);
       gl.uniform3fv(this.su2.uPosExt, model.posExt);
       gl.uniform2fv(this.su2.uUvMin, model.uvMin);

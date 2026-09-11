@@ -67,8 +67,11 @@ const MAX = 512;
 
   const mf = path.join(OUT, 'models.json');
   const manifest = fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : {};
-  manifest.textures = Object.assign({}, manifest.textures, base);
-  manifest.emissive = Object.assign({}, manifest.emissive, emis);
+  // Scope keys per model: material names are not unique across sources, and an
+  // unscoped key lets one import silently overwrite another's textures.
+  const scope = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [NAME + '::' + k, v]));
+  manifest.textures = Object.assign({}, manifest.textures, scope(base));
+  manifest.emissive = Object.assign({}, manifest.emissive, scope(emis));
   fs.writeFileSync(mf, JSON.stringify(manifest, null, 1));
   fs.unlinkSync(path.join(OUT, NAME + '.texjobs.json'));
   console.log(`${NAME}: ${Object.keys(base).length} base + ${Object.keys(emis).length} emissive, ${(total / 1024).toFixed(0)}KB\n`);

@@ -323,15 +323,15 @@
   "soldier_red": "tex_19_512x256.jpg",
   "medals": "tex_20_256x256.jpg",
   "soldier_head_red": "tex_21_512x512.jpg",
-  "MG_Player_Body_MI": "tron_blue_MG_Player_Body_MI_c.jpg",
-  "MG_Player_Helmet_MI": "tron_blue_MG_Player_Helmet_MI_c.jpg",
-  "MI_YuzuCrank_Body_28ad1e": "tron_red_MI_YuzuCrank_Body_28ad1e_c.jpg",
-  "MI_YuzuCrank_FaceAcc_Helmet_48247dab": "tron_red_MI_YuzuCrank_FaceAcc_Helmet__c.jpg"
+  "tron_blue::MG_Player_Body_MI": "tron_blue_MG_Player_Body_MI_c.jpg",
+  "tron_blue::MG_Player_Helmet_MI": "tron_blue_MG_Player_Helmet_MI_c.jpg",
+  "tron_red::MI_YuzuCrank_Body_28ad1e": "tron_red_MI_YuzuCrank_Body_28ad1e_c.jpg",
+  "tron_red::MI_YuzuCrank_FaceAcc_Helmet_48247dab": "tron_red_MI_YuzuCrank_FaceAcc_Helmet__c.jpg"
  },
  "emissive": {
-  "MG_Player_Body_MI": "tron_blue_MG_Player_Body_MI_e.jpg",
-  "MI_YuzuCrank_Body_28ad1e": "tron_red_MI_YuzuCrank_Body_28ad1e_e.jpg",
-  "MI_YuzuCrank_FaceAcc_Helmet_48247dab": "tron_red_MI_YuzuCrank_FaceAcc_Helmet__e.jpg"
+  "tron_blue::MG_Player_Body_MI": "tron_blue_MG_Player_Body_MI_e.jpg",
+  "tron_red::MI_YuzuCrank_Body_28ad1e": "tron_red_MI_YuzuCrank_Body_28ad1e_e.jpg",
+  "tron_red::MI_YuzuCrank_FaceAcc_Helmet_48247dab": "tron_red_MI_YuzuCrank_FaceAcc_Helmet__e.jpg"
  },
  "characters": {
   "tron_blue": {
@@ -401,5 +401,7 @@
     "engineer": "engineer"
    }
   }
- }
+ },
+ "props": {},
+ "placements": []
 }
