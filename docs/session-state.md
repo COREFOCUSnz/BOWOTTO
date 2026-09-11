@@ -245,7 +245,23 @@ for every car, not just this one. Verified: lap regression on two tracks,
 wing fit + garage rooms + reload persistence, wheel spin and paint
 targeting, all on both the embedded and hosted-fetch loading paths. Balance is
 untuned: everything at tier 3 is 2.01 s to 100 and 359 km/h against stock
-rivals; retune in SHOP by feel. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
+rivals; retune in SHOP by feel.
+
+**Welcome screen, same day:** a title screen ahead of the lobby -- the
+Revuelto in its animated TRON LEGACY paint rotating above CORE FOCUS
+PRODUCTIONS PRESENTS / LAMBORGHINI REVUELTO / PLAY, on a new hero sprite
+(`previews/carspin_tron.webp`, 36 frames at 320x200, same chroma-key render
+technique as the loading spinner). Uses the existing `straight` flag so any
+internal reload (course change, resuming a chosen track) skips straight past
+it, same as the lobby. Two three.js/CSS gotchas from building it: the
+percentage-based sprite-sheet animation needs `steps(frameCount-1)`, not
+`steps(frameCount)` -- the off-by-one bled in a sliver of the next frame at
+the loop point; and the game's only keydown listener lives inside `boot()`,
+which doesn't exist for several seconds after the welcome screen shows, so
+Enter/Space needed their own listener registered immediately. Verified at
+phone and landscape sizes (car/text sizing collapses under `max-width:600px`
+and `max-height:480px`), PLAY/Enter/Space all dismiss it, and it correctly
+does not reappear on a course-change reload. Original plan for reference: Prize money on finishing position scaled by difficulty and laps
 (1st: Easy 8k / Medium 12k / Hard 18k / Impossible 25k, x laps/3). Money buys
 upgrades wired to the real physics numbers (tyres, brakes, suspension, engine,
 NOS with better tanks lasting longer and recharging faster, aero and weight;

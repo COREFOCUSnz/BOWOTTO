@@ -17,6 +17,12 @@ entry below.
   combined, AWD launch, 8-speed DCT with auto or paddle shifting, 9500 rpm
   redline, drag-limited top speed. Bench numbers from the headless test:
   0–100 km/h 2.7 s, 0–200 km/h 6.9 s, 100–0 km/h in 30 m, v-max 343 km/h.
+- **Welcome screen**: the very first thing a fresh visit sees — the main
+  Revuelto in its animated TRON LEGACY paint rotating above the title, PLAY
+  (or Enter/Space) to continue into the lobby. Everything behind it keeps
+  loading while it's up, so PLAY reveals the lobby instantly. Skipped on any
+  internal reload (a course change, resuming a chosen track) via the same
+  `straight` flag the lobby itself uses.
 - **Start screens**: choose your course, then your mode (and laps), then
   your rivals for Versus. Choices are remembered, and a course change (which
   rebuilds the page for the new world) comes back to the mode screen with

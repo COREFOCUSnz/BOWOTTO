@@ -191,6 +191,22 @@ body.touch #settings{display:flex;flex-direction:column}body.touch #settings.hid
 #tracksel button.tron::before{background:#2ee6ff}#tracksel button.matrix::before{background:#3aff5a}#tracksel button.desert::before{background:#ff8a3a}#tracksel button.sonic::before{background:#ffd54d}#tracksel button.woods::before{background:#5ab04a}#tracksel button.snow::before{background:#e8f0ff}#tracksel button.ocean::before{background:#4fe3ff}#tracksel button.sky::before{background:#ffffff}#tracksel button.city::before{background:#ff2ad8}#tracksel button.volcano::before{background:#ff6a1a}#tracksel button.ice::before{background:#7ff0ff}#tracksel button.docks::before{background:#ffb020}#tracksel button.station::before{background:#9fd8ff}#tracksel button.riviera::before{background:#ffd27a}#tracksel button.touge::before{background:#ffa040}#tracksel button.salt::before{background:#f4f4dc}#tracksel button.mars::before{background:#d9622a}#tracksel button.jungle::before{background:#8aff3a}
 #loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(ellipse at 50% 45%,#0a1a30,#02040a 70%);color:var(--amber);font-size:28px;letter-spacing:.4em;z-index:9;padding:24px;text-align:center}
 #loading.hidden{display:none}
+/* the welcome/title screen: shown before anything else, PLAY hands off to the existing lobby (loading previews already
+   ran behind it, so the map list appears instantly) */
+#welcome{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 38%,#0d1c34,#05070d 72%);overflow:hidden;padding:24px;box-sizing:border-box}
+#welcome.hidden{display:none}
+#welcome-car{position:absolute;left:50%;top:5%;width:min(620px,80vw);aspect-ratio:320/200;transform:translateX(-50%);background-image:url("");background-repeat:no-repeat;background-size:3600% 100%;animation:carspintron 3.2s steps(35) infinite;filter:drop-shadow(0 0 50px rgba(46,230,255,.35)) drop-shadow(0 16px 30px rgba(0,0,0,.6));pointer-events:none}
+@keyframes carspintron{from{background-position:0% 0}to{background-position:100% 0}}
+#welcome-text{position:relative;z-index:1;text-align:center;margin-top:min(36vh,340px);display:flex;flex-direction:column;align-items:center;gap:14px}
+#welcome-pres{font-size:13px;letter-spacing:.4em;color:var(--amber);text-shadow:0 0 14px rgba(46,230,255,.5)}
+#welcome-title{margin:0;font-size:clamp(38px,8vw,84px);font-weight:700;letter-spacing:.12em;text-shadow:0 0 40px rgba(46,230,255,.3)}
+#welcome-title small{display:block;font-size:.32em;letter-spacing:.42em;color:var(--dim);margin-bottom:10px;font-weight:600}
+#welcome-tag{margin:0;font-size:13px;letter-spacing:.2em;color:var(--dim);line-height:1.8}
+#welcome-play{font:inherit;font-size:18px;font-weight:700;letter-spacing:.3em;padding:14px 52px;margin-top:10px;border-radius:6px;border:0;background:var(--amber);color:#02121a;cursor:pointer;box-shadow:0 0 30px rgba(46,230,255,.5);animation:welcomepulse 1.8s ease-in-out infinite}
+#welcome-play:hover{filter:brightness(1.08)}
+@keyframes welcomepulse{from{box-shadow:0 0 18px rgba(46,230,255,.35)}to{box-shadow:0 0 36px rgba(46,230,255,.65)}}
+@media (max-width:600px){#welcome-car{top:14%;width:78vw}#welcome-text{margin-top:min(20vh,190px)}#welcome-tag{font-size:11px}#welcome-play{font-size:15px;padding:12px 40px}}
+@media (max-height:480px){#welcome-car{width:min(260px,44vw);top:2%}#welcome-text{margin-top:min(13vh,86px);gap:8px}#welcome-pres{font-size:10px}#welcome-title{font-size:clamp(26px,7vw,44px)}#welcome-tag{font-size:10px}#welcome-play{padding:9px 30px;font-size:13px;margin-top:2px}}
 /* the loading car: a 24-frame strip of the Revuelto in the CORE FOCUS livery turning on the spot */
 #load-car{width:144px;height:88px;transform:scale(1.6);margin:30px 0 24px;filter:brightness(1.15) drop-shadow(0 6px 10px rgba(0,0,0,.6));background-repeat:no-repeat;background-size:3456px 88px;animation:carspin 1.6s steps(24) infinite}
 @keyframes carspin{from{background-position:0 0}to{background-position:-3456px 0}}
@@ -315,6 +331,7 @@ body.garage #start,body.garage #hud{display:none}
 <video id="revuelto-poster-video2" hidden muted loop playsinline preload="auto" src="poster2.webm"></video>
 <img id="prev-canyon" hidden alt="" src="previews/canyon.webp">
 <img id="carspin" hidden alt="" src="previews/carspin.webp">
+<img id="carspin-tron" hidden alt="" src="previews/carspin_tron.webp">
 <img id="prev-city" hidden alt="" src="previews/city.webp">
 <img id="prev-docks" hidden alt="" src="previews/docks.webp">
 <img id="prev-grid" hidden alt="" src="previews/grid.webp">
@@ -409,6 +426,15 @@ body.garage #start,body.garage #hud{display:none}
   <div id="drop">DROP .GLB TO LOAD MODEL</div>
   <div id="lobby-bg" class="hidden"></div>
   <div id="loading"><div id="load-car"></div><div id="load-text">LOADING ALL MAPS</div><div id="load-tip"></div></div>
+  <div id="welcome">
+    <div id="welcome-car"></div>
+    <div id="welcome-text">
+      <div id="welcome-pres">CORE FOCUS PRODUCTIONS PRESENTS</div>
+      <h1 id="welcome-title"><small>LAMBORGHINI</small>REVUELTO</h1>
+      <p id="welcome-tag">6.5 L V12 · 1015 CV · EIGHTEEN WORLDS · CAREER MODE</p>
+      <button id="welcome-play">PLAY</button>
+    </div>
+  </div>
   <div id="results" class="hidden">
     <h2 id="res-title">FINISHED</h2>
     <p id="res-sub"></p>
@@ -5958,6 +5984,19 @@ function lobbyNext() {
   $('next-btn').addEventListener('click', e => { e.stopPropagation(); if (!LOBBY.booted) lobbyNext(); else window.startNav(1); });
   let straight = !!GO_ID; try { straight = straight || localStorage.getItem('revuelto.step') === '2'; } catch (e) {}
   if (!document.getElementById('revuelto-glb') && location.protocol !== 'file:') window.__glbFetch = fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);   // hosted: the car starts downloading now
+  // the welcome/title screen: only for a true fresh visit, never on an internal reload (a course change, a track
+  // that skips the lobby); everything behind it keeps preparing while it's up, so PLAY reveals it instantly
+  const wEl = $('welcome');
+  if (straight) { wEl.classList.add('hidden'); } else {
+    const strip = $('carspin-tron'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
+    const playGo = () => { wEl.classList.add('hidden'); };
+    $('welcome-play').addEventListener('click', e => { e.stopPropagation(); playGo(); });
+    wEl.addEventListener('click', e => e.stopPropagation());
+    window.__welcomePlay = playGo;
+    // the game's main keydown listener lives inside boot(), which only exists once the world has finished loading --
+    // several seconds away. The welcome screen shows immediately, so Enter/Space need their own listener now.
+    window.addEventListener('keydown', e => { if (!wEl.classList.contains('hidden') && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); playGo(); } });
+  }
   if (straight) { loadShow('LOADING ' + TRACK.name + ' …'); setTimeout(boot, 60); }
   else {
     loadShow('LOADING ALL MAPS');
@@ -8121,6 +8160,7 @@ function readInput() {
   inp.steer = clamp(inp.steer, -1, 1);
 }
 window.addEventListener('keydown', e => {
+  if (!$('welcome').classList.contains('hidden')) { if ((e.code === 'Enter' || e.code === 'Space') && window.__welcomePlay) { e.preventDefault(); window.__welcomePlay(); } return; }
   if (!$('namebox').classList.contains('hidden')) return;
   if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }

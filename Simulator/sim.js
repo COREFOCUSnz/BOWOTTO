@@ -407,6 +407,19 @@ function lobbyNext() {
   $('next-btn').addEventListener('click', e => { e.stopPropagation(); if (!LOBBY.booted) lobbyNext(); else window.startNav(1); });
   let straight = !!GO_ID; try { straight = straight || localStorage.getItem('revuelto.step') === '2'; } catch (e) {}
   if (!document.getElementById('revuelto-glb') && location.protocol !== 'file:') window.__glbFetch = fetch('revuelto.glb').then(r => r.ok ? r.arrayBuffer() : null).catch(() => null);   // hosted: the car starts downloading now
+  // the welcome/title screen: only for a true fresh visit, never on an internal reload (a course change, a track
+  // that skips the lobby); everything behind it keeps preparing while it's up, so PLAY reveals it instantly
+  const wEl = $('welcome');
+  if (straight) { wEl.classList.add('hidden'); } else {
+    const strip = $('carspin-tron'); if (strip) $('welcome-car').style.backgroundImage = 'url("' + strip.getAttribute('src') + '")';
+    const playGo = () => { wEl.classList.add('hidden'); };
+    $('welcome-play').addEventListener('click', e => { e.stopPropagation(); playGo(); });
+    wEl.addEventListener('click', e => e.stopPropagation());
+    window.__welcomePlay = playGo;
+    // the game's main keydown listener lives inside boot(), which only exists once the world has finished loading --
+    // several seconds away. The welcome screen shows immediately, so Enter/Space need their own listener now.
+    window.addEventListener('keydown', e => { if (!wEl.classList.contains('hidden') && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); playGo(); } });
+  }
   if (straight) { loadShow('LOADING ' + TRACK.name + ' …'); setTimeout(boot, 60); }
   else {
     loadShow('LOADING ALL MAPS');
@@ -2570,6 +2583,7 @@ function readInput() {
   inp.steer = clamp(inp.steer, -1, 1);
 }
 window.addEventListener('keydown', e => {
+  if (!$('welcome').classList.contains('hidden')) { if ((e.code === 'Enter' || e.code === 'Space') && window.__welcomePlay) { e.preventDefault(); window.__welcomePlay(); } return; }
   if (!$('namebox').classList.contains('hidden')) return;
   if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
