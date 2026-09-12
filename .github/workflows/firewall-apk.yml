@@ -61,12 +61,33 @@ jobs:
       - name: Assemble debug APK
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Report what was built
+      # Also an assertion, not just a printout. docs/SECURITY.md claims the app
+      # requests no permissions at all - in particular no INTERNET, so nothing
+      # in the vault can leave the device. That claim is worth checking against
+      # the actual APK on every build rather than trusting the manifest by eye,
+      # because a transitive library manifest-merging a permission in would be
+      # invisible in our own AndroidManifest.xml.
+      - name: Inspect the APK and prove it asks for nothing
         run: |
-          ls -lh app/build/outputs/apk/debug/
-          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt2" \
-            dump badging app/build/outputs/apk/debug/app-debug.apk \
-            | grep -E "^(package|application-label|sdkVersion|targetSdkVersion|uses-permission)" || true
+          set -euo pipefail
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          aapt2="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt2"
+
+          # Exact keys only: application-label has a line per locale and would
+          # otherwise bury everything else under 70 lines of 'Blockfall'.
+          "$aapt2" dump badging "$apk" | grep -E \
+            "^(package:|application-label:|sdkVersion:|targetSdkVersion:|launchable-activity:)"
+
+          echo "size:   $(du -h "$apk" | cut -f1)"
+          echo "sha256: $(sha256sum "$apk" | cut -d' ' -f1)"
+
+          permissions=$("$aapt2" dump badging "$apk" | grep -c "^uses-permission" || true)
+          echo "permissions requested: $permissions"
+          if [ "$permissions" -ne 0 ]; then
+            echo "::error::APK requests $permissions permission(s); it must request none."
+            "$aapt2" dump badging "$apk" | grep "^uses-permission"
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
