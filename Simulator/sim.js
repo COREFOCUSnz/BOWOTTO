@@ -7,6 +7,13 @@
 
 const VERSION = '1.0.0';   // bumped by hand, only when Corey says so. Painted in the HUD, the start screen and Settings
 
+// GLTFLoader reaches for createImageBitmap when it exists, and a sandboxed page (the artifact) refuses the blob:
+// URLs that path needs -- so the loaders used to switch it off one call site at a time, just before parsing. That
+// raced: the arena's own load starts during the world build, and the car's load switched the function off from
+// under it a moment later ("createImageBitmap is not a function", some arena textures silently lost). Off once,
+// here, before anything can hold a reference to it: every loader then takes the <img src="data:..."> path.
+try { window.createImageBitmap = undefined; } catch (e) {}
+
 // ------------------------------------------------------------------ config
 const CAR = {
   mass: 1900, wheelbase: 2.779, length: 4.947, width: 2.033, height: 1.16,
@@ -1986,7 +1993,6 @@ function garagePreview(id) {
   if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }
   flash('LOADING ' + C.name + ' …', 3000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
-    try { window.createImageBitmap = undefined; } catch (e) {}
     new THREE.GLTFLoader().parse(b, '', g => { previewRoots[id] = g.scene; if (garage.on) garagePreviewShow(id, g.scene); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
   }).catch(() => flash('MODEL FAILED', 2000));
 }
@@ -2149,8 +2155,6 @@ function fitWing() {
   wingNode = g; bodyGroup.add(g);
 }
 function loadGLBBuffer(buf, name) {
-  // sandboxed pages refuse blob: URLs; without createImageBitmap the loader uses <img src="data:..."> instead
-  try { window.createImageBitmap = undefined; } catch (e) {}
   try { new THREE.GLTFLoader().parse(buf, '', g => installModel(g.scene, name), e => { console.error(e); flash('MODEL FAILED', 2000); }); }
   catch (e) { console.error(e); flash('MODEL FAILED', 2000); }
 }
@@ -2165,7 +2169,6 @@ function carSelect(id, save) {
   if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }   // the single-file page has only the Revuelto
   flash('LOADING ' + C.name + ' …', 4000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
-    try { window.createImageBitmap = undefined; } catch (e) {}
     new THREE.GLTFLoader().parse(b, '', g => { carRoots[id] = g.scene; carId = id; carApply(C); installModel(g.scene, id); flash('LAMBORGHINI ' + C.name, 1600, '#ffd21f'); done(); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
   }).catch(() => flash('MODEL FAILED', 2000));
 }

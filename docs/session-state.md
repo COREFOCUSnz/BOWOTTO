@@ -567,6 +567,44 @@ waits for `window.__sim` must set `revuelto.step=2` first, or the page sits
 on the welcome screen and `boot()` (which defines `__sim`) never runs -- that
 is what made the artifact look like it hung under CSP for ten minutes.
 
+**Bug sweep 2026-09-12 (Corey: "can we test for bugs and check everything's
+working good").** Wrote four Playwright suites in the scratchpad
+(sweepA/B/W/P + sweepArt) that drive the exported API rather than the wall
+clock, since a rendered frame here takes seconds. Coverage: boot and NaN
+guards, spline sanity, the physics bench, the four drive modes, spin/wall
+recovery, paint, the shop (buy part/paint/car, cash, persistence), a
+deliberately corrupt save, tuning measured by lap speed, all four modes end
+to end (time trial to the flag, versus grid-stillness, derby to last car
+standing and to the player's own wreck), the HUD, the garage's three views
+and its tabs, ESC/menu round trips, NOS, coins, cameras, the lobby, all 19
+worlds driven at 40 points each, phone portrait and landscape, and the
+artifact build (embedded model, hosted-only block, procedural arena, derby,
+hero sprite) including under a blob-blocking CSP.
+
+ONE REAL BUG, now fixed: `createImageBitmap is not a function` on THE ARENA.
+GLTFLoader picks ImageBitmapLoader when that function exists, and the
+sandboxed artifact refuses the blob: URLs it needs -- so three call sites
+(loadGLBBuffer, carSelect, garagePreview) each switched the function off
+just before parsing. That RACED: the arena's own fetch starts during the
+world build, and the car's load switched the function off from under it a
+moment later, so any arena texture still decoding threw and was silently
+lost (a black surface in game, worse on a slow connection). Now switched
+off ONCE at the top of sim.js, before anything can hold a reference, and
+the three per-call wipes are gone. Verified: 151/151 arena textures and
+27/27 car textures decode, zero console errors, arena world PASS.
+
+Everything else that failed first time was the TEST being wrong, worth
+knowing for the next sweep: retune() writes TUNE, not CAR (measure the car,
+don't read a field); ROOMS has only studio/showroom, SHOP is a view
+(garageSetView), and the paint swatches live behind a tab and a SHOW ALL
+button; ESC during a race only leaves to the menu once #start is actually
+hidden, so a test must call startGame(), not just startRace(); startGame is
+on __sim, not window; a NOS run after a drift must reset psi or the car is
+just scrubbing sideways; "the car sank" must compare against the ROAD
+surface (sampleAt(s).p.y), never terrainH -- these worlds have tunnels, an
+underground hairpin and overpasses; and a world-axis bounding box swaps
+length and width depending on which way the start line points.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their
