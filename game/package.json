@@ -8,6 +8,7 @@
     "test:browser": "node test/browser.test.js",
     "test:mobile": "node test/mobile.test.js",
     "serve": "python3 -m http.server 8080",
-    "test:vfx": "node test/vfx.test.js"
+    "test:vfx": "node test/vfx.test.js",
+    "test:feel": "node test/feel.test.js"
   }
 }

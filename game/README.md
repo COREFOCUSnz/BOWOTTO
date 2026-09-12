@@ -234,6 +234,7 @@ npm run test:mobile      # emulated landscape phone: drives the touch controls e
 npm run test:browser     # headless Chromium over file:// (checks the blocky fallback)
 GAME_URL=http://localhost:8080/index.html npm run test:browser   # ...and the model path
 node test/vfx.test.js    # explosion visibility + the demoman's kit (needs a server; slow)
+node test/feel.test.js   # weapon feel: recoil, bob, turn lag, hit confirmation
 ```
 
 `test/map.test.js` walks a simulated player through every route (spawn → enemy
@@ -265,3 +266,19 @@ It takes a few minutes under software GL (big alpha-blended spheres are
 expensive to rasterize in software), and it drops the renderer's resolution
 scale to compensate. Coverage is a fraction of the frame, so the numbers do not
 depend on the viewport.
+
+`test/feel.test.js` asks whether the gun in your hands reacts to you: does it
+kick when you fire, settle at its own weapon's pace, overshoot past rest rather
+than sliding home, bob and roll when you run, lag when you swing the view, and
+tell you when a shot lands. "Feel" sounds unmeasurable and mostly is not — each
+of those is an off-vs-on question with a number on it.
+
+It drives the real sim and the real viewmodel code through `window.__stepFeel`
+at a **fixed timestep with no rendering at all**, which is why `viewModelPose()`
+lives outside the draw call. Frame-sampling was tried first and cannot work
+here: this environment draws the game at roughly 1.3 fps — draw-call overhead
+under the software rasterizer, not fill rate, since dropping the render
+resolution to a postage stamp changed nothing — so a 60 ms animation is
+invisible to it. A fixed timestep also makes every number exact and identical on
+any machine. Only the hit-confirmation section needs real frames, and only a
+handful.

@@ -126,7 +126,12 @@
     updatePlayer(p, dt) {
       const W = this.world, inp = p.input;
       p.cooldown = Math.max(0, p.cooldown - dt);
-      p.fireAnim = Math.max(0, p.fireAnim - dt * 4);
+      // Recoil recovery runs at the WEAPON's pace, not one flat rate for all of
+      // them. A flat 4/s gave a rocket launcher and a minigun identical recovery,
+      // which is why everything felt the same weight: a heavy weapon should sit
+      // back in your hands and a fast one should rattle.
+      const fw = p.weapon();
+      p.fireAnim = Math.max(0, p.fireAnim - dt * (fw && fw.rate ? clamp(1 / (fw.rate * 0.8), 2.2, 16) : 4));
       if (p.tranq > 0) p.tranq -= dt;
       if (p.hitFlash > 0) p.hitFlash -= dt;
       const center = p.center();
@@ -583,7 +588,15 @@
       q.hitFlash = 0.15;
       if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [rand(-2, 2), rand(0, 3), rand(-2, 2)], life: 0.35, size: 0.045, color: [0.6, 0.04, 0.04], gravity: 14, count: 4 });
       if (q === this.human) this.effects.flash(Math.min(1, hpLoss / 40));
-      if (attacker === this.human && attacker !== q) this.effects.sound('hit', null);
+      if (attacker === this.human && attacker !== q) {
+        this.effects.sound('hit', null);
+        // Confirm the hit on screen, not just in the ears. A number that rises off
+        // the target and a tick on the crosshair are how you know a shot landed
+        // without watching a health bar you cannot see.
+        // guarded like effects.detail(): the headless benches supply a minimal
+        // effects stub with no HUD behind it
+        if (this.effects.damageNumber) this.effects.damageNumber(q, hpLoss, kind);
+      }
       else if (q === this.human) this.effects.sound('hurt', null);
       if (q.hp <= 0) this.kill(q, attacker, kind);
     }

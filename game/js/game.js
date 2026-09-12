@@ -21,6 +21,8 @@
   const audio = new GameAudio();
   const messages = []; // {text, time, kind}
   let flashAmt = 0, shakeAmt = 0;
+  let hitTick = 0;              // crosshair confirm, 1 -> 0 after a hit
+  const dmgNums = [];           // floating damage numbers {target, amount, born, last, pop, big, pos}
   const effects = {
     particle(o) { const n = o.count || 1; for (let i = 0; i < n; i++) { const q = Object.assign({ maxLife: o.life, gravity: 0 }, o); q.pos = V.copy(o.pos); q.vel = n > 1 ? [rand(-2, 2), rand(0, 3), rand(-2, 2)] : V.copy(o.vel); game.particles.push(q); } const cap = settings.particleBudget; if (game.particles.length > cap) game.particles.splice(0, game.particles.length - cap); },
     tracer(a, b, color, life) { game.tracers.push({ a, b, color, life, maxLife: life }); },
@@ -29,6 +31,18 @@
     message(text, team, kind, who) { if (!text) return; if (who && who !== human && kind !== 'flag' && kind !== 'cap' && kind !== 'round') return; messages.push({ text, time: game.time, kind, team }); if (messages.length > 5) messages.shift(); },
     flash(a) { flashAmt = Math.min(1, flashAmt + a); },
     shake(a) { shakeAmt = Math.min(1, shakeAmt + a); },
+    // Hit confirmation. Consecutive hits on the same target inside a short window
+    // add up into one growing number rather than stacking separate ones — a
+    // shotgun blast is one hit to the player, not nine.
+    damageNumber(target, amount, kind) {
+      hitTick = 1;
+      const now = performance.now() / 1000;
+      const live = dmgNums.find((d) => d.target === target && now - d.last < 0.45);
+      if (live) { live.amount += amount; live.last = now; live.pop = 1; if (kind === 'headshot' || kind === 'backstab') live.big = true; return; }
+      dmgNums.push({ target, amount, born: now, last: now, pop: 1, big: kind === 'headshot' || kind === 'backstab',
+        pos: V.add(target.center(), [rand(-0.25, 0.25), rand(-0.1, 0.2), rand(-0.25, 0.25)]) });
+      if (dmgNums.length > 12) dmgNums.shift();
+    },
     // How many optional puffs an effect may spend. Each particle is its own draw
     // call, so on the Low setting (phones) effects use half the cluster.
     detail() { return settings.particleBudget <= 300 ? 0.5 : 1; },
@@ -511,7 +525,21 @@
       if (!game.world.lineClear(p.eye(), q.eye())) continue;
       tags += `<div class="tag ${q.team ? 'red' : 'blue'}" style="left:${s[0]}px;top:${s[1]}px">${escapeHtml(q.name)}<br><small>${CLASSES[q.cls].name} ${Math.max(0, q.hp)}</small></div>`;
     }
+    // floating damage numbers: rise off the target, grow on the first frame, fade out
+    const now = performance.now() / 1000;
+    for (let i = dmgNums.length - 1; i >= 0; i--) if (now - dmgNums[i].last > 1.05) dmgNums.splice(i, 1);
+    for (const d of dmgNums) {
+      const age = now - d.last, t = Math.min(1, age / 1.05);
+      const s = renderer.project([d.pos[0], d.pos[1] + 0.35 + t * 0.9, d.pos[2]]);
+      if (!s) continue;
+      d.pop = Math.max(0, d.pop - 0.12);
+      const scale = (d.big ? 1.5 : 1) * (1 + d.pop * 0.45);
+      tags += `<div class="dmg${d.big ? ' crit' : ''}" style="left:${s[0]}px;top:${s[1]}px;opacity:${(1 - t * t).toFixed(2)};transform:translate(-50%,-50%) scale(${scale.toFixed(2)})">${d.amount}</div>`;
+    }
     hud.tags.innerHTML = tags;
+    // crosshair tick: a short outward flick when a shot lands
+    hitTick = Math.max(0, hitTick - 0.09);
+    hud.xhair.style.setProperty('--hit', hitTick.toFixed(2));
     if (touch.enabled) touch.sync(p, {
       actionLabel: actionFor(p),
       inWater: p.alive && p.inWater,
@@ -632,7 +660,7 @@
       const w = p.weapon();
       const base = M.mul(M.translate(wp.pos[0], wp.pos[1], wp.pos[2]), M.mul(M.rotY(wp.yaw), M.rotX(wp.pitch)));
       drawWeapon(r, base, weaponModelId(w), botWeaponState(p, w));
-      if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, p.id + game.time * 40);
+      if (game.time - p.lastFire < MUZZLE_T && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, p.id + game.time * 40);
       if (p.flag) drawFlagCloth(M.mul(M.translate(p.pos[0], p.pos[1], p.pos[2]), M.mul(M.rotY(p.yaw), M.translate(0, 0.9, 0.28))), p.flag.team, true);
       drawClassMark(p, e.pose);
     }
@@ -848,6 +876,7 @@
   function botWeaponState(p, w) { const st = weaponState(p, w); st.spin = p.acSpin || 0; return st; }
   // viewmodel motion state
   const vm = { swayX: 0, swayY: 0, prevYaw: 0, prevPitch: 0, raise: 0, lastWi: -1, lastCls: '', camKick: 0, lastFireSeen: -1 };
+  const MUZZLE_T = 0.05;   // how long a muzzle flash is on screen, in seconds
   const CAM_KICK = { shotgun: 0.012, supershotgun: 0.03, rpg: 0.02, gl: 0.015, pl: 0.012, sniper: 0.04, autorifle: 0.004, ac: 0.003, nailgun: 0.002, ic: 0.02, tranq: 0.008, railgun: 0.01 };
   function updateViewModel(dt) {
     const p = human;
@@ -863,25 +892,52 @@
     if (p.alive) { const w = p.weapon(); p.acSpin = (p.acSpin || 0) + (w.model === 'ac' ? (p.spinup / WEAPONS.ac.spinup) * 40 * dt : 0); }
     for (const q of game.players) if (q.isBot && q.alive && q.weapon().model === 'ac') q.acSpin = (q.acSpin || 0) + (q.spinup / WEAPONS.ac.spinup) * 40 * dt;
   }
-  function drawViewModel() {
-    const p = human; if (!p.alive || window.__hideViewmodel) return;
-    const r = renderer; const w = p.weapon();
-    if (zoomed && w.zoom) return;
-    r.beginViewModel();
+  // Where the gun sits in your hands this frame: bob, sway, recoil, draw, rumble.
+  // Kept out of the draw call so it can be stepped and measured without a
+  // renderer — this environment draws the game at about 1.3 fps, far too slow to
+  // sample an animation from screenshots. test/feel.test.js drives it directly.
+  function viewModelPose(p, w) {
     const moving = Math.hypot(p.vel[0], p.vel[2]) > 0.5 && p.onGround;
-    const bobX = moving ? Math.sin(p.walkPhase * 2.2) * 0.012 : 0, bobY = moving ? Math.abs(Math.cos(p.walkPhase * 2.2)) * 0.012 : 0;
-    const kickZ = p.fireAnim * (w.model === 'supershotgun' || w.model === 'rpg' || w.model === 'sniper' ? 0.12 : 0.06);
-    const kickPitch = p.fireAnim * (w.model === 'supershotgun' || w.model === 'sniper' ? 0.12 : 0.05);
+    // A proper figure eight: the gun tracks sideways once per stride and bounces
+    // twice. One flat axis at a barely-visible amplitude read as a dead prop.
+    const speed = Math.min(1, Math.hypot(p.vel[0], p.vel[2]) / p.def.speed);
+    const amp = moving ? 0.022 * speed : 0;
+    const bobX = Math.sin(p.walkPhase * 2.2) * amp;
+    const bobY = Math.abs(Math.cos(p.walkPhase * 2.2)) * amp * 0.9;
+    const bobRoll = Math.sin(p.walkPhase * 2.2) * amp * 1.6;
+    // Recoil as a damped spring, not a straight slide home: the gun snaps back,
+    // overshoots slightly past rest, and settles. p.fireAnim runs 1 -> 0 over the
+    // weapon's own recoil time, so the curve's shape is the same on every gun
+    // while its duration is not.
+    const rt = 1 - p.fireAnim;
+    const punch = p.fireAnim > 0 ? Math.exp(-5 * rt) * Math.cos(rt * 9) : 0;
+    const heavy = w.model === 'supershotgun' || w.model === 'rpg' || w.model === 'sniper' || w.model === 'ic';
+    const kickZ = punch * (heavy ? 0.135 : 0.062);
+    const kickPitch = punch * (heavy ? 0.13 : 0.052);
+    const kickRoll = punch * (heavy ? 0.05 : 0.02);
     const rumble = p.spinup > 0 ? Math.sin(game.time * 60) * 0.004 : 0;
     const chargeShake = p.charge >= 0 ? Math.sin(game.time * 40) * 0.003 * p.charge : 0;
     const raise = vm.raise * vm.raise;
     const pos = [0.3 + bobX - vm.swayX + chargeShake, -0.29 + bobY - p.landT * 0.08 - raise * 0.35 + vm.swayY * 0.5 + rumble, -0.4 + kickZ];
     if (w.model === 'ac' || w.model === 'flamer') pos[0] -= 0.06;
-    let base = M.mul(M.translate(pos[0], pos[1], pos[2]), M.mul(M.rotY(-0.08 + vm.swayX * 0.4), M.mul(M.rotX(kickPitch - raise * 0.6 - vm.swayY * 0.4), M.scale(0.85, 0.85, 0.85))));
+    vm.pos = pos;
+    return { pos, yaw: -0.08 + vm.swayX * 0.4, pitch: kickPitch - raise * 0.6 - vm.swayY * 0.4, roll: bobRoll + kickRoll + raise * 0.35 };
+  }
+  function drawViewModel() {
+    const p = human; if (!p.alive || window.__hideViewmodel) return;
+    const r = renderer; const w = p.weapon();
+    if (zoomed && w.zoom) return;
+    r.beginViewModel();
+    const vp = viewModelPose(p, w);
+    let base = M.mul(M.translate(vp.pos[0], vp.pos[1], vp.pos[2]),
+      M.mul(M.rotY(vp.yaw), M.mul(M.rotX(vp.pitch), M.mul(M.rotZ(vp.roll), M.scale(0.85, 0.85, 0.85)))));
     if (window.__showcase) { drawShowcase(); r.endViewModel(); return; }
     const st = weaponState(p, w);
     drawWeapon(r, base, weaponModelId(w), st);
-    if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, game.time * 40);
+    // Flash on absolute time since the shot, not on a fraction of the recoil:
+    // now that recoil runs at the weapon's own pace, a fireAnim threshold would
+    // leave a rocket launcher flashing for a quarter of a second.
+    if (game.time - p.lastFire < MUZZLE_T && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, game.time * 40);
     // hands
     const SK = SKIN;
     r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(0.0, -0.06, 0.02), M.scale(0.09, 0.09, 0.13))), SK);
@@ -983,5 +1039,7 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm;
+  // One step of sim + viewmodel with no drawing, for test/feel.test.js
+  window.__stepFeel = (dt) => { game.update(dt); updateViewModel(dt); return viewModelPose(human, human.weapon()); }; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();
