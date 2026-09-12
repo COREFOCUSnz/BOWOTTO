@@ -1,0 +1,6 @@
+<resources>
+    <!-- The launcher label is the decoy's name, not the vault's. Anyone
+         scrolling the app drawer sees a block-stacking game. -->
+    <string name="app_name">Blockfall</string>
+    <string name="vault_name">Firewall</string>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.Firewall" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#FF07090D</item>
+        <item name="android:navigationBarColor">#FF07090D</item>
+        <item name="android:windowBackground">#FF07090D</item>
+    </style>
+</resources>
