@@ -1825,19 +1825,32 @@ const plateMat = new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.55
 const plates = new THREE.Group(); bodyGroup.add(plates);
 function fitPlates() {
   while (plates.children.length) plates.remove(plates.children[0]);
-  const targets = []; (customModel || procBody).traverse(o => { if (o.isMesh) targets.push(o); });
+  const targets = []; (customModel || procBody).traverse(o => { if (o.isMesh && o.visible) targets.push(o); });
   car.updateMatrixWorld(true);
   const ray = new THREE.Raycaster();
-  const fit = (fromX, dirX, y, w, h) => {
-    const origin = new THREE.Vector3(fromX, y, 0).applyMatrix4(car.matrixWorld);
-    const dir = new THREE.Vector3(dirX, 0, 0).applyQuaternion(car.quaternion);
-    ray.set(origin, dir); const hit = ray.intersectObjects(targets, false)[0];
-    const x = hit ? fromX + dirX * (hit.distance - 0.012) : (dirX > 0 ? -2.45 : 2.46);
+  // Everything here is sized off THIS car's spec rather than the Revuelto's: the plate heights were fixed at
+  // 0.50 / 0.30 m and the fallback position at x = +-2.45, which is a Revuelto bumper. On the 4.14 m Countach the
+  // ray missed and the plate was left hanging half a metre behind the car (Corey: "not really looking like they're
+  // on the car"). Three rays a hand's width apart, median distance, so one stray hit on an interior panel or a
+  // single-sided surface cannot place the plate on its own -- the same reason fitWing stopped trusting one ray.
+  const fit = (dirX, yFrac, w, h) => {
+    const y = Math.max(0.16, CAR.height * yFrac), half = CAR.length / 2, from = -dirX * (half + 1.2);
+    const hits = [];
+    for (const dz of [-0.11, 0, 0.11]) {
+      const origin = new THREE.Vector3(from, y, dz).applyMatrix4(car.matrixWorld);
+      const dir = new THREE.Vector3(dirX, 0, 0).applyQuaternion(car.quaternion);
+      ray.set(origin, dir); const hit = ray.intersectObjects(targets, false)[0];
+      if (hit) hits.push(from + dirX * (hit.distance / (car.scale.x || 1) - 0.012));
+    }
+    hits.sort((a, b) => a - b);
+    const face = dirX > 0 ? -half : half;                       // the spec's own bumper line
+    let x = hits.length ? hits[hits.length >> 1] : face;
+    if (Math.abs(x) > half + 0.06 || Math.abs(x) < half * 0.55) x = face;   // a hit out past the nose, or deep inside the car, is not a bumper
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), plateMat); m.position.set(x, y, 0); m.rotation.y = dirX > 0 ? -Math.PI / 2 : Math.PI / 2; m.castShadow = false; plates.add(m);
     const back = new THREE.Mesh(new THREE.BoxGeometry(0.01, h + 0.02, w + 0.02), blackMat); back.position.set(x + dirX * 0.006, y, 0); plates.add(back);
   };
-  fit(-8, 1, 0.50, 0.372, 0.134);    // rear plate, NZ size
-  fit(8, -1, 0.30, 0.372, 0.134);    // front plate
+  fit(1, 0.43, 0.372, 0.134);    // rear plate, NZ size, a little under half the car's height
+  fit(-1, 0.26, 0.372, 0.134);   // front plate, lower: it sits in the intake line on all five cars
 }
 fitPlates();
 // CORE FOCUS PRODUCTIONS livery: stickers all over a graphite base, drawn once the display font is in
@@ -1919,7 +1932,7 @@ const ROOMS = {
   studio:   { id: 'studio-glb', file: 'studio.glb', scale: 2, at: [-0.98, 0, 5.2], baked: false, spin: 0.10, turn: 0, yaw: 2.4, pitch: 0.16, dist: 4.6, minDist: 3.0, maxDist: 5.6, lights: true, carScale: 0.5 },
   showroom: { id: 'showroom-glb', file: 'showroom.glb', scale: 1, at: [0, 1.33, -1.0], baked: true, spin: 0.025, turn: 0.30, yaw: 0.55, pitch: 0.14, dist: 11, minDist: 6, maxDist: 16, minYaw: -1.2, maxYaw: 2.3, lights: true, carYaw: Math.PI / 2, carScale: 0.8 },
 };
-const garage = { room: 'studio', scenes: {}, cam: new THREE.PerspectiveCamera(36, 1, 0.1, 400), on: false, yaw: 2.4, pitch: 0.16, dist: 6.4, drag: null, at: new THREE.Vector3(), carY: 0, carYaw: 0, turn: 0 };
+const garage = { room: 'studio', scenes: {}, cam: new THREE.PerspectiveCamera(36, 1, 0.1, 400), on: false, yaw: 2.4, pitch: 0.16, dist: 6.4, drag: null, at: new THREE.Vector3(), carY: 0, carYTarget: 0, carYaw: 0, turn: 0 };
 try { const r = localStorage.getItem('revuelto.room'); if (r && ROOMS[r]) garage.room = r; } catch (e) {}
 function roomScene(name) {
   if (garage.scenes[name]) return garage.scenes[name];
@@ -1952,13 +1965,16 @@ function garageEnter() {
   if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
   garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
   car.scale.setScalar(R.carScale || 1);
-  garagePlaceCar();
+  garagePlaceCar(true);   // walking into the room is a cut, not a glide
   roomLoad(garage.room, () => garageReflect()); if (s.userData.loaded) garageReflect();
 }
-function garagePlaceCar() {
+function garagePlaceCar(snap) {
   car.position.set(0, 0, 0); car.quaternion.identity(); bodyGroup.rotation.set(0, 0, 0); car.updateMatrixWorld(true);
-  const box = new THREE.Box3(); car.traverse(o => { if (!o.isMesh || o.isSprite || o.isLine) return; const b = new THREE.Box3().setFromObject(o), z = b.getSize(new THREE.Vector3()); if (z.length() < 8 && z.length() > 0.05) box.union(b); });
-  garage.carY = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
+  const box = bodyBounds(car).box;
+  // the height the car should sit at is a TARGET: every car is a different height, and jumping the camera to the
+  // new one the instant a model lands is the jolt Corey saw when switching cars. garageFrame eases carY into it.
+  garage.carYTarget = garage.at.y + (box.isEmpty() ? 0 : -box.min.y + 0.01);
+  if (snap || !Number.isFinite(garage.carY)) garage.carY = garage.carYTarget;
   car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
 }
 function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
@@ -1975,12 +1991,15 @@ function garagePreviewClear() {
 function garagePreviewShow(id, root) {
   const scn = roomScene(garage.room); if (previewGroup) scn.remove(previewGroup);
   const g = root.clone(true); const C = CARS[id];
-  const box = new THREE.Box3().setFromObject(g), size = box.getSize(new THREE.Vector3()), long = Math.max(size.x, size.z);
+  const bb = bodyBounds(g); for (const o of bb.junk) o.visible = false;
+  const size = bb.box.getSize(new THREE.Vector3()), long = Math.max(size.x, size.z);
   const sc = (C.spec.length || CAR.length) / long; g.scale.setScalar(sc);
-  box.setFromObject(g); const c2 = box.getCenter(new THREE.Vector3());
+  const seated = bodyBounds(g).box, c2 = seated.getCenter(new THREE.Vector3());
   const yaw = (size.z >= size.x ? Math.PI / 2 : 0) + (C.yaw || 0);
-  const wrap = new THREE.Group(); wrap.add(g); g.position.set(-c2.x, -box.min.y, -c2.z); wrap.rotation.y = yaw;
-  wrap.position.set(garage.at.x, garage.carY, garage.at.z); wrap.scale.setScalar(ROOMS[garage.room].carScale || 1);
+  const wrap = new THREE.Group(); wrap.add(g); g.position.set(-c2.x, -seated.min.y, -c2.z); wrap.rotation.y = yaw;
+  // its own ride height: garage.carY belongs to the car being replaced, and inheriting it floated or sank the
+  // preview until something else happened to recompute it (Corey: "loading way up too high, then it fixed itself")
+  wrap.position.set(garage.at.x, garage.at.y, garage.at.z); wrap.scale.setScalar(ROOMS[garage.room].carScale || 1);
   scn.add(wrap); previewGroup = wrap; previewCar = id; car.visible = false;
   if (typeof garageRefresh === 'function') garageRefresh();   // the model just arrived asynchronously: the VIEWING tag and card state were stale until now
 }
@@ -1998,6 +2017,7 @@ function garagePreview(id) {
 }
 function garageFrame(dt, now) {
   const R = ROOMS[garage.room], s = roomScene(garage.room);
+  if (Number.isFinite(garage.carYTarget)) garage.carY += (garage.carYTarget - garage.carY) * Math.min(1, dt * 6);   // ease onto the new car's ride height
   if (!garage.drag) { garage.yaw += dt * R.spin; if (R.minYaw != null) garage.yaw = Math.max(R.minYaw, Math.min(R.maxYaw, garage.yaw)); }
   garage.turn += dt * R.turn; car.position.set(garage.at.x, garage.carY, garage.at.z); car.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), garage.carYaw + garage.turn);   // the turntable
   const W = window.innerWidth, H = window.innerHeight, c = garage.cam; c.aspect = W / H;
@@ -2022,6 +2042,36 @@ document.querySelectorAll('#g-room button').forEach(b => { b.classList.toggle('o
   cv.addEventListener('wheel', e => { if (!garage.on) return; e.preventDefault(); const R = ROOMS[garage.room]; garage.dist = Math.max(R.minDist ?? 3.6, Math.min(R.maxDist ?? 9, garage.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
 }
 
+// A download's own bounding box is not the car. These models routinely carry scenery: the Aventador has a
+// 2-triangle stage floor 16 m across, the Countach has fake volumetric headlight beams that stick 1.3 m past its
+// nose on 76 triangles. Scaling the car so THAT fits makes the car small (the Countach came out 3.8 m instead of
+// 4.14) and leaves rubbish hanging off the front. So the body is the meshes holding 90 % of the triangles, and
+// anything whose box is more than 15 % bigger than that on any axis is scenery -- measured per model, so it needs
+// no per-download name list (and it catches the next model's junk too, whatever it is called).
+function bodyBounds(root) {
+  root.updateMatrixWorld(true);
+  const parts = []; let total = 0;
+  // visibility has to be checked up the chain: the procedural body and the spare wheels are switched off at their
+  // GROUP, so every mesh inside them still reports visible = true and would otherwise be measured as part of the car
+  const shown = o => { for (let q = o; q && q !== root.parent; q = q.parent) if (!q.visible) return false; return true; };
+  root.traverse(o => {
+    if (!o.isMesh || !o.geometry || !o.geometry.attributes.position || !shown(o)) return;
+    const box = new THREE.Box3().setFromObject(o); if (box.isEmpty()) return;
+    const g = o.geometry, tris = (g.index ? g.index.count : g.attributes.position.count) / 3;
+    parts.push({ o, box, tris, size: box.getSize(new THREE.Vector3()) }); total += tris;
+  });
+  const out = { box: new THREE.Box3(), junk: [] };
+  if (!parts.length) return out;
+  const core = new THREE.Box3(); let acc = 0;
+  for (const p of parts.slice().sort((a, b) => b.tris - a.tris)) { core.union(p.box); acc += p.tris; if (acc >= total * 0.9) break; }
+  const cs = core.getSize(new THREE.Vector3());
+  for (const p of parts) {
+    if (p.size.x > cs.x * 1.15 || p.size.y > cs.y * 1.15 || p.size.z > cs.z * 1.15) out.junk.push(p.o);
+    else out.box.union(p.box);
+  }
+  if (out.box.isEmpty()) out.box.copy(core);
+  return out;
+}
 function installModel(root, name) {
   const from = (name === 'embedded' || name === 'revuelto.glb') ? 'revuelto' : (CARS[name] ? name : null);
   if (from) carRoots[from] = root;
@@ -2052,13 +2102,14 @@ function installModel(root, name) {
   let prescaled = !!root.userData.prescaled; root.traverse(o => { if (o.userData && o.userData.prescaled) prescaled = true; });
   if (prescaled) { wrap.rotation.y = Math.PI / 2 + customYaw; }        // converter output: nose on +Z, real size, on the ground
   else {
-    const box = new THREE.Box3().setFromObject(wrap);
-    const size = box.getSize(new THREE.Vector3());
+    const bb = bodyBounds(wrap);
+    for (const o of bb.junk) o.visible = false;   // stage floors and fake light cones are not part of the car
+    const size = bb.box.getSize(new THREE.Vector3());
     const long = Math.max(size.x, size.z);
     const sc = CAR.length / long; root.scale.setScalar(sc);
-    box.setFromObject(wrap);
-    const c = box.getCenter(new THREE.Vector3());
-    root.position.set(-c.x, -box.min.y, -c.z);
+    const seated = bodyBounds(wrap).box;          // re-measure at the real scale to sit it on the ground
+    const c = seated.getCenter(new THREE.Vector3());
+    root.position.set(-c.x, -seated.min.y, -c.z);
     wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + customYaw;
   }
   customWheels = [];

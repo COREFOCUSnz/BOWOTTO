@@ -485,6 +485,41 @@ the car model uses 10.7 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
 MP4. While the game is running you can also drag a picture or a clip onto
 the page to preview it on the board without rebuilding.
 
+## What a downloaded car brings with it that isn't the car
+
+Every shop car is somebody else's Sketchfab model, and they arrive carrying
+scenery: the Aventador has a 2-triangle stage floor 16 m across, the Countach
+has fake volumetric headlight beams that stick 1.3 m past its nose on 76
+triangles. The car used to be scaled so the model's whole bounding box
+matched the spec length, which meant scaling to fit the junk — the Countach
+came out **3.81 m instead of 4.14**, visibly small next to the others, with
+two dark blades hanging off the front.
+
+`bodyBounds()` measures the body instead: the meshes holding 90 % of the
+triangles are the car, and anything whose box is more than 15 % bigger than
+that on any axis is scenery. Those get hidden and left out of the scale, the
+ride height and the shop preview. It is measured per model, so it needs no
+per-download name list and it catches the next model's junk too. Visibility
+is checked up the parent chain — the procedural body and the spare wheels are
+switched off at their group, so every mesh inside them still reports
+`visible === true` and would otherwise be measured as part of the car.
+
+The number plates are fitted the same way as the wing: from **this** car's
+spec rather than the Revuelto's. The heights were fixed at 0.50 / 0.30 m and
+the fallback position at x = ±2.45 (a Revuelto bumper), so on the short
+Countach the ray missed and the plate hung in space half a metre behind the
+car. Now the heights are a fraction of the car's own height, three rays a
+hand's width apart vote on the surface by median so one stray hit on an
+interior panel can't place the plate alone, and anything past the nose or
+deep inside the car falls back to the spec's own bumper line.
+
+In the garage, the height a car sits at is a **target** that the camera eases
+into over about a fifth of a second, because every car is a different height
+and jumping to the new one the moment a model lands is a visible lurch when
+you switch cars. The shop preview also works out its own ride height instead
+of inheriting the one belonging to the car it is replacing, which used to
+leave a newly picked car floating until something happened to recompute it.
+
 ## Draw calls: the Revuelto's own model, merged
 
 Phones pay for every separate mesh a frame draws, and the shipped

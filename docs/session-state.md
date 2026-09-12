@@ -605,6 +605,39 @@ surface (sampleAt(s).p.y), never terrainH -- these worlds have tunnels, an
 underground hairpin and overpasses; and a world-axis bounding box swaps
 length and width depending on which way the start line points.
 
+**Garage/shop fixes 2026-09-12 (Corey, after driving the live site: plates
+"not really looking like they're on the car", cars "not the same size", the
+Countach "tiny" with front lights like "celery sticks", cars "loading way up
+too high" then settling, and the view going "jolty" when switching cars).**
+Root cause of three of those was one line: installModel scaled the car so the
+model's WHOLE bounding box matched the spec length. These downloads carry
+scenery -- the Aventador a 2-tri stage floor 16 m across, the Countach fake
+headlight beams 5.42 m long on 76 tris -- so the Countach was scaled to fit
+its own light beams and came out 3.81 m instead of 4.14, with the beams
+visible as blades off the nose. New bodyBounds(): the meshes holding 90 % of
+the triangles are the body, anything more than 15 % bigger than that box on
+any axis is scenery, which gets hidden and excluded from the scale, the ride
+height and the preview. Measured, so no per-model name lists. Countach now
+4.15 m against a 4.14 spec, beams gone, every other car unchanged.
+GOTCHA worth remembering: visibility must be checked UP THE PARENT CHAIN --
+procBody and the spare wheels are switched off at their group, so their
+meshes still report visible === true and were being measured as part of the
+car (they are also why a naive scan finds five 4.94 m "outliers" on every
+car: that is the hidden procedural Revuelto, not the model).
+Plates: heights were fixed at 0.50/0.30 m and the miss-fallback was x = +-2.45,
+a Revuelto bumper, so on the Countach the plate hung half a metre behind the
+car. Now sized off CAR.height/CAR.length, three rays voting by median, and a
+sanity clamp to the spec bumper line. Garage: carY is a target eased at 6/s
+(the jolt), and the shop preview computes its own ride height instead of
+inheriting the outgoing car's (the float).
+NOT a regression from the compression pass -- checked by rendering the
+pre-quantization Countach and Aventador side by side with the new ones: byte
+-identical geometry and pixel-identical renders. The Aventador's wheels were
+also reported as "missing tyres"; measured, all four wheels have tyre, rim,
+caliper and brake disc present, visible, opaque and textured (Material.077 is
+the tyre, 0.69 x 0.72 x 0.37), and they render identically before and after
+compression -- asked Corey which view he means rather than guessing.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their
