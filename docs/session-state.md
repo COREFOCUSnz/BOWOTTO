@@ -1,5 +1,15 @@
 # Session state — 2026-08-31 (GitHub CI cracked; v0.3.1 released for Otto)
 
+> **Note for whoever reads this next on branch
+> `claude/firewall-samsung-app-yk8hf5`:** that branch also carries an Android
+> app under `apps/firewall/` — a private photo vault behind a Tetris decoy.
+> It has nothing to do with THE BOWOTTO: different language, different
+> toolchain, different product, and it touches no file in `Source/`, `Tools/`
+> or `CMakeLists.txt`. It holds its own state in `apps/firewall/README.md` and
+> `apps/firewall/docs/`, so nothing about it belongs in this file. It is here
+> because the task was assigned to a branch of this repo; if it grows it wants
+> its own. Everything below is the plugin, unchanged.
+
 **v0.3.1 tagged and RELEASED on GitHub with working Windows + macOS CI.**
 Repo: https://github.com/COREFOCUSnz/BOWOTTO (SSH auth from this Mac).
 Release v0.3.1 assets: The-Bowotto-Windows-VST3.zip (Otto's download) and
