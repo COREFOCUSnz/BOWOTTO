@@ -47,10 +47,26 @@ jobs:
           fi
           echo "service account looks right"
 
+      # One source of truth for the project id: game/.firebaserc, the same file
+      # the firebase CLI reads. Hardcoding it here as well meant a project
+      # renamed or recreated under a new id would half-work and fail obscurely.
+      - name: Read the project id from .firebaserc
+        id: cfg
+        run: |
+          # read as JSON, not require(): .firebaserc has no .json extension, so
+          # node would try to parse it as JavaScript and fail on the first colon
+          ID=$(node -p "JSON.parse(require('fs').readFileSync('game/.firebaserc','utf8')).projects.default")
+          if [ -z "$ID" ] || [ "$ID" = "undefined" ]; then
+            echo "::error::no default project in game/.firebaserc"
+            exit 1
+          fi
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "deploying to $ID"
+
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId: team-fort-4925a
+          projectId: ${{ steps.cfg.outputs.id }}
           entryPoint: ./game
           channelId: ${{ inputs.channel == 'live' && 'live' || format('preview-{0}', github.run_number) }}

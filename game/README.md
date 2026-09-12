@@ -95,7 +95,11 @@ rises out of the engineer's toolbox.
 ## Hosting on Firebase
 
 The folder already contains `firebase.json` (serves this directory as a static
-site) and `.firebaserc` pointing at the project **team-fort-4925a**. To publish:
+site) and `.firebaserc` naming the project to deploy to. That file is the single
+source of truth for the project id — the CLI reads it and so does the GitHub
+workflow — so if your project has a different id, change it there and nowhere
+else. See `DEPLOY.md`, including what to do if the Firebase console 404s. To
+publish:
 
 ```
 npm install -g firebase-tools

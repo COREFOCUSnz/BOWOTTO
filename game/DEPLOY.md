@@ -36,6 +36,42 @@ minute; a leaked one does not expire on its own.
 
 ---
 
+## If the console says 404
+
+`console.firebase.google.com/project/<id>/overview` returning 404 means the
+Google account you are signed into cannot see a project with that id. Almost
+always one of three things:
+
+- **Signed into the wrong account.** Browsers default to whichever Google
+  account signed in first. Check the avatar top right, or open the bare console
+  at <https://console.firebase.google.com/> and see which projects are listed.
+- **The project was deleted.** Deleted projects sit in a 30-day recovery window:
+  <https://console.cloud.google.com/cloud-resource-manager> → *Resources pending
+  deletion* → Restore.
+- **The id is not what you think.** Firebase appends a random suffix when the
+  name you picked is taken, so the id is often not the name you typed.
+
+The quickest way to settle it is from a terminal rather than the console UI —
+this lists every project the signed-in account can see:
+
+```sh
+npx firebase-tools login
+npx firebase-tools projects:list
+```
+
+Whatever id comes back has to match `game/.firebaserc`. That file is the single
+source of truth: the CLI reads it, and the GitHub workflow reads it from there
+too, so changing it in one place is enough.
+
+```json
+{ "projects": { "default": "your-project-id" } }
+```
+
+If the project is genuinely gone, making a new one is fine — nothing in the game
+depends on the old one. Create it, put its id in `.firebaserc`, and deploy.
+
+---
+
 ## Deploying by hand
 
 Simplest, and worth doing once so you know it works:
