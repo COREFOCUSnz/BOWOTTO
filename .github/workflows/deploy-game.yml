@@ -1,0 +1,56 @@
+# Deploy the 2Fort game to Firebase Hosting.
+#
+# Manual on purpose: run it from the Actions tab when you want the live site to
+# change. To make every push to the game publish automatically, uncomment the
+# `push:` block below — but note that then anything merged goes straight live.
+#
+# Needs one repository secret, FIREBASE_SERVICE_ACCOUNT. See game/DEPLOY.md for
+# how to create it. It is a service account JSON, NOT the web app's apiKey —
+# those are different things and the apiKey is not a secret at all.
+name: Deploy game
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "live (the real site) or preview (a temporary URL)"
+        required: true
+        default: preview
+        type: choice
+        options: [preview, live]
+  # push:
+  #   branches: [main]
+  #   paths: ["game/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the secret is present
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT is not set. See game/DEPLOY.md."
+            exit 1
+          fi
+          # Fail loudly on the most likely mix-up rather than letting the deploy
+          # fail later with something cryptic.
+          if ! printf '%s' "$SA" | grep -q '"type"[[:space:]]*:[[:space:]]*"service_account"'; then
+            echo "::error::That secret is not a service account JSON. If it starts with AIza it is the WEB API KEY, which is public and is not what deploys."
+            exit 1
+          fi
+          echo "service account looks right"
+
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: team-fort-4925a
+          entryPoint: ./game
+          channelId: ${{ inputs.channel == 'live' && 'live' || format('preview-{0}', github.run_number) }}
