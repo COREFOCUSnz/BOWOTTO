@@ -678,6 +678,48 @@ wrong: my own first two hypotheses (camera leaving the 8500 m dome -- every
 world stays within 3.4 km of origin; STRATOS driving under its cloud decks --
 decks at y 330/430, road at y >= 674).
 
+**Arena wall bug, found by checking my own dismissal (Corey: "What about the
+arena?").** I had waved off THE ARENA's occlusion hits as "the bounding box of
+the stadium you're meant to be inside" -- correct for most of them, wrong for
+one. Re-swept every lane (not just centre) and found a real solid slab
+(polySurface1, 3.8x15x18.9 m) standing in the driving corridor: car inside it
+32 samples, camera inside 32, blocked view 8, around s 184-215 of the 284 m
+lap. First fix (hide anything tall whose footprint sits well inside the road)
+had a real bug of its own: it hid the WRONG mesh -- the outer wall itself --
+because a box's vertices sit only at its top/bottom corners, so sampling
+vertex HEIGHT to test "is this at car level" misses a solid box that spans
+straight through that band with no vertex actually inside it. Fixed to test
+the bounding box's y-RANGE overlap instead of individual vertex heights, and
+required the horizontal approach to be well inside the road (roadHalf-5)
+rather than merely within the wall's own margin, so the boundary wall (which
+legitimately sits at the edge) is left alone. Verified: only polySurface1 is
+hidden now, confirmed by name.
+
+Chasing that further (rendering a top-down view needed cancelAnimationFrame
+on every pending id 1..300000 first -- the game's own rAF loop overwrites a
+manual renderer.render() call before a screenshot can capture it, no matter
+how tight an interval tries to race it) turned up a SECOND, more interesting
+bug: at two points in the lap (s~199, s~279) the model's real wall geometry
+-- support struts inside the SAME mesh as the boundary wall, so it can't be
+selectively hidden -- comes within 0.35-2 m of the CENTRELINE itself, while
+the physics assumes a flat roadHalf=16 (D_HIT=17.2) everywhere. A car legally
+positioned by the game's own rules could be driven straight into solid
+geometry the model was never built to expect.
+
+Fix: DRESS.arena now raycasts from every spline sample, both directions,
+against the model's own solid meshes, once at load, and stores a smoothed
+per-sample safe half-width (ARENA_LIMIT, minus 1.7 m for car half-width +
+margin, floor 2.4 m). wallLimitAt(s) = min(D_HIT, ARENA_LIMIT[i]) replaces
+the flat D_HIT in both wall clamps (player at the dLim check, rivals at their
+equivalent) -- every other track leaves ARENA_LIMIT null and is untouched.
+Verified against the live physics, not just the measurement: parking the car
+at d=-16 (which old D_HIT=17.2 would allow) at the s=199 pinch clamps it to
+d=-2.38 in one step, matching the measured 2.40 m limit exactly; a normal
+derby race still lets the car out to d=-14.95 well away from the pinch. Full
+regression (17/19, same two known-bad tests), all 19 worlds clean, and a
+complete derby (spawn, ram, wreck all 4, $35k payout, results sheet, player-
+wrecked path) all still pass.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

@@ -522,8 +522,19 @@ Measured and deliberately NOT changed: WHITEOUT and DEEP BLUE both render
 with the same detail and contrast spread as the clean baseline, so the dense
 fog is doing its job rather than blinding anyone; NEON CITY's underpasses
 are fine because the ground plane is single-sided and invisible from below;
-and the big boxes flagged on TOUGE, JUNGLE and THE ARENA are bounding boxes
-of a mountain, a tunnel and the stadium you are supposed to be inside.
+and the big boxes flagged on TOUGE and JUNGLE are bounding boxes of a
+mountain and a tunnel.
+
+THE ARENA turned out to have a real one hiding in that last group: a solid
+slab standing in the driving corridor (now hidden, the same way as the
+docks fix), and — a level deeper — two points in the lap where the model's
+own boundary wall carries an internal support strut that comes within half
+a metre of the racing line itself, inside the SAME mesh as the wall, so it
+can't just be hidden. THE ARENA now measures its own model once at load
+(a raycast from every point on the spline, both ways, against whatever the
+model actually built) and keeps the drivable width inside whatever the
+geometry really allows there, rather than assuming a flat width everywhere
+the way every other track can.
 
 ## What a downloaded car brings with it that isn't the car
 
