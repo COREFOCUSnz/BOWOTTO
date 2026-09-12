@@ -39,12 +39,48 @@ const path = require('path');
         glow: names.filter((n) => M.models[n].glow) };
     });
     console.log('character models:', m.names.length, '| textures:', m.textures, '| team suits:', m.glow.join(','));
-    const wantClasses = ['scout', 'sniper', 'soldier', 'medic', 'heavy', 'pyro', 'spy', 'engineer'];
+    const wantClasses = ['scout', 'sniper', 'soldier', 'demoman', 'medic', 'heavy', 'pyro', 'spy', 'engineer'];
     const missing = [...wantClasses, 'tron_blue', 'tron_red'].filter((n) => !m.names.includes(n));
     if (missing.length) { console.log('FAIL: missing models ' + missing.join(', ')); process.exit(1); }
     if (m.unresolved.length) { console.log('FAIL: groups with no texture: ' + m.unresolved.join(', ')); process.exit(1); }
     if (m.glow.length !== 2) { console.log('FAIL: expected two glowing team suits, got ' + m.glow.length); process.exit(1); }
     console.log('props:', m.props.length ? m.props.join(', ') : '(none)', '| placed:', m.placements);
+
+    // ---- the generated demoman -------------------------------------------
+    // He is built by tools/make-demoman.js rather than imported, so the things
+    // worth checking are that he is his OWN model and that he is actually
+    // skinned across the rig — a generation bug would most likely weld every
+    // vertex to one bone, which renders fine standing still and not at all once
+    // he moves.
+    const demo = await page.evaluate(async () => {
+      const mf = window.__models.manifest;
+      const set = mf.sets.mercs.models;
+      const env = await fetch('assets/models/demoman.json').then((r) => r.json());
+      const bin = atob(env.data);
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const dv = new DataView(u8.buffer);
+      const bones = dv.getUint16(6, true);
+      const verts = dv.getUint32(8, true);
+      const used = new Set();
+      const vbase = 64 + bones * 132;
+      for (let i = 0; i < verts; i++) {
+        const o = vbase + i * 24;
+        for (let k = 0; k < 4; k++) if (dv.getUint8(o + 18 + k) > 0) used.add(dv.getUint8(o + 14 + k));
+      }
+      return { mapped: set.demoman, soldier: set.soldier, bones, verts, boundTo: used.size,
+        loaded: !!window.__models.get('demoman') };
+    });
+    console.log(`demoman: ${demo.verts} verts over ${demo.boundTo} of ${demo.bones} bones, set maps to "${demo.mapped}"`);
+    demo.loaded && demo.mapped === 'demoman'
+      ? pass2('the demoman has his own model')
+      : fail2(`the demoman is still mapped to "${demo.mapped}" (soldier is "${demo.soldier}")`);
+    demo.mapped !== demo.soldier
+      ? pass2('and is no longer wearing the soldier\'s body')
+      : fail2('the demoman and soldier still share one model');
+    demo.boundTo >= 15
+      ? pass2(`and is skinned across the rig (${demo.boundTo} of ${demo.bones} bones carry weight)`)
+      : fail2(`the demoman is bound to only ${demo.boundTo} of ${demo.bones} bones — he will not deform when he moves`);
 
     // ---- the spawn-room screen -------------------------------------------
     // It exists to carry artwork someone drops in, so the thing worth checking

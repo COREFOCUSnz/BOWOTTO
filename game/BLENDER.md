@@ -105,8 +105,22 @@ node test/browser.test.js "$GAME_URL"             # every group must find its te
 photograph whichever set is active, so switch sets in the Skins menu (or via
 `window.__setSkin('tron')`) to shoot a team suit.
 
-The Demoman is the one class with no dedicated model — it currently reuses
-another mercenary. A Demoman is the highest-value character you could make.
+The mercenary set contains no Demoman, so he is GENERATED rather than imported:
+
+```
+node tools/make-demoman.js            # builds the mesh onto the shared rig
+node tools/make-demoman-texture.js    # paints his 16-band texture
+```
+
+It reads the Soldier's bones and reuses them verbatim, lays primitives out around
+that skeleton, and skins each vertex to the nearest bones of a per-part
+whitelist. Reusing the rig is the whole trick: the procedural animation was
+written against those bone orientations, so he walks, aims and grips a weapon for
+free. The whitelist is what stops a chest vertex binding to an elbow.
+
+If you would rather model him properly in Blender, export a rigged GLB and run it
+through `extract-character.js --slot=demoman` — that overrides the generated one,
+and is the better answer if you want him to look like anything in particular.
 
 ---
 

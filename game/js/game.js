@@ -65,6 +65,7 @@
   const TEAM_GLOW = [[0.40, 1.30, 2.40], [2.40, 0.55, 0.18]];   // blue: cyan, red: orange
   // In the class set the Demoman borrows the Soldier's model, so give him a
   // shorter, stockier stance rather than an identical twin.
+  // Applied only to a class borrowing another class's model (see sharesModel).
   const SHARED_SCALE = { demoman: 0.95 };
   const GRIP_FOR = { ac: 'heavy', flamer: 'heavy', rpg: 'launcher', ic: 'launcher', gl: 'launcher', pl: 'launcher', tranq: 'pistol', railgun: 'pistol' };
   if (renderer.skinProg) models.load('assets/models/').then((ok) => { modelsReady = ok; if (ok && menu) renderMenu(); });
@@ -595,7 +596,11 @@
       if (!visible(p.pos, cull.char)) continue;
       const model = modelFor(p); if (!model) continue;
       const pose = poseFor(p, model);
-      const scale = model.glow ? (CLASS_SCALE[p.cls] || 1) : (SHARED_SCALE[p.cls] || 1);
+      // SHARED_SCALE only applies while a class is WEARING ANOTHER CLASS'S BODY —
+      // it exists to make a borrowed model read as the right build. Now that the
+      // demoman has his own, shrinking him would just make him short.
+      const scale = model.glow ? (CLASS_SCALE[p.cls] || 1)
+        : (sharesModel(p) ? (SHARED_SCALE[p.cls] || 1) : 1);
       pose.scale = scale;
       const st = poseState(p); st.root = playerRoot(p, scale);
       animate(pose, st);
