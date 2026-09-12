@@ -609,6 +609,88 @@
     }
     return true;   // the caller closes the pass once props have drawn too
   }
+  // ---- screens on the map ------------------------------------------------
+  // A wall panel that can play a video, show a still, or fall back to a built-in
+  // placeholder. Everything is driven by assets/screens/screens.json, so a new
+  // advert is a file drop and one line of config, not a code change.
+  const screens = { config: null, tex: null, kind: 'none', note: '' };
+  function loadScreens() {
+    fetch('assets/screens/screens.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg) => {
+        if (!cfg || !cfg.screens || !cfg.screens.length) return;
+        screens.config = cfg.screens[0];
+        // ?screen=<url> overrides the configured media, so an advert can be
+        // previewed without editing anything. Also how the browser test checks
+        // that a supplied file actually reaches the panel.
+        const override = new URLSearchParams(location.search).get('screen');
+        const media = override || screens.config.media;
+        if (override) screens.config = Object.assign({}, screens.config, { media: override });
+        if (!media) { screens.kind = 'placeholder'; screens.note = 'no media configured'; return; }
+        const url = /^(https?:|data:|blob:|\/)/.test(media) ? media : 'assets/screens/' + media;
+        if (/\.(mp4|webm|m4v|ogv)$/i.test(media)) {
+          const v = document.createElement('video');
+          v.src = url; v.loop = true; v.muted = true; v.playsInline = true;
+          v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+          v.crossOrigin = 'anonymous';
+          v.addEventListener('error', () => { screens.kind = 'placeholder'; screens.note = 'could not load ' + media; });
+          v.addEventListener('loadeddata', () => {
+            screens.tex = renderer.videoTexture(v);
+            screens.kind = 'video';
+            // Autoplay is blocked until the page has been interacted with; the
+            // player clicking through the menu counts, so retry on first input.
+            const tryPlay = () => v.play().catch(() => {});
+            tryPlay();
+            window.addEventListener('pointerdown', tryPlay, { once: true });
+            window.addEventListener('keydown', tryPlay, { once: true });
+          });
+          v.load();
+        } else {
+          const img = new Image();
+          img.onload = () => { screens.tex = renderer.imageTexture(img); screens.kind = 'image'; };
+          img.onerror = () => { screens.kind = 'placeholder'; screens.note = 'could not load ' + media; };
+          img.src = url;
+        }
+      })
+      .catch(() => { screens.kind = 'placeholder'; screens.note = 'no screens.json'; });
+  }
+  // Drawn when there is nothing to show: a slow sweep so the panel is obviously
+  // alive and obviously waiting for content, rather than looking like a bug.
+  let placeholderTex = null, placeholderAt = -1;
+  function placeholderScreen() {
+    const c = placeholderScreen.canvas || (placeholderScreen.canvas = Object.assign(document.createElement('canvas'), { width: 256, height: 144 }));
+    const g = c.getContext('2d');
+    const t = game.time;
+    g.fillStyle = '#0b0f14'; g.fillRect(0, 0, 256, 144);
+    const sweep = ((t * 0.18) % 1) * 320 - 32;
+    const grad = g.createLinearGradient(sweep - 60, 0, sweep + 60, 0);
+    grad.addColorStop(0, 'rgba(60,150,220,0)'); grad.addColorStop(0.5, 'rgba(60,150,220,0.22)'); grad.addColorStop(1, 'rgba(60,150,220,0)');
+    g.fillStyle = grad; g.fillRect(0, 0, 256, 144);
+    g.strokeStyle = 'rgba(90,170,230,0.5)'; g.lineWidth = 2; g.strokeRect(8, 8, 240, 128);
+    g.fillStyle = '#cfe6ff'; g.font = 'bold 22px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText('SCREEN', 128, 64);
+    g.font = '12px system-ui, sans-serif'; g.fillStyle = 'rgba(190,215,240,0.75)';
+    g.fillText('drop a video in assets/screens/', 128, 88);
+    g.fillText('and name it in screens.json', 128, 104);
+    if (!placeholderTex) { placeholderTex = renderer.imageTexture(c); placeholderAt = t; }
+    else if (t - placeholderAt > 0.06) { placeholderTex.update(c); placeholderAt = t; }
+    return placeholderTex;
+  }
+  function drawScreens() {
+    const list = game.data.screens || [];
+    if (!list.length) return;
+    if (screens.kind === 'video' && screens.tex) screens.tex.refresh();
+    const cfg = screens.config || {};
+    const size = cfg.size || [2.8, 1.575];
+    const tex = screens.tex && screens.kind !== 'placeholder' ? screens.tex : placeholderScreen();
+    for (const sc of list) {
+      if (!visible(sc.pos, cull.char)) continue;
+      const m = M.mul(M.translate(sc.pos[0], sc.pos[1], sc.pos[2]),
+        M.mul(M.rotY(sc.yaw), M.scale(size[0] / 2, size[1] / 2, 1)));
+      renderer.drawPanel(m, tex, { bright: cfg.bright || 1.15, scan: cfg.scanlines === false ? 0 : 1 });
+    }
+  }
+
   // Static props placed on the map, read from the asset manifest.
   let placements = null;
   function propPlacements() {
@@ -1023,6 +1105,7 @@
     const skinned = drawCharacters();
     if (skinned) { drawProps(); renderer.endSkinned(); drawCharacterWeapons(); drawGroundShadows(); }
     else for (const p of game.players) if (p !== human || !human.alive) drawPlayer(p);
+    drawScreens();
     drawFlags(); drawItems(); drawSentries(); drawProjectiles();
     // sniper laser dot
     if (human.alive && human.charge >= 0) { const h = game.trace(human.eye(), V.forward(human.yaw, human.pitch), 300, human); if (h) renderer.sphereAt(h.point, 0.025 + h.dist * 0.0012, [1, 0.1, 0.1], { emissive: 1 }); }
@@ -1039,7 +1122,8 @@
   openMenu('main');
   $('loading').hidden = true;
   requestAnimationFrame(frame);
-  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm;
+  loadScreens();
+  window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm; window.__screens = screens;
   // One step of sim + viewmodel with no drawing, for test/feel.test.js
   window.__stepFeel = (dt) => { game.update(dt); updateViewModel(dt); return viewModelPose(human, human.weapon()); }; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

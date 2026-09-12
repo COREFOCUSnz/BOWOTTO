@@ -1,0 +1,29 @@
+{
+  "_readme": [
+    "Screens mounted on the map. Drop a video or image into assets/screens/ and",
+    "name it here — no code change needed.",
+    "",
+    "  media   a file in this folder. .mp4 / .webm play as video (muted, looping);",
+    "          .png / .jpg / .gif show as a still. Leave it null for the built-in",
+    "          placeholder.",
+    "  where   'spawn' mounts one in each team's spawn room. Or give an explicit",
+    "          pos/yaw to put it anywhere on the map.",
+    "  size    [width, height] in metres.",
+    "  bright  1.0 is a normal screen; push to 1.4 for a bright one.",
+    "",
+    "A 16:9 video around 1280x720 is plenty — the panel is about 2.8 m wide and",
+    "players see it from a few metres away. Keep it under ~8 MB so the level does",
+    "not stall on a phone; it is fetched lazily and the placeholder shows until it",
+    "is ready."
+  ],
+  "screens": [
+    {
+      "id": "spawn-board",
+      "where": "spawn",
+      "media": null,
+      "size": [2.6, 1.4625],
+      "bright": 1.15,
+      "scanlines": true
+    }
+  ]
+}

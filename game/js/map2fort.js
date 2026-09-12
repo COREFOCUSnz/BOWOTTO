@@ -41,7 +41,7 @@
       W.fill([[3.5, 0, z], [4, 3.5, z + 0.5]], MAT.WOOD);
     }
 
-    const data = { spawns: [[], []], flags: [], caps: [], items: [], resupply: [], nodes: [], links: [], sniperSpots: [[], []], defense: [[], []], lights: [] };
+    const data = { spawns: [[], []], flags: [], caps: [], items: [], resupply: [], nodes: [], links: [], sniperSpots: [[], []], defense: [[], []], lights: [], screens: [] };
 
     function fort(team) {
       const T = team === BLUE ? (b) => b : mirrorBox;
@@ -158,6 +158,14 @@
       data.spawns[team] = [[0, 0, -36], [-4, 0, -39], [4, 0, -39], [-5, 0, -34], [5, 0, -34], [0, 0, -40]].map(P);
       data.flags[team] = { home: P([2, -5, -36]) };
       data.caps[team] = { pos: P([2, -5, -36]), r: 2.5 };
+      // A screen on the wall you face when you spawn, beside the exit. The bezel
+      // stands 10 cm proud of the wall so it reads as a mounted panel; the picture
+      // itself is drawn by js/game.js from assets/screens/screens.json.
+      // The bezel is voxels, and voxels are half-metre cells: a 10 cm frame snaps
+      // to a half-metre slab and swallows anything mounted inside it. Both the
+      // frame and the picture plane are on the grid on purpose.
+      F([[-7.0, 1.5, -32.5], [-4.0, 3.5, -32.0]], MAT.METAL);
+      data.screens.push({ id: 'spawn-board', pos: P([-5.5, 2.5, -32.53]), yaw: team === BLUE ? Math.PI : 0, team });
       data.resupply.push({ pos: P([0, 0, -41]), team });
       data.resupply.push({ pos: P([-6, 0, -33]), team });
       data.items.push({ pos: P([-10, 0, -18]), type: 'health' });

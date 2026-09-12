@@ -16,6 +16,9 @@ const path = require('path');
   const httpServed = /^https?:/.test(url);
   if (httpServed) {
     await page.waitForFunction(() => window.__modelsReady && window.__modelsReady(), null, { timeout: 40000 });
+    let screenFails = 0;
+    const pass2 = (t) => console.log('PASS ' + t);
+    const fail2 = (t) => { console.log('FAIL ' + t); screenFails++; };
     const m = await page.evaluate(() => {
       const M = window.__models;
       const names = Object.keys(M.models);
@@ -42,6 +45,61 @@ const path = require('path');
     if (m.unresolved.length) { console.log('FAIL: groups with no texture: ' + m.unresolved.join(', ')); process.exit(1); }
     if (m.glow.length !== 2) { console.log('FAIL: expected two glowing team suits, got ' + m.glow.length); process.exit(1); }
     console.log('props:', m.props.length ? m.props.join(', ') : '(none)', '| placed:', m.placements);
+
+    // ---- the spawn-room screen -------------------------------------------
+    // It exists to carry artwork someone drops in, so the thing worth checking
+    // is that supplied media actually reaches the panel — not that a placeholder
+    // renders. A solid magenta image is fed in through ?screen= and the frame is
+    // read back to see whether the wall went magenta.
+    const MAGENTA = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGP4z/AfK2IYWhIA0ad/gXfwoGMAAAAASUVORK5CYII=';
+    const screenInfo = await page.evaluate(() => ({
+      onMap: (window.__game.data.screens || []).length,
+      pos: (window.__game.data.screens || []).map((s) => s.pos),
+    }));
+    console.log('screens on the map:', screenInfo.onMap);
+    screenInfo.onMap >= 2
+      ? pass2('a screen is mounted in each spawn room')
+      : fail2(`expected a screen in both spawn rooms, found ${screenInfo.onMap}`);
+
+    const shot = await (async () => {
+      const p2 = await browser.newPage({ viewport: { width: 320, height: 200 } });
+      await p2.goto(url.replace(/\?.*$/, '') + '?readback&screen=' + encodeURIComponent(MAGENTA));
+      await p2.waitForFunction(() => window.__game && document.getElementById('loading').hidden, null, { timeout: 60000 });
+      await p2.evaluate(() => { window.__menuSelect('1'); window.__menuSelect('1'); window.__menuSelect('3'); window.__closeMenu(); });
+      await p2.waitForTimeout(600);
+      await p2.evaluate(() => {
+        const g = window.__game, h = window.__human;
+        g.roundLength = 1e9; window.__brains.forEach((br) => { br.update = () => {}; });
+        g.players.filter((x) => x.isBot).forEach((x) => { x.alive = false; x.pos = [0, -60, 0]; });
+        h.alive = true; h.hp = 1e6; h.pos = [-5.5, 0.05, -35.0]; h.vel = [0, 0, 0];
+        h.yaw = Math.PI; h.pitch = 0.12;
+        window.__hideViewmodel = true;
+        document.querySelectorAll('.ov').forEach((e) => { e.style.display = 'none'; });
+      });
+      await p2.waitForTimeout(1500);
+      const out = await p2.evaluate(() => {
+        const c = document.querySelector('canvas');
+        const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+        const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+        const buf = new Uint8Array(w * h * 4);
+        gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        let magenta = 0;
+        for (let i = 0; i < buf.length; i += 4) {
+          if (buf[i] > 120 && buf[i + 2] > 120 && buf[i + 1] < buf[i] * 0.6) magenta++;
+        }
+        return { kind: window.__screens.kind, magenta, of: w * h };
+      });
+      await p2.close();
+      return out;
+    })();
+    console.log(`screen media: kind=${shot.kind}, ${shot.magenta} magenta px of ${shot.of}`);
+    shot.kind === 'image'
+      ? pass2('supplied media is picked up (not the placeholder)')
+      : fail2(`the screen fell back to "${shot.kind}" instead of showing the supplied image`);
+    shot.magenta > shot.of * 0.01
+      ? pass2(`and it is actually on the wall (${(shot.magenta / shot.of * 100).toFixed(1)}% of the frame)`)
+      : fail2(`the supplied image never reached the panel (${shot.magenta} magenta pixels) — the screen shows nothing`);
+    if (screenFails) { console.log(`${screenFails} screen failure(s)`); process.exit(1); }
     if (m.badProps.length) { console.log('FAIL: props that are not single-bone statics: ' + m.badProps.join(', ')); process.exit(1); }
     if (m.badPlacements.length) { console.log('FAIL: placements naming a prop that did not load: ' + m.badPlacements.join(', ')); process.exit(1); }
   } else {

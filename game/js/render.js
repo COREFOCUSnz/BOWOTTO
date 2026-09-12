@@ -105,6 +105,32 @@ void main(){
 }`;
 
 
+  // A lit-from-within panel: a video wall or a lightbox. Unlit on purpose — a
+  // screen is not a surface you shade, it is a surface that emits.
+  const PANEL_VS = `
+attribute vec2 aXY;
+uniform mat4 uProj, uView, uModel;
+varying vec2 vUV;
+void main(){
+  vUV = vec2(aXY.x * 0.5 + 0.5, 0.5 - aXY.y * 0.5);
+  vec4 w = uModel * vec4(aXY.x, aXY.y, 0.0, 1.0);
+  vec4 v = uView * w;
+  gl_Position = uProj * v;
+}`;
+  const PANEL_FS = `
+precision mediump float;
+varying vec2 vUV;
+uniform sampler2D uTex;
+uniform float uBright, uScan, uTime, uHasTex;
+uniform vec3 uTint;
+void main(){
+  vec3 c = uHasTex > 0.5 ? texture2D(uTex, vUV).rgb * uTint : uTint;
+  // faint scanlines and a slow roll, so it reads as a screen and not a poster
+  float scan = 1.0 - uScan * 0.28 * step(0.5, fract(vUV.y * 120.0));
+  float roll = 1.0 - uScan * 0.05 * step(0.985, fract(vUV.y + uTime * 0.08));
+  gl_FragColor = vec4(c * uBright * scan * roll, 1.0);
+}`;
+
   const SKIN_VS = `
 attribute vec3 aPos; attribute vec3 aNrm; attribute vec2 aUV; attribute vec4 aJoints; attribute vec4 aWeights;
 uniform mat4 uProj, uView;
@@ -225,6 +251,11 @@ void main(){
       this.su = {}; for (const n of ['uFwd', 'uRight', 'uUp', 'uTanX', 'uTanY', 'uFogColor']) this.su[n] = gl.getUniformLocation(this.sky, n);
       this.sa = gl.getAttribLocation(this.sky, 'aXY');
       this.skyBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
+      this.panelProg = program(gl, PANEL_VS, PANEL_FS);
+      this.pu = {}; for (const n of ['uProj', 'uView', 'uModel', 'uTex', 'uBright', 'uScan', 'uTime', 'uTint', 'uHasTex']) this.pu[n] = gl.getUniformLocation(this.panelProg, n);
+      this.pa = gl.getAttribLocation(this.panelProg, 'aXY');
+      this.panelBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.panelBuf);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1]), gl.STATIC_DRAW);
       this.cube = this.upload(cubeGeometry());
       this.sphere = this.upload(sphereGeometry());
@@ -382,6 +413,80 @@ void main(){
       gl.depthMask(true); gl.disable(gl.BLEND);
     }
     // ---- skinned characters ----
+    // A texture backed by a <video>, re-uploaded whenever the video has a new
+    // frame. WebGL1 has no NPOT mipmaps, so it is clamped and linear-filtered;
+    // any video size works.
+    videoTexture(video) {
+      const gl = this.gl;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([12, 14, 18]));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      return { tex, video, ready: false, refresh() {
+        if (!video || video.readyState < 2) return false;
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+        this.ready = true;
+        return true;
+      } };
+    }
+    // Same, from an <img> or a canvas — one still frame, uploaded once.
+    imageTexture(img) {
+      const gl = this.gl;
+      const tex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      const out = { tex, ready: false, refresh() { return true; },
+        // Re-upload into the SAME texture. An animated placeholder redraws every
+        // frame, and making a new GL texture each time leaks one per frame.
+        update(src) {
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, src);
+          out.ready = true;
+          return out;
+        } };
+      return out.update(img);
+    }
+    // Draw a screen. m maps the unit quad (-1..1 in x and y, facing +z) into the
+    // world, so scale it to half the panel's width and height.
+    drawPanel(m, screen, opts) {
+      const gl = this.gl;
+      opts = opts || {};
+      gl.useProgram(this.panelProg);
+      // Take nothing on trust from the pass before this one. Attribute arrays
+      // left enabled by the world or skinned programs point at buffers this one
+      // does not bind, which is an INVALID_OPERATION and draws nothing at all.
+      for (let i = 0; i < 8; i++) gl.disableVertexAttribArray(i);
+      gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+      gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.panelBuf);
+      gl.enableVertexAttribArray(this.pa);
+      gl.vertexAttribPointer(this.pa, 2, gl.FLOAT, false, 0, 0);
+      gl.uniformMatrix4fv(this.pu.uProj, false, this.proj);
+      gl.uniformMatrix4fv(this.pu.uView, false, this.view);
+      gl.uniformMatrix4fv(this.pu.uModel, false, m);
+      gl.uniform1f(this.pu.uBright, opts.bright === undefined ? 1 : opts.bright);
+      gl.uniform1f(this.pu.uScan, opts.scan === undefined ? 1 : opts.scan);
+      gl.uniform1f(this.pu.uTime, this.time || 0);
+      gl.uniform3fv(this.pu.uTint, opts.tint || [1, 1, 1]);
+      const has = !!(screen && screen.ready);
+      gl.uniform1f(this.pu.uHasTex, has ? 1 : 0);
+      if (has) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, screen.tex); gl.uniform1i(this.pu.uTex, 0); }
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      gl.disableVertexAttribArray(this.pa);
+      // Hand the world program back. drawMesh() sets its uniforms WITHOUT
+      // re-binding its program, so leaving this one current silently corrupts
+      // every mesh drawn after a panel.
+      gl.useProgram(this.prog);
+    }
     beginSkinned() {
       const gl = this.gl; if (!this.skinProg) return false;
       gl.useProgram(this.skinProg);

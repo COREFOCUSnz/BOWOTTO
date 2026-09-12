@@ -193,6 +193,29 @@ collision**. Anything solid belongs in the voxel map in `js/map2fort.js`.
 export settings, budgets, what the rig needs, and why map geometry is harder
 than it looks.
 
+## Screens
+
+There is a screen on the wall of each spawn room, facing you as you come out.
+It plays whatever you put in `assets/screens/`:
+
+```
+cp my-advert.mp4 assets/screens/
+# then set "media": "my-advert.mp4" in assets/screens/screens.json
+```
+
+`.mp4` / `.webm` play as looping muted video, `.png` / `.jpg` show as a still,
+and with `media` left null you get a built-in placeholder. A 16:9 clip around
+1280x720 is plenty — the panel is 2.6 m wide and you see it from a few metres.
+Keep it under about 8 MB so the level does not stall on a phone; it loads lazily
+and the placeholder shows until it is ready.
+
+To preview something without editing the config, append `?screen=<url>` to the
+game URL. That is also how the browser test checks the panel: it feeds in a
+magenta image and reads the frame back to confirm the wall went magenta.
+
+Browsers block autoplay until the page has been interacted with, so the video
+starts when the player clicks through the menu.
+
 ## Credits
 
 Tron: **"Tron Willow"** and **"Ares (Tron) Helmet"** by **SpringSociety**.
