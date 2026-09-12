@@ -113,3 +113,46 @@ The task assigned this work to a branch of the BOWOTTO repository, so that is
 where it went. It is self-contained under `apps/firewall/` and shares nothing
 with the plugin — different language, different toolchain, different product. If
 it is going to grow, it wants its own repository.
+
+## Getting it onto a phone
+
+The APK is built by CI, not by hand: `.github/workflows/firewall-apk.yml`
+runs the unit tests and then `assembleDebug` on every push that touches
+`apps/firewall/`. A green run attaches **firewall-debug-apk** to itself.
+
+From the phone:
+
+1. Open the run: **Actions → Build Firewall APK** in GitHub, newest run.
+2. Scroll to **Artifacts** and tap `firewall-debug-apk`. GitHub serves it as a
+   `.zip` — every artifact is zipped, there is no way to skip that.
+3. Open the download, extract `app-debug.apk`. Samsung's My Files handles the
+   zip; tap the APK inside it.
+4. Android will refuse the first time and offer a settings shortcut: allow
+   **Install unknown apps** for whichever app is doing the installing (My
+   Files, or Chrome). Grant it, go back, install.
+5. Play Protect will warn that the app is unrecognised. It says that about
+   every sideloaded APK that has never been through the Play Store. Install
+   anyway.
+6. It appears in the drawer as **Blockfall**. First run of the vault asks for
+   a passcode twice; there is no recovery if it is lost.
+
+Downloading the artifact needs a GitHub login with access to the repo, so it
+is not a link that can be forwarded to someone else.
+
+### This is a debug build
+
+`assembleDebug` signs with the standard Android debug keystore — the one every
+SDK install shares. That is what makes it installable without setting up
+signing, and it has consequences worth knowing:
+
+- It is `debuggable`, so anything with ADB access can attach to it and read
+  the vault key out of memory while it is unlocked.
+- Anyone can build an APK that Android considers the same app, because they
+  have the same key. An update from an untrusted source would install straight
+  over it.
+- `isMinifyEnabled` is off for debug, so the APK is larger and fully symbolised.
+
+Fine for putting it on your own phone and trying it. Not what you would ship,
+and not what you would hand to someone else. A release build needs a keystore
+you generate and keep, which is a deliberate step and not one CI should do on
+its own.
