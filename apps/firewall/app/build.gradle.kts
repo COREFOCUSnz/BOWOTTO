@@ -78,4 +78,11 @@ dependencies {
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+
+    // Rendering the gallery on a real screen is the only way to catch a
+    // control laid out past the bottom edge; assertIsDisplayed sees it, a
+    // unit test cannot. See androidTest/VaultScreenLayoutTest.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

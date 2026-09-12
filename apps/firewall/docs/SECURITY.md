@@ -150,11 +150,28 @@ untested and invisible. The comment in `VaultKeyManagerTest` even said the
 guard's behaviour was "one Keystore call that only a device can prove", which
 was true and should have been read as a gap rather than a note.
 
-`app/src/androidTest/KeystoreVaultTest.kt` now covers it on real hardware —
+A second bug reached the phone right behind it, this one purely in layout: the
+gallery's empty and loading branches used `Modifier.fillMaxSize()` inside a
+Column, which takes the whole remaining height, so the screenshot toggle and
+the ADD PHOTOS button were laid out past the bottom edge. You could unlock the
+vault and then had no way to put anything in it. The branch with photos in it
+used `weight(1f)` and was fine — which is why reading the code did not show it,
+and why nothing but a real screen would have.
+
+`app/src/androidTest/KeystoreVaultTest.kt` now covers the first on real hardware —
 seal round-trips, a foreign Keystore key cannot unseal, a vault reopens after a
 cold start, and `changePasscode` preserves the vault key — and CI runs it on an
 emulator on every push. Decryption was never affected, which is why the fault
 sat precisely on the one path that runs once per install.
+
+`VaultScreenLayoutTest.kt` covers the second, asserting with
+`assertIsDisplayed` — not `assertExists` — that the controls are actually
+within the screen bounds in every state the gallery has. The button existed the
+whole time; it was just somewhere nobody could reach.
+
+The pattern across both: the only faults that reached a phone were in the code
+paths no test could execute off a device. Everything the unit suite could
+reach, it got right.
 
 ## Known gaps worth closing
 

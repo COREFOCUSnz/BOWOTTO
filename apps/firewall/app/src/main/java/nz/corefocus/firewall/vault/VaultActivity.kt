@@ -36,7 +36,16 @@ class VaultActivity : ComponentActivity() {
 
     private val pickPhotos = registerForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(MAX_PER_IMPORT),
-    ) { uris -> if (uris.isNotEmpty()) importAll(uris) }
+    ) { uris ->
+        if (uris.isEmpty()) {
+            // Dismissed without picking. The screen is waiting to hear back
+            // either way; skipping this left it mid-import forever, with its
+            // controls hidden and no route out but leaving the vault.
+            finishImport()
+        } else {
+            importAll(uris)
+        }
+    }
 
     private val confirmOriginalDelete = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
@@ -110,11 +119,14 @@ class VaultActivity : ComponentActivity() {
 
     private fun importAll(uris: List<Uri>) {
         lifecycleScope.launch {
-            val imported = withContext(Dispatchers.IO) {
-                uris.count { repository.import(it) != null }
+            val imported = try {
+                withContext(Dispatchers.IO) {
+                    uris.count { repository.import(it) != null }
+                }
+            } finally {
+                // In a finally so a throw mid-import still releases the screen.
+                finishImport()
             }
-            onImportFinished?.invoke()
-            onImportFinished = null
 
             if (imported == 0) {
                 toast("Could not read those photos")
@@ -148,6 +160,12 @@ class VaultActivity : ComponentActivity() {
             Log.w(TAG, "could not build a delete request", e)
             toast("Delete the originals in Gallery when you are ready")
         }
+    }
+
+    /** Releases the screen's importing state. Safe to call more than once. */
+    private fun finishImport() {
+        onImportFinished?.invoke()
+        onImportFinished = null
     }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()

@@ -70,6 +70,10 @@ fun VaultScreen(
     var pendingDelete by remember { mutableStateOf<VaultRepository.Entry?>(null) }
     // Seeded from the stored setting; this screen is the only thing that changes it.
     var screenshotsOn by remember { mutableStateOf(allowScreenshots) }
+    // Separate from `loading`, which is only the initial listing. Handing the
+    // picker control used to flip `loading`, and a cancelled pick never
+    // cleared it - the vault then sat on a spinner with no buttons, for good.
+    var importing by remember { mutableStateOf(false) }
 
     fun reload() {
         scope.launch {
@@ -103,11 +107,15 @@ fun VaultScreen(
         Header(count = entries.size, onLock = onLock)
 
         when {
-            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            // weight(1f), not fillMaxSize(). In a Column, fillMaxSize() takes
+            // the whole remaining height and leaves nothing for the siblings
+            // after it - which put ADD PHOTOS off the bottom of the screen on
+            // every empty vault, i.e. on every first run.
+            loading -> Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Accent)
             }
 
-            entries.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            entries.isEmpty() -> Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Nothing in here yet", color = Chalk, fontSize = 16.sp)
                     Spacer(Modifier.height(6.dp))
@@ -154,14 +162,29 @@ fun VaultScreen(
         ) {
             Button(
                 onClick = {
-                    loading = true
-                    onAddPhotos { reload() }
+                    importing = true
+                    // Runs whether photos were picked or the picker was
+                    // dismissed, so this can never strand the button.
+                    onAddPhotos {
+                        importing = false
+                        reload()
+                    }
                 },
+                enabled = !importing,
                 modifier = Modifier.weight(1f).height(50.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Ink),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Accent,
+                    contentColor = Ink,
+                    disabledContainerColor = Panel,
+                    disabledContentColor = Muted,
+                ),
             ) {
-                Text("ADD PHOTOS", fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text(
+                    if (importing) "WORKING" else "ADD PHOTOS",
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                )
             }
         }
     }
