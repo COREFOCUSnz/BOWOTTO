@@ -110,7 +110,7 @@ needs one repository secret.
 
 - GitHub → your repo → **Settings** → **Secrets and variables** → **Actions**
 - **New repository secret**
-- Name: `FIREBASE_SERVICE_ACCOUNT`
+- Name: `FIREBASE_SERVICE_ACCOUNT_2FORT`
 - Value: the **entire contents** of the JSON file, pasted in, braces and all
 - **Add secret**
 
