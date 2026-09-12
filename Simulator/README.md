@@ -24,13 +24,14 @@ entry below.
   on any internal reload (a course change, resuming a chosen track) via the
   same `straight` flag the lobby itself uses.
 - **Destruction Derby** is the fourth mode: last car standing. Every car
-  carries a 100-point damage bar; a hit costs closing speed × 2 hp to the car
-  struck and 30 % of that to the car doing the hitting, so ramming pays (a
-  22 m/s hit is 44 to them, 13 to you — two clean hits wreck a rival, and
-  you have about nine rams in the tank). Wall hits scratch. The field grows
+  carries a 100-point damage bar; a hit costs closing speed × 1.2 hp to the
+  car struck and 30 % of that to the car doing the hitting, so ramming pays
+  (a 22 m/s hit is 26 to them, 8 to you). Wall hits scratch. The field grows
   with the difficulty (3 / 4 / 5 / 6 rivals; three new names — VIOLA, ROSSO,
-  NERO — join the Versus three) and your damage scales with it (×0.6 to
-  ×1.25). The rivals hunt instead of racing: ahead and in reach they close
+  NERO — join the Versus three) and your damage scales with it (×0.45 to
+  ×0.9), so a derby on Medium runs to a dozen-odd solid hits rather than
+  three — Corey's first note after driving it was that it ended too fast.
+  The rivals hunt instead of racing: ahead and in reach they close
   at your speed plus ten and line up on your lane; far ahead they run flat
   out to catch you; beside you they match pace and lean on the door; and
   when you are behind them on the arena they drive on to come round on your
@@ -41,6 +42,17 @@ entry below.
   if you are the one left running. Wins count in the career. Built for
   **THE ARENA** but it runs in any world (on a circuit the rivals creep in
   your lane and wait for you when you are behind them).
+- **Your car takes damage where it was hit.** The panel on the right is the
+  Revuelto from above in four zones — front, middle, rear and the wheels —
+  each green when it's healthy, through orange, to red when it's gone.
+  Which zone pays depends on the contact point the physics already computes:
+  a nose-on or rear-end hit puts 75 % into that end, anything into the flank
+  splits between the middle and the wheels (more to the wheels the further
+  out it lands). Each zone holds a quarter of the car, so a hit that keeps
+  landing in the same place reddens it fast, and damage past a dead zone
+  spills into whatever is still standing — a destroyed front doesn't make
+  you invincible. HP, the number the standings and the wreck read, is the
+  mean of the four.
 - **THE ARENA** is the nineteenth world, and not a circuit: SpringSociety's
   "Tron Light cycle Arena" (Sketchfab, CC BY 4.0), 96 × 148 m of grid floor
   and light walls. The engine only knows "how far along the line, how far

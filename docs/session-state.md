@@ -542,6 +542,31 @@ big). Verified: hosted build per car (mesh count, paint meshes, wheel
 spin over 2 s of throttle, screenshots), the arena in derby, the artifact
 under a CSP that blocks blob: URLs.
 
+**Derby damage pass 2026-09-11 (Corey, after driving it: "the damage doesn't
+happen so quick... slowly go down", plus "a little car that shows the amount
+of damage... front, the middle, the back and the wheels").** Damage is a bit
+under half what it was: struck car takes closing speed x1.2 (was x2.0), the
+hitter still 30 % of that, DERBY_DMG (the player's multiplier) 0.45/0.6/
+0.75/0.9 (was 0.6-1.25), wall scrapes halved, rival-on-rival x0.9. The car
+now has FOUR zones (st.zone front/mid/rear/wheels, 100 each) and st.hp is
+their mean, so nothing else -- standings, the wreck check, the results sheet
+-- had to change. Where a hit lands comes free from the physics:
+resolveContact already writes the contact point into each proxy (x along the
+car, +-2.4 when the normal is longitudinal), so hitZones() reads it -- nose
+or tail hit puts 75 % into that end, a flank hit splits mid/wheels by how far
+out it landed. damageZones() spills damage past a dead zone into whatever is
+still standing, so a destroyed front doesn't make you invincible. HUD: a
+top-down car on the right (#damage, SVG, under the minimap; standings drop
+to top 396px in derby), each zone hsl-lerped green -> orange -> red, with
+the overall % in the header. Two testing traps worth remembering: reading
+`getComputedStyle(el).fill` right after setting `style.fill` returns the OLD
+value while the 0.25 s CSS transition runs, and a screenshot taken 700 ms
+after a change can still show the previous raster under swiftshader (frames
+take seconds) -- wait 1.5-3 s before believing either. Also: a probe that
+waits for `window.__sim` must set `revuelto.step=2` first, or the page sits
+on the welcome screen and `boot()` (which defines `__sim`) never runs -- that
+is what made the artifact look like it hung under CSP for ten minutes.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

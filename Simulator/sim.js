@@ -2224,6 +2224,7 @@ const st = {
   x: 0, y: 0, z: 0, theta: 0, pos: new THREE.Vector3(), fwd: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(0, 0, 1),
   hits: 0, hitT: 0, boost2Cd: 0, roof: false, roofIn: false, crossings: 0, lapsDone: 0, spinT: 0, spinW: 0, boostT: 0, boostCd: 0, glow: 0, nos: 1, nosOn: false, air: false, vel: new THREE.Vector3(), airT: 0, resets: 0,
   hp: 100, wrecked: false, wreckT: 0, wrecks: 0,       // Destruction Derby: damage bar, out of the fight, and rivals taken out
+  zone: { front: 100, mid: 100, rear: 100, wheels: 100 },   // ... and where it hurts: hp is the mean of these four
   steer: 0, throttle: 0, brake: 0, hand: false,
   gear: 0, rpm: CAR.idle, shiftT: 0, auto: true, reverse: false,
   mode: 1, cam: 0, offroad: false, slip: 0, aLat: 0, aLong: 0, delta: 0,
@@ -2272,7 +2273,8 @@ const RIVALS = [
 // Destruction Derby: the field grows with the difficulty (three more names for the bigger grids), the player's damage
 // scales with it too. Each car carries 100 hp; hits cost closing speed x 2.2, the car doing the hitting takes half
 const DERBY_RIVALS = [...RIVALS, { name: 'VIOLA', hex: 0x5a2d91, skill: 0.95, lane: -1 }, { name: 'ROSSO', hex: 0xd40015, skill: 0.96, lane: 1 }, { name: 'NERO', hex: 0x1a1a22, skill: 0.955, lane: 0 }];
-const DERBY_N = [3, 4, 5, 6], DERBY_DMG = [0.6, 0.85, 1.05, 1.25];
+const DERBY_N = [3, 4, 5, 6], DERBY_DMG = [0.45, 0.6, 0.75, 0.9];   // damage the PLAYER takes, per difficulty
+const ZONES = ['front', 'mid', 'rear', 'wheels'];
 // the rivals' speed limit per sample: cornering grip, then a backward pass so every braking zone is baked in
 const VLIM = new Float32Array(N);
 {
@@ -2440,7 +2442,7 @@ function rivalStep(a, dt, now) {
   const sDot = a.u / Math.max(0.3, 1 + kap * a.d);
   a.s = ((a.s + sDot * dt) % trackLen + trackLen) % trackLen;
   a.d += (a.spinT > 0 ? a.dv + a.u * Math.sin(a.psi) * 0.3 : a.dv) * dt;
-  if (Math.abs(a.d) > D_HIT) { if (derby && Math.abs(a.dv) > 3) rivalDamage(a, Math.abs(a.dv) * 0.6, false); a.d = Math.sign(a.d) * D_HIT; a.dv = -a.dv * 0.3; a.u *= 0.9; }
+  if (Math.abs(a.d) > D_HIT) { if (derby && Math.abs(a.dv) > 3) rivalDamage(a, Math.abs(a.dv) * 0.3, false); a.d = Math.sign(a.d) * D_HIT; a.dv = -a.dv * 0.3; a.u *= 0.9; }
   if (a.boostT > 0) a.boostT -= dt; if (a.boostCd > 0) a.boostCd -= dt;
   if (BOOST[i] && a.boostCd <= 0 && a.u > 2 && !a.wrecked) { a.boostT = 1.3; a.boostCd = 0.9; a.glow = 1; }
   a.glow = Math.max(0, a.glow - dt * 0.9); if (a.hitT > 0) a.hitT -= dt;
@@ -2515,10 +2517,32 @@ function rivalDamage(a, dmg, byPlayer) {
   if (byPlayer) st.wrecks++;
   flash(a.name + ' WRECKED' + (byPlayer ? ' · +' + fmtCash(PRIZE_DERBY_WRECK[GAME.diff]) : ''), 1500, '#ff3b3b'); audio.crunch(1); announcer.say(a.name.toLowerCase() + ' is out.', 1, 0.8);
 }
-function playerDamage(dmg) {
+// Where a hit landed, from the contact point resolveContact wrote into the player's proxy: x is along the car
+// (+ nose, - tail, +-2.4 when the normal itself is longitudinal), y is across. A nose-on or rear-end hit is mostly
+// that end's problem; anything into the flank splits between the middle and the wheels, more so the further out.
+function hitZones(x, y, side) {
+  if (!side && Math.abs(x) > 2.0) return x > 0 ? { front: 0.75, mid: 0.25 } : { rear: 0.75, mid: 0.25 };
+  return Math.abs(x) > 1.4 ? { wheels: 0.55, mid: 0.45 } : { mid: 0.7, wheels: 0.3 };
+}
+// dmg is in whole-car points; each zone holds a quarter of the car, so a hit that lands entirely on one zone kills
+// that zone after 25 car-points. Damage past a dead zone spills into what is still standing, so a car with a
+// destroyed front can still be finished off. st.hp stays the mean, which is what the standings and the wreck read.
+function damageZones(dmg, w) {
+  let pool = dmg * 4;
+  for (let pass = 0; pass < 4 && pool > 1e-4; pass++) {
+    const live = ZONES.filter(z => st.zone[z] > 0), tot = live.reduce((t, z) => t + (pass ? 1 : (w[z] || 0)), 0);
+    if (!live.length || tot <= 0) break;
+    let spill = 0;
+    for (const z of live) { const take = pool * (pass ? 1 : (w[z] || 0)) / tot; const got = Math.min(st.zone[z], take); st.zone[z] -= got; spill += take - got; }
+    pool = spill;
+  }
+  st.hp = ZONES.reduce((t, z) => t + st.zone[z], 0) / 4;
+}
+function playerDamage(dmg, w) {
   if (GAME.mode !== 'derby' || st.wrecked || GAME.state !== 'racing') return;
-  st.hp -= dmg * DERBY_DMG[GAME.diff]; if (st.hp > 0) return;
-  st.hp = 0; st.wrecked = true; st.wreckT = performance.now(); st.shake = 1; audio.crunch(1); flash('WRECKED', 1800, '#ff3b3b'); announcer.say("You're out.", 1, 0.8);
+  damageZones(dmg * DERBY_DMG[GAME.diff], w || { mid: 0.55, front: 0.15, rear: 0.15, wheels: 0.15 }); if (st.hp > 0) return;
+  st.hp = 0; for (const z of ZONES) st.zone[z] = 0;
+  st.wrecked = true; st.wreckT = performance.now(); st.shake = 1; audio.crunch(1); flash('WRECKED', 1800, '#ff3b3b'); announcer.say("You're out.", 1, 0.8);
   finishRace(st.wreckT);
 }
 function contacts(dt) {
@@ -2532,14 +2556,14 @@ function contacts(dt) {
       const B = rivalProxy(a);
       const rel = resolveContact(_cp, B);
       if (rel > 0) { st.u = _cp.u * cp + _cp.v * sp; st.w = -_cp.u * sp + _cp.v * cp; a.u = B.u; a.dv = B.v; contactHit(rel); a.hitT = 0.25;
-        if (derby) { const k = rel * 2.0; playerDamage(k * (contactAgg ? 0.3 : 1)); rivalDamage(a, k * (contactAgg ? 1 : 0.3), true); } }
+        if (derby) { const k = rel * 1.2; playerDamage(k * (contactAgg ? 0.3 : 1), hitZones(_cp.x, _cp.y, false)); rivalDamage(a, k * (contactAgg ? 1 : 0.3), true); } }
     }
   }
   for (let p = 0; p < ai.length; p++) for (let q = p + 1; q < ai.length; q++) {
     const A = rivalProxy(ai[p]), B = rivalProxy(ai[q]);
     const rel = resolveContact(A, B);
     if (rel > 0) { ai[p].u = A.u; ai[p].dv = A.v; ai[q].u = B.u; ai[q].dv = B.v;
-      if (derby) { const k = rel * 1.6; rivalDamage(ai[p], k * (contactAgg ? 0.3 : 1), false); rivalDamage(ai[q], k * (contactAgg ? 1 : 0.3), false); } }
+      if (derby) { const k = rel * 0.9; rivalDamage(ai[p], k * (contactAgg ? 0.3 : 1), false); rivalDamage(ai[q], k * (contactAgg ? 1 : 0.3), false); } }
   }
 }
 function placeAtS(s, d) { placeOnTrack(Math.floor(s / trackLen * N) % N); st.s = s; st.d = d; st.lastP = s / trackLen; syncPose(); }
@@ -2548,7 +2572,7 @@ function startRace(mode, laps) {
   GAME.mode = mode; GAME.laps = laps; GAME.finishT = null; GAME.lapTimes = []; GAME.order = []; GAME.cdShown = -1;
   clearRivals(); $('results').classList.add('hidden');
   st.crossings = 0; st.lapsDone = 0; st.hits = 0; st.resets = 0; st.vmax = 0; st.lapLast = null; st.nos = 1; st.spinT = 0; st.coins = 0; st.score = 0; st.driftBoostT = 0; if (RING_AT) ringsRespawn();
-  st.hp = 100; st.wrecked = false; st.wreckT = 0; st.wrecks = 0;
+  st.hp = 100; st.wrecked = false; st.wreckT = 0; st.wrecks = 0; for (const z of ZONES) st.zone[z] = 100;
   if (mode === 'versus') {
     RIVALS.forEach((R, k) => { const a = makeRival(R); a.s = trackLen - 16 - 8.5 * k; a.d = k % 2 ? 2.7 : -2.7; a.lastP = a.s / trackLen; rivalPose(a); audio.rivalStart(a); ai.push(a); });
     placeAtS(trackLen - 16 - 8.5 * 3, 2.7);
@@ -2560,7 +2584,8 @@ function startRace(mode, laps) {
   else placeOnTrack(20);
   GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = START_CUES[0].at + 0.01; GAME.cue = 0; announcer.stop();
   GAME.bestAtStart = st.lapBest; GAME.prize = 0;   // for the payout: a new personal best in a Time Trial pays a bonus
-  $('race').classList.toggle('hidden', mode === 'solo');
+  $('race').classList.toggle('hidden', mode === 'solo'); $('race').classList.toggle('derby', mode === 'derby');
+  $('damage').classList.toggle('hidden', mode !== 'derby');
   $('lap-cur').parentElement.style.display = '';
   if (mode === 'versus') flash('VERSUS · ' + DIFFS[GAME.diff].name + ' · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
   else if (mode === 'derby') flash('DESTRUCTION DERBY · ' + DIFFS[GAME.diff].name + ' · ' + ai.length + ' RIVALS', 1600);
@@ -2647,10 +2672,24 @@ function showResults() {
   if (GAME.mode === 'time') { box.innerHTML = ''; const h2 = document.createElement('div'); h2.className = 'row head'; h2.innerHTML = '<b></b><span>LAP</span><em></em><b>TIME</b>'; box.appendChild(h2); GAME.lapTimes.forEach((t, k) => { const el = document.createElement('div'); el.className = 'row' + (t === st.lapBest ? ' me' : ''); el.innerHTML = `<b>LAP ${k + 1}</b><span></span><em></em><b>${fmtTime(t)}</b>`; box.appendChild(el); }); }
   $('results').classList.remove('hidden');
 }
+// green (healthy) -> orange (half) -> red (gone), through hue only so the four zones read as one scale
+function zoneColor(h) {
+  const k = clamp(h, 0, 100) / 100, hue = k > 0.5 ? 35 + (k - 0.5) * 2 * 95 : k * 2 * 35;
+  return 'hsl(' + hue.toFixed(0) + ' ' + (72 - k * 8).toFixed(0) + '% ' + (46 + k * 8).toFixed(0) + '%)';
+}
+function damageHUD() {
+  const box = $('damage'); if (!box) return;
+  box.classList.remove('hidden');
+  $('dmg-front').style.fill = zoneColor(st.zone.front); $('dmg-mid').style.fill = zoneColor(st.zone.mid);
+  $('dmg-rear').style.fill = zoneColor(st.zone.rear);
+  const wc = zoneColor(st.zone.wheels); for (const r of $('dmg-wheels').children) r.style.fill = wc;
+  $('dmg-pct').textContent = Math.max(0, Math.round(st.hp)) + '%';
+  $('dmg-pct').style.color = zoneColor(st.hp);
+}
 function updateRaceHUD() {
   if (GAME.mode === 'solo') return;
   const rows = standings(), pos = rows.findIndex(r => r.me) + 1, leader = rows[0], derby = GAME.mode === 'derby';
-  if (derby) { $('race-pos').textContent = 'LEFT ' + rows.filter(r => !r.wrecked).length; $('race-lap').textContent = 'HP ' + Math.max(0, Math.round(st.hp)); }
+  if (derby) { $('race-pos').textContent = 'LEFT ' + rows.filter(r => !r.wrecked).length; $('race-lap').textContent = 'HP ' + Math.max(0, Math.round(st.hp)); damageHUD(); }
   else {
     $('race-pos').textContent = GAME.mode === 'versus' ? 'P' + pos : 'LAP';
     $('race-lap').textContent = Math.min(st.lapsDone + 1, GAME.laps) + ' / ' + GAME.laps;
@@ -3464,7 +3503,7 @@ function step(dt) {
   if (!st.air && Math.abs(st.d) > dLim) {
     const sideW = Math.sign(st.d), vn = Math.abs(dDot), phi = Math.atan2(vn, Math.abs(st.u) + 0.1);
     const retain = TRACK.softWalls || st.roof ? 1 : clamp(1 - 0.85 * Math.sin(phi) - 0.02, 0.12, 1);   // soft walls (STRATOS) keep you on the rail without taking speed
-    if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); if (TRACK.softWalls) audio.beep(440, 0.05); else { audio.crunch(k); if (k > 0.25) flash('WALL', 500); } st.shake = Math.max(st.shake || 0, TRACK.softWalls ? k * 0.3 : k); if (GAME.mode === 'derby') playerDamage(vn * 0.6); }
+    if (st.hitT <= 0) { st.hits++; st.hitT = 0.25; const k = clamp(vn / 12, 0.1, 1); if (TRACK.softWalls) audio.beep(440, 0.05); else { audio.crunch(k); if (k > 0.25) flash('WALL', 500); } st.shake = Math.max(st.shake || 0, TRACK.softWalls ? k * 0.3 : k); if (GAME.mode === 'derby') playerDamage(vn * 0.3, { wheels: 0.5, mid: 0.5 }); }
     st.u *= retain; st.w = -st.w * 0.35; st.psi = -sideW * Math.abs(st.psi) * 0.4; st.yaw *= 0.3;
     st.d = sideW * (dLim - 0.02);
   }

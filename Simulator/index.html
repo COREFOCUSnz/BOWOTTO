@@ -48,6 +48,19 @@
     <div id="paints"></div>
     <div id="race" class="hidden">
       <div id="race-top"><b id="race-pos" class="digits">P4</b><span id="race-lap" class="digits">1 / 3</span><span id="race-time" class="digits">0:00.000</span></div>
+      <div id="damage" class="hidden">
+        <div class="dmg-head"><span>DAMAGE</span><em id="dmg-pct" class="digits">100%</em></div>
+        <svg viewBox="0 0 120 172" aria-hidden="true">
+          <g id="dmg-wheels">
+            <rect x="4" y="34" width="15" height="30" rx="5"/><rect x="101" y="34" width="15" height="30" rx="5"/>
+            <rect x="2" y="106" width="17" height="32" rx="5"/><rect x="101" y="106" width="17" height="32" rx="5"/>
+          </g>
+          <path id="dmg-front" d="M38 6 h44 q7 0 9 7 l7 45 h-76 l7-45 q2-7 9-7 z"/>
+          <path id="dmg-mid" d="M22 60 h76 l2 48 h-80 z"/>
+          <path id="dmg-rear" d="M20 114 h80 l-4 44 q-1 8-9 8 h-54 q-8 0-9-8 z"/>
+          <path class="dmg-glass" d="M34 64 h52 l3 26 h-58 z"/>
+        </svg>
+      </div>
       <div id="standings"></div>
     </div>
     <div id="help">
