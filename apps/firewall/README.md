@@ -42,7 +42,7 @@ generate). Either:
   ```
 
 Targets API 34, minimum API 26 (Android 8). Kotlin 2.0.21, Compose, no other
-third-party libraries.
+third-party libraries. The debug APK is about 9.2 MB.
 
 ## Testing
 

@@ -4,10 +4,17 @@
     <!--
         No INTERNET permission, by design. Nothing in the vault can ever leave
         the device over the network, and the absence of the permission is
-        verifiable by anyone who inspects the APK.
+        verifiable by anyone who inspects the APK. CI asserts it on every build.
 
         No READ_MEDIA_IMAGES / READ_EXTERNAL_STORAGE either: importing goes
         through the system photo picker, which hands back a single-URI grant.
+
+        This file declares no <uses-permission> at all, but the merged manifest
+        is not empty: androidx.core adds
+        <app id>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which is signature-
+        protected and in our own namespace, so it grants nothing. See
+        docs/SECURITY.md - the point being that what this file says is not the
+        same as what ships.
     -->
 
     <application

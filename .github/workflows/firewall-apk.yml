@@ -61,13 +61,19 @@ jobs:
       - name: Assemble debug APK
         run: gradle --no-daemon :app:assembleDebug
 
-      # Also an assertion, not just a printout. docs/SECURITY.md claims the app
-      # requests no permissions at all - in particular no INTERNET, so nothing
-      # in the vault can leave the device. That claim is worth checking against
-      # the actual APK on every build rather than trusting the manifest by eye,
-      # because a transitive library manifest-merging a permission in would be
-      # invisible in our own AndroidManifest.xml.
-      - name: Inspect the APK and prove it asks for nothing
+      # Also an assertion, not just a printout. docs/SECURITY.md makes a claim
+      # about what this app can reach, and it is worth checking against the
+      # built APK rather than by reading our own AndroidManifest.xml, because
+      # manifest merging pulls in whatever the dependencies declare.
+      #
+      # It found something the first time it ran: androidx.core merges in
+      # <app id>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION, which is plumbing
+      # for ContextCompat.registerReceiver. It is signature-protected and
+      # namespaced to this app, so it grants no access to the phone - but it
+      # does mean "requests no permissions" was the wrong claim to assert.
+      # What matters is that nothing outside our own namespace appears, so
+      # that is what this checks.
+      - name: Inspect the APK and check what it can reach
         run: |
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
@@ -81,13 +87,32 @@ jobs:
           echo "size:   $(du -h "$apk" | cut -f1)"
           echo "sha256: $(sha256sum "$apk" | cut -d' ' -f1)"
 
-          permissions=$("$aapt2" dump badging "$apk" | grep -c "^uses-permission" || true)
-          echo "permissions requested: $permissions"
-          if [ "$permissions" -ne 0 ]; then
-            echo "::error::APK requests $permissions permission(s); it must request none."
-            "$aapt2" dump badging "$apk" | grep "^uses-permission"
+          echo "--- permissions, as declared and requested in the merged manifest"
+          "$aapt2" dump permissions "$apk"
+          echo "---"
+
+          # The headline claim, named explicitly rather than inferred from a
+          # count: no network access, so nothing in the vault can be sent
+          # anywhere even if the rest of the app were wrong.
+          if "$aapt2" dump badging "$apk" | grep -q "android.permission.INTERNET"; then
+            echo "::error::APK requests INTERNET. The vault must have no network access."
             exit 1
           fi
+          echo "ok: no INTERNET permission"
+
+          # Anything outside our own package namespace is a real capability
+          # over the phone and must be deliberate. Nothing qualifies today.
+          foreign=$(
+            "$aapt2" dump badging "$apk" \
+              | sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" \
+              | grep -v "^nz\.corefocus\.firewall\." || true
+          )
+          if [ -n "$foreign" ]; then
+            echo "::error::APK requests permissions outside its own namespace:"
+            echo "$foreign"
+            exit 1
+          fi
+          echo "ok: no permissions outside nz.corefocus.firewall.*"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

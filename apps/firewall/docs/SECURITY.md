@@ -68,10 +68,25 @@ no timer. The one exception is a two-minute grace window while the system photo
 picker is in front, because the picker is another app and the vault would
 otherwise lock itself mid-import.
 
-**Permissions.** The app requests none. In particular it has **no `INTERNET`
-permission**, so nothing in the vault can leave the device over the network, and
-that is verifiable by anyone who inspects the APK. Importing uses the system
-photo picker, which grants access to exactly the photos you picked.
+**Permissions.** The app requests **no `INTERNET` permission**, so nothing in
+the vault can leave the device over the network however wrong the rest of the
+app might be, and that is verifiable by anyone who inspects the APK. It also
+holds no storage or media permissions: importing goes through the system photo
+picker, which grants access to exactly the photos you picked and nothing else.
+
+One permission does appear in the built APK, and it is worth naming rather than
+glossing: `nz.corefocus.firewall.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`.
+It is not ours and not a capability — `androidx.core` merges it in as plumbing
+for `ContextCompat.registerReceiver`, it is `signature`-protected, and it lives
+in this app's own namespace, so only something signed with the same key could
+ever hold it. It grants no access to the phone, the network, or storage.
+
+CI checks both halves of this on every build: that `INTERNET` is absent by
+name, and that nothing outside `nz.corefocus.firewall.*` appears at all. The
+first version of that check asserted "no permissions whatsoever" and failed
+immediately on the androidx one — which is how the paragraph above came to be
+written, and a fair argument for asserting things against the artifact rather
+than against the manifest you wrote.
 
 **Wrong guesses.** Five free attempts, then an escalating lockout — 30s, 1min,
 5min, 15min, 1hr. The lockout holds even against the correct passcode. There is
