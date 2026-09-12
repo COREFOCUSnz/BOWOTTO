@@ -233,9 +233,35 @@ node test/sim.test.js 8  # longer bot match
 npm run test:mobile      # emulated landscape phone: drives the touch controls end to end
 npm run test:browser     # headless Chromium over file:// (checks the blocky fallback)
 GAME_URL=http://localhost:8080/index.html npm run test:browser   # ...and the model path
+node test/vfx.test.js    # explosion visibility + the demoman's kit (needs a server; slow)
 ```
 
 `test/map.test.js` walks a simulated player through every route (spawn → enemy
 flag → home, the water route, vaulting the battlements) and fails if it gets
 stuck. `test/sim.test.js` runs bots against bots and fails on NaNs, on bots
 that never move, on a match with no kills or no flag activity.
+
+`test/vfx.test.js` is a *visual* bench: it screenshots the game and measures
+pixels. It answers two questions a stability test cannot.
+
+**Can you still see the fight?** It fires a rocket blast 5 m from the camera and
+measures what fraction of the view the explosion takes away, and for how long.
+The effect is stepped by hand — particle lifetimes are driven directly with the
+sim frozen — because a 0.3 s effect cannot be sampled by wall clock at the 2-5
+fps the headless software rasterizer manages. `Math.random` is seeded
+immediately before the blast, since every puff is randomised. There is a floor
+as well as a ceiling: tuning an explosion down to nothing would otherwise pass
+every budget.
+
+**Are things that behave differently drawn differently?** The grenade launcher
+and the pipebomb launcher were the same model with one blinking pixel between
+them for a long time, which nothing but a pixel comparison catches. Each is
+rendered alone and compared, with the same model rendered twice as a control.
+The pipebomb team band is checked by measuring team-coloured pixels around the
+bomb rather than diffing frames — a proxy you have to subtract noise from is
+worse than measuring the thing itself.
+
+It takes a few minutes under software GL (big alpha-blended spheres are
+expensive to rasterize in software), and it drops the renderer's resolution
+scale to compensate. Coverage is a fraction of the frame, so the numbers do not
+depend on the viewport.

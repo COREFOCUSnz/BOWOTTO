@@ -2,11 +2,12 @@
   "name": "tfc-2fort-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser tribute to Team Fortress Classic's 2Fort — single player vs bots, no dependencies.",
+  "description": "Browser tribute to Team Fortress Classic's 2Fort \u2014 single player vs bots, no dependencies.",
   "scripts": {
     "test": "node test/map.test.js && node test/sim.test.js 5 && node test/difficulty.test.js",
     "test:browser": "node test/browser.test.js",
     "test:mobile": "node test/mobile.test.js",
-    "serve": "python3 -m http.server 8080"
+    "serve": "python3 -m http.server 8080",
+    "test:vfx": "node test/vfx.test.js"
   }
 }

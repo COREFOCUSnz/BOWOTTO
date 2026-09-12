@@ -1,7 +1,7 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
   const $ = (id) => document.getElementById(id);
 
   const stored = JSON.parse(localStorage.getItem('tfc2fort.settings') || 'null');
@@ -29,6 +29,9 @@
     message(text, team, kind, who) { if (!text) return; if (who && who !== human && kind !== 'flag' && kind !== 'cap' && kind !== 'round') return; messages.push({ text, time: game.time, kind, team }); if (messages.length > 5) messages.shift(); },
     flash(a) { flashAmt = Math.min(1, flashAmt + a); },
     shake(a) { shakeAmt = Math.min(1, shakeAmt + a); },
+    // How many optional puffs an effect may spend. Each particle is its own draw
+    // call, so on the Low setting (phones) effects use half the cluster.
+    detail() { return settings.particleBudget <= 300 ? 0.5 : 1; },
   };
   const game = new Game({ effects });
   renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })), sun: renderer.lightDir });
@@ -631,7 +634,29 @@
       drawWeapon(r, base, weaponModelId(w), botWeaponState(p, w));
       if (p.fireAnim > 0.72 && w.type !== 'melee' && w.type !== 'flame') drawMuzzleFlash(r, base, w.model, p.id + game.time * 40);
       if (p.flag) drawFlagCloth(M.mul(M.translate(p.pos[0], p.pos[1], p.pos[2]), M.mul(M.rotY(p.yaw), M.translate(0, 0.9, 0.28))), p.flag.team, true);
+      drawClassMark(p, e.pose);
     }
+  }
+  // Some skin sets map two classes onto one body — the mercenaries have no
+  // demoman, so he wears the soldier's. Without a marker you cannot tell which
+  // of the two is about to put eight pipebombs under you. Only drawn when the
+  // model really is shared, so a set with its own demoman gets nothing.
+  function sharesModel(p) {
+    const set = activeSet();
+    if (!set || set.mode !== 'class') return false;
+    const mine = set.models[p.cls];
+    if (!mine) return false;
+    for (const [cls, m] of Object.entries(set.models)) if (cls !== p.cls && m === mine) return true;
+    return false;
+  }
+  function drawClassMark(p, pose) {
+    if (p.cls !== 'demoman' || !pose.head || !sharesModel(p)) return;
+    const r = renderer, h = pose.head.pos;
+    const base = M.mul(M.translate(h[0], h[1] + 0.14, h[2]), M.rotY(p.yaw));
+    r.drawMesh(r.cube, M.mul(base, M.scale(0.23, 0.1, 0.23)), [0.12, 0.12, 0.13]);        // knit cap
+    r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(0, 0.06, 0), M.scale(0.2, 0.05, 0.2))), [0.12, 0.12, 0.13]);
+    r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(-0.05, -0.09, -0.11), M.scale(0.07, 0.05, 0.02))), [0.05, 0.05, 0.05]); // eyepatch
+    r.drawMesh(r.cube, M.mul(base, M.mul(M.translate(0, -0.05, -0.105), M.scale(0.2, 0.015, 0.02))), [0.05, 0.05, 0.05]);   // strap
   }
   // ---- blocky fallback, used until the models load or if they can't ----
   function drawPlayer(p) {
@@ -762,8 +787,22 @@
         case 'ic': r.cubeAt(q.pos, [0.14, 0.14, 0.5], [0.8, 0.3, 0.1], yaw, pitch, { emissive: 0.6 }); break;
         case 'nail': r.cubeAt(q.pos, [0.04, 0.04, 0.35], [0.9, 0.9, 0.7], yaw, pitch, { emissive: 0.6 }); break;
         case 'dart': r.cubeAt(q.pos, [0.05, 0.05, 0.3], [0.4, 0.9, 0.4], yaw, pitch, { emissive: 0.4 }); break;
-        case 'pipe': r.cubeAt(q.pos, [0.22, 0.22, 0.22], [0.3, 0.32, 0.3], q.spin + game.time * 8, 0); break;
-        case 'pipebomb': r.cubeAt(q.pos, [0.24, 0.16, 0.24], teamColor(q.team), q.spin, 0); r.cubeAt(V.add(q.pos, [0, 0.12, 0]), [0.08, 0.08, 0.08], Math.sin(game.time * 12) > 0 ? [1, 0.2, 0.2] : [0.3, 0.1, 0.1], 0, 0, { emissive: 1 }); break;
+        case 'pipe': {
+          // tumbling end over end; the fuse tip heats up as it runs down
+          const tumble = q.spin + game.time * 9;
+          const m = M.mul(M.translate(q.pos[0], q.pos[1], q.pos[2]), M.mul(M.rotY(q.spin * 1.7), M.rotX(tumble)));
+          drawPipe(r, m, q.fuse > 0 ? 1 - Math.min(1, q.fuse / 2.5) : 0.5);
+          break;
+        }
+        case 'pipebomb': {
+          // lies flat where it landed, until it is thrown by a blast
+          const settled = q.stuck || V.len(q.vel) < 0.5;
+          // the pipe body already runs along Z, so lying flat needs yaw only
+          const m = M.mul(M.translate(q.pos[0], q.pos[1] + (settled ? 0.07 : 0), q.pos[2]),
+            settled ? M.rotY(q.spin) : M.mul(M.rotY(q.spin), M.rotX(q.spin + game.time * 7)));
+          drawPipebomb(r, m, teamColor(q.team), Math.sin(game.time * 9 + q.spin) > 0);
+          break;
+        }
         case 'grenade': {
           const g = q.gtype; const col = g === 'conc' ? [0.2, 0.6, 1] : g === 'mirv' ? [0.5, 0.5, 0.1] : g === 'napalm' ? [0.9, 0.4, 0.1] : g === 'nail' ? [0.7, 0.7, 0.4] : g === 'emp' ? [0.9, 0.9, 0.2] : [0.25, 0.35, 0.25];
           r.cubeAt(q.pos, q.small ? [0.14, 0.14, 0.14] : [0.22, 0.26, 0.22], col, q.spin + game.time * 6, 0);
@@ -777,9 +816,15 @@
     const r = renderer;
     for (const q of game.particles) {
       if (!visible(q.pos, cull.fx)) continue;
-      const t = 1 - q.life / q.maxLife; const size = q.size + (q.grow || 0) * t;
+      const t = 1 - q.life / q.maxLife;
+      // Ease the growth out instead of running it linearly to death. A blast that
+      // expands fast and then stops reads as quicker AND is far smaller during the
+      // fade, which is the half that was blinding you: the old curve was largest
+      // at its most transparent, so the tail covered more screen than the flash.
+      const size = q.size + (q.grow || 0) * (1 - (1 - t) * (1 - t));
       const opts = { emissive: q.emissive || 0 };
-      if (q.alpha !== undefined) opts.alpha = q.alpha * (1 - t);
+      // fade: >1 clears sooner (big soft puffs), 1 is the old linear fade
+      if (q.alpha !== undefined) opts.alpha = q.alpha * Math.pow(1 - t, q.fade || 1);
       if (q.sphere) r.sphereAt(q.pos, size / 2, q.color, opts); else r.cubeAt(q.pos, [size, size, size], q.color, q.pos[0] * 3 + q.pos[2], 0, opts);
     }
     for (const t of game.tracers) r.beam(t.a, t.b, 0.03, t.color, { emissive: 1, alpha: 0.9 * t.life / t.maxLife });
@@ -795,6 +840,8 @@
       bolt: w.model === 'sniper' ? cycle : 0,
       drum: (p.shots || 0) * Math.PI / 3 - (p.fireAnim > 0 ? (1 - Math.min(1, (1 - p.fireAnim) * 2)) : 0) * Math.PI / 3,
       spin: p.acSpin || 0, barrel: p.shots || 0,
+      // live pipebombs: the launcher's detonator light pulses red while any are out
+      armed: w.model === 'pl' ? game.projectiles.reduce((n, q) => n + (q.type === 'pipebomb' && q.owner === p && !q.dead ? 1 : 0), 0) : 0,
       swing: w.type === 'melee' ? Math.sin(Math.min(1, 1 - p.fireAnim) * Math.PI) * 0.9 : 0,
     };
   }
@@ -845,11 +892,17 @@
   }
   // Debug: draw every weapon model in a grid (window.__showcase = true)
   function drawShowcase() {
-    const ids = ['crowbar', 'knife', 'spanner', 'medkit', 'shotgun', 'supershotgun', 'nailgun', 'supernailgun', 'rpg', 'gl', 'pl', 'sniper', 'autorifle', 'ac', 'flamer', 'ic', 'tranq', 'railgun'];
+    const all = ['crowbar', 'knife', 'spanner', 'medkit', 'shotgun', 'supershotgun', 'nailgun', 'supernailgun', 'rpg', 'gl', 'pl', 'sniper', 'autorifle', 'ac', 'flamer', 'ic', 'tranq', 'railgun'];
+    // window.__showcaseIds narrows the grid to a few models, drawn large, for
+    // comparing two guns that are supposed to look different from each other.
+    const ids = window.__showcaseIds || all;
+    const cols = Math.min(ids.length, ids.length <= 3 ? ids.length : 6);
+    const scale = ids.length <= 3 ? 2.4 : 0.45, gap = ids.length <= 3 ? 2.3 : 0.5;
     ids.forEach((id, i) => {
-      const col = i % 6, row = Math.floor(i / 6);
-      const m = M.mul(M.translate(-1.25 + col * 0.5, 0.45 - row * 0.45, -1.3), M.mul(M.rotY(0.9), M.scale(0.45, 0.45, 0.45)));
-      drawWeapon(renderer, m, id, { drum: 0.3, spin: 0.5, charge: 1, time: game.time, pump: 0.5 });
+      const col = i % cols, row = Math.floor(i / cols);
+      const m = M.mul(M.translate(-gap * (cols - 1) / 2 + col * gap, 0.45 - row * gap, ids.length <= 3 ? -2.6 : -1.3),
+        M.mul(M.rotY(window.__showcaseYaw !== undefined ? window.__showcaseYaw : 0.9), M.scale(scale, scale, scale)));
+      drawWeapon(renderer, m, id, { drum: 0.3, spin: 0.5, charge: 1, time: game.time, pump: 0.5, armed: window.__showcaseArmed ? 1 : 0 });
     });
   }
 

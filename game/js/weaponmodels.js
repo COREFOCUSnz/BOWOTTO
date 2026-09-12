@@ -10,7 +10,7 @@
   // Per-model muzzle position in weapon space (for flashes, laser dot).
   const MUZZLE = {
     shotgun: [0, 0.05, -0.93], supershotgun: [0, 0.04, -0.9], nailgun: [0, 0.03, -0.76], supernailgun: [0, 0.03, -0.8],
-    rpg: [0, 0.06, -0.92], ic: [0, 0.06, -0.92], gl: [0, 0.03, -0.77], pl: [0, 0.03, -0.77], sniper: [0, 0.05, -1.15],
+    rpg: [0, 0.06, -0.92], ic: [0, 0.06, -0.92], gl: [0, 0.03, -0.82], pl: [0, 0.03, -0.67], sniper: [0, 0.05, -1.15],
     autorifle: [0, 0.05, -0.88], ac: [0, 0.05, -0.95], flamer: [0, 0.04, -0.95], tranq: [0, 0.03, -0.37], railgun: [0, 0.03, -0.42],
   };
 
@@ -36,7 +36,7 @@
 
   function drawWeapon(r, base, model, st) {
     st = st || {};
-    const { P, CYL } = parts(r, base);
+    const { P, CYL, CYLY } = parts(r, base);
     const kick = st.kick || 0, pump = st.pump || 0;
     switch (model) {
       case 'shotgun':
@@ -78,16 +78,53 @@
         else if (st.hasAmmo !== false) P([0, 0.06, -0.86], [0.05, 0.05, 0.05], RED, { emissive: 0.3 });
         break;
       }
-      case 'gl': case 'pl': {
-        CYL([0, 0.03, -0.5], 0.03, 0.5, GUN);
-        P([0, 0.03, -0.75], [0.075, 0.075, 0.03], STEEL);
+      // The demoman's two launchers used to be the same model with one blinking
+      // pixel between them, which is no good for guns that behave completely
+      // differently: pipes bounce and time out, pipebombs stick and wait for your
+      // detonator. They now read apart at a glance, in the hand and across the map.
+      case 'gl': {
+        // Grenade launcher: long barrel, open six-round drum, wood furniture.
+        CYL([0, 0.03, -0.52], 0.032, 0.56, GUN);
+        CYL([0, 0.03, -0.76], 0.042, 0.09, STEEL);            // flared muzzle
         const drum = st.drum || 0;
-        for (let i = 0; i < 6; i++) { const a = drum + i * Math.PI / 3; P([Math.cos(a) * 0.05, 0.03 + Math.sin(a) * 0.05, -0.15], [0.035, 0.035, 0.16], model === 'pl' ? [0.3, 0.32, 0.3] : STEEL); }
-        P([0, 0.03, -0.15], [0.05, 0.05, 0.19], GUN);
-        P([0, 0.03, -0.02], [0.08, 0.09, 0.1], GUN);
-        P([0, -0.02, 0.15], [0.05, 0.09, 0.3], WOOD);
-        P([0, 0.1, -0.3], [0.015, 0.03, 0.02], GUN);
-        if (model === 'pl') P([0, 0.1, -0.05], [0.015, 0.015, 0.015], Math.sin((st.time || 0) * 10) > 0 ? [1, 0.15, 0.15] : [0.4, 0.05, 0.05], { emissive: 1 });
+        CYL([0, 0.03, -0.15], 0.085, 0.2, [0.24, 0.25, 0.27]); // drum housing
+        for (let i = 0; i < 6; i++) {
+          const a = drum + i * Math.PI / 3;
+          const cx = Math.cos(a) * 0.055, cy = 0.03 + Math.sin(a) * 0.055;
+          P([cx, cy, -0.15], [0.036, 0.036, 0.21], STEEL);
+          P([cx, cy, -0.255], [0.03, 0.03, 0.02], BRASS);      // a shell in each chamber
+        }
+        P([0, 0.03, -0.02], [0.085, 0.095, 0.12], GUN);
+        P([0, -0.02, 0.15], [0.05, 0.09, 0.3], WOOD);          // stock
+        P([0, 0.095, -0.02], [0.05, 0.03, 0.1], WOOD);         // cheek rest
+        P([0, 0.115, -0.42], [0.012, 0.03, 0.02], STEEL);      // front sight
+        P([0, 0.105, -0.02], [0.03, 0.018, 0.015], STEEL);     // rear notch
+        P([0, -0.055, -0.02], [0.035, 0.09, 0.05], GUN, undefined, M.rotX(0.2)); // grip
+        break;
+      }
+      case 'pl': {
+        // Pipebomb launcher: stubby, boxy, drum of live bombs under a cage, and a
+        // detonator box on top whose light pulses while bombs are out.
+        const BODY = [0.2, 0.22, 0.2], BOMB = [0.32, 0.34, 0.3];
+        CYL([0, 0.03, -0.42], 0.042, 0.4, BODY);
+        CYL([0, 0.03, -0.62], 0.055, 0.07, [0.14, 0.15, 0.16]);  // thick muzzle collar
+        const drum = st.drum || 0;
+        CYLY([0, 0.03, -0.16], 0.095, 0.14, [0.18, 0.19, 0.2]);  // flat drum, lying over
+        for (let i = 0; i < 5; i++) {
+          const a = drum + i * Math.PI * 2 / 5;
+          const cx = Math.cos(a) * 0.062, cz = -0.16 + Math.sin(a) * 0.062;
+          CYLY([cx, 0.045, cz], 0.026, 0.1, BOMB);               // a pipebomb standing in each slot
+          P([cx, 0.1, cz], [0.02, 0.012, 0.02], [0.75, 0.1, 0.1]);
+        }
+        P([0, 0.03, 0.0], [0.09, 0.1, 0.14], BODY);
+        P([0, -0.02, 0.15], [0.05, 0.09, 0.26], [0.13, 0.13, 0.14]);  // polymer stock, not wood
+        // detonator box
+        P([0, 0.125, 0.02], [0.06, 0.045, 0.11], [0.18, 0.18, 0.2]);
+        P([0.02, 0.15, -0.01], [0.012, 0.012, 0.012], [0.3, 0.3, 0.3]);
+        const armed = st.armed;   // number of live pipebombs
+        const blink = armed ? (Math.sin((st.time || 0) * 9) > 0 ? [1, 0.15, 0.15] : [0.35, 0.04, 0.04]) : [0.1, 0.3, 0.12];
+        P([-0.02, 0.15, -0.01], [0.016, 0.014, 0.016], blink, { emissive: 1 });
+        P([0, -0.055, 0.0], [0.035, 0.09, 0.05], BODY, undefined, M.rotX(0.2));
         break;
       }
       case 'sniper':
@@ -275,6 +312,43 @@
     }
   }
 
+  // ---- demoman ordnance ----
+  // Both of these used to be plain cubes, which made a live pipebomb sitting on
+  // the floor look like a crate. They are the two things a demoman leaves lying
+  // around the map, so they have to be readable at a glance and tellable apart.
+
+  // Grenade-launcher pipe: a tumbling iron slug. The fuse tip heats up as it runs
+  // down, so you can see how close a bouncing pipe is to going off.
+  function drawPipe(r, base, hot) {
+    const { P, CYL } = parts(r, base);
+    const IRON = [0.24, 0.25, 0.26];
+    CYL([0, 0, 0], 0.072, 0.28, IRON);
+    CYL([0, 0, 0.145], 0.082, 0.035, STEEL);     // end caps
+    CYL([0, 0, -0.145], 0.082, 0.035, STEEL);
+    CYL([0, 0, 0], 0.085, 0.05, BRASS);          // band round the middle
+    const h = Math.max(0, Math.min(1, hot || 0));
+    P([0, 0, -0.18], [0.03, 0.03, 0.04], [1, 0.35 + h * 0.5, 0.1 + h * 0.3], { emissive: 0.4 + h * 0.6 });
+  }
+
+  // Pipebomb: a capped steel pipe with a team band and a live detonator light.
+  // The band is what tells you whose it is before you walk over it.
+  function drawPipebomb(r, base, team, lit) {
+    const { P, CYL, CYLY } = parts(r, base);
+    const PIPE = [0.3, 0.31, 0.33];
+    CYL([0, 0, 0], 0.065, 0.26, PIPE);
+    // Team colour on the END CAPS as well as the waist band. A bomb lying with
+    // its length pointing at you shows nothing but a cap, and a grey cap tells
+    // you nothing about who left it there.
+    CYL([0, 0, 0.135], 0.079, 0.045, team);
+    CYL([0, 0, -0.135], 0.079, 0.045, team);
+    CYL([0, 0, 0.155], 0.05, 0.012, [0.42, 0.43, 0.45]);   // bolt heads on the caps
+    CYL([0, 0, -0.155], 0.05, 0.012, [0.42, 0.43, 0.45]);
+    CYL([0, 0, 0], 0.073, 0.06, team);                     // waist band
+    P([0, 0.075, 0], [0.05, 0.035, 0.07], [0.16, 0.16, 0.18]);   // detonator pack
+    CYLY([0.03, 0.13, -0.02], 0.006, 0.09, [0.35, 0.35, 0.38]);  // aerial
+    P([-0.015, 0.098, 0.01], [0.018, 0.014, 0.018], lit ? [1, 0.15, 0.15] : [0.35, 0.05, 0.05], { emissive: lit ? 1 : 0.2 });
+  }
+
   // 3 crossed emissive blades + core, pointing along -Z at the muzzle
   function drawMuzzleFlash(r, base, model, seed) {
     const mz = MUZZLE[model]; if (!mz) return;
@@ -286,5 +360,5 @@
     }
     r.drawMesh(r.sphere, M.mul(m, M.scale(0.14, 0.14, 0.3)), [1, 0.95, 0.7], { emissive: 1 });
   }
-  Object.assign(root, { drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, SENTRY_HEIGHT, WEAPON_MUZZLE: MUZZLE });
+  Object.assign(root, { drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, WEAPON_MUZZLE: MUZZLE });
 })(window);

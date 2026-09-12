@@ -321,6 +321,10 @@
     const back = fire * 0.05;
     for (let k = 0; k < 3; k++) _t[k] = chest[k] + right[k] * g.off[0] + up[k] * g.off[1] + fwd[k] * (g.off[2] - back);
     pose.weapon = { pos: [_t[0], _t[1], _t[2]], yaw: wyaw, pitch: wpitch };
+    // World position of the head joint, for anything worn on top of a model:
+    // classes that share one body still need to be tellable apart.
+    const hd = pose.bonePos(B.bip_head, _c);
+    pose.head = { pos: [hd[0], hd[1], hd[2]] };
 
     // --- right hand on the grip, elbow down and out
     const sr = pose.bonePos(B.bip_upperArm_R, _a);

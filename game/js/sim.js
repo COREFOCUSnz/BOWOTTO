@@ -500,12 +500,47 @@
       if (q.type === 'ic') { this.explode(q.pos, q.dmg, q.radius, q.owner, 'incendiary', { burn: q.burn }); this.firePatches.push({ pos: V.copy(q.pos), r: 1.8, until: this.time + 3, owner: q.owner }); return; }
       this.explode(q.pos, q.dmg, q.radius, q.owner, q.type === 'rocket' ? 'rocket' : q.type === 'pipe' ? 'pipe' : 'pipebomb');
     }
+    // The visible blast: a hot core, a ring of fire puffs and some rising smoke.
+    // One big sphere used to do this job, and it showed — a perfect faceted ball
+    // that at radius*2.2 covered the whole screen. Offset puffs of differing size
+    // and lifetime break the silhouette AND clear the view sooner, because none of
+    // them is ever as large as the single sphere was.
+    blastPuffs(pos, radius) {
+      const fx = this.effects;
+      let detail = fx.detail ? fx.detail() : 1;
+      // A demoman detonating eight pipebombs fires eight blasts in one tick, and
+      // eight full clusters on top of each other is a wall you cannot see through
+      // — far worse than any single rocket. Blasts that land near one another
+      // within the same moment thin out, so a chain reads as one big detonation
+      // instead of eight stacked ones. Damage is untouched; this is visuals only.
+      const recent = this._recentBlasts || (this._recentBlasts = []);
+      while (recent.length && recent[0].t < this.time - 0.12) recent.shift();
+      let near = 0;
+      for (const b of recent) if (V.dist(b.pos, pos) < radius * 1.5) near++;
+      recent.push({ pos: V.copy(pos), t: this.time });
+      if (near >= 4) return 0;                     // the view is already full of fire
+      if (near > 0) detail *= near >= 2 ? 0.34 : 0.6;
+      const at = (spread, y) => [pos[0] + rand(-spread, spread), pos[1] + rand(-spread * 0.6, spread * 0.6) + (y || 0), pos[2] + rand(-spread, spread)];
+      // white-hot core, gone almost immediately — this is the "hit" you read
+      fx.particle({ pos: V.copy(pos), vel: [0, 0, 0], life: 0.12, size: 0.4, grow: radius * 0.55, color: [1, 0.95, 0.75], emissive: 1, alpha: 0.9, fade: 2.2, sphere: true });
+      const fire = Math.max(1, Math.round(5 * detail));
+      for (let i = 0; i < fire; i++)
+        fx.particle({ pos: at(radius * 0.24), vel: [rand(-1.4, 1.4), rand(0.4, 1.8), rand(-1.4, 1.4)], life: rand(0.18, 0.30),
+          size: 0.45, grow: radius * rand(0.55, 0.80), color: [1, rand(0.45, 0.75), rand(0.1, 0.25)], emissive: 1, alpha: 0.72, fade: 1.7, sphere: true });
+      const smoke = Math.max(detail < 0.5 ? 0 : 1, Math.round(3 * detail));
+      for (let i = 0; i < smoke; i++)
+        fx.particle({ pos: at(radius * 0.26, 0.25), vel: [rand(-0.8, 0.8), rand(0.9, 2.0), rand(-0.8, 0.8)], life: rand(0.4, 0.6),
+          size: 0.55, grow: radius * rand(0.36, 0.52), color: [0.3, 0.28, 0.26], alpha: 0.28, fade: 1.9, sphere: true });
+      return detail;
+    }
     explode(pos, dmg, radius, attacker, kind, opts) {
       opts = opts || {};
       this.effects.sound('explosion', pos);
-      this.effects.particle({ pos: V.copy(pos), vel: [0, 0, 0], life: 0.3, size: 1.0, grow: radius * 2.2, color: [1, 0.8, 0.3], emissive: 1, alpha: 0.85, sphere: true });
-      this.effects.particle({ pos: V.copy(pos), vel: [0, 0.5, 0], life: 0.9, size: 1.5, grow: radius * 1.2, color: [0.35, 0.33, 0.3], alpha: 0.5, sphere: true });
-      for (let i = 0; i < 14; i++) this.effects.particle({ pos: V.copy(pos), vel: [rand(-6, 6), rand(1, 9), rand(-6, 6)], life: rand(0.4, 1.0), size: 0.15, color: [1, rand(0.3, 0.7), 0.1], emissive: 1, gravity: 14, collide: true });
+      // the sparks carry the punch, and they are small enough to never block a
+      // shot — but they still cost a draw call each, so they thin with the puffs
+      const detail = this.blastPuffs(pos, radius);
+      const sparks = Math.round(16 * detail);
+      for (let i = 0; i < sparks; i++) this.effects.particle({ pos: V.copy(pos), vel: [rand(-7, 7), rand(1, 10), rand(-7, 7)], life: rand(0.3, 0.7), size: 0.14, color: [1, rand(0.3, 0.7), 0.1], emissive: 1, gravity: 14, collide: true });
       if (this.human && this.human.alive) { const d = V.dist(this.human.center(), pos); if (d < 14) this.effects.shake(Math.max(0, 1 - d / 14) * 0.5); }
       for (const q of this.players) {
         if (!q.alive) continue;
