@@ -13,7 +13,12 @@ const path = require('path');
   });
   const page = await ctx.newPage();
   const errors = [];
-  page.on('console', (m) => { if (m.type() === 'error') { const t = m.text(); if (!errors.includes(t)) errors.push(t); } });
+  // Firebase's CDN scripts are optional and this sandbox cannot reach
+  // google.com/gstatic.com at all, so a failed resource load for them is
+  // expected here (and for a real player behind a firewall or ad-blocker) —
+  // filtered rather than treated as a page bug.
+  const EXPECTED_NETWORK_FAILURE = /net::ERR_|Failed to load resource/;
+  page.on('console', (m) => { if (m.type() === 'error' && !EXPECTED_NETWORK_FAILURE.test(m.text())) { const t = m.text(); if (!errors.includes(t)) errors.push(t); } });
   page.on('pageerror', (e) => { const t = 'pageerror: ' + e.message; if (!errors.includes(t)) errors.push(t); });
   const url = process.argv[2] || process.env.GAME_URL || 'file://' + path.resolve(__dirname, '../index.html');
   await page.goto(url);

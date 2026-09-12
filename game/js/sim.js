@@ -91,6 +91,10 @@
       this.events = []; // {text, team, time, kind}
       this.killFeed = [];
       this.effects = opts.effects || { particle() {}, tracer() {}, sound() {}, say() {}, message() {}, flash() {}, shake() {} };
+      // Present only in online play (see js/net.js). Every check below is
+      // written to fall through to today's single-player behaviour when this
+      // is null, so nothing here changes anyone else's game.
+      this.net = opts.net || null;
       this.bots = null; // set by bots.js
       this.human = null;
       this.rng = Math.random;
@@ -111,10 +115,17 @@
         }
         this.updateProjectiles(dt);
         this.updateSentries(dt);
-        this.updateFlags(dt);
+        // Flags, captures and the round clock are shared match state. In
+        // single player and LAN-with-bots there is nothing to disagree about,
+        // so this always runs. In online play only the host's client runs it
+        // (the host's copy of everyone's position is the same synced data
+        // every other client already trusts), and everyone else mirrors the
+        // result instead of computing their own, possibly different, answer.
+        const authoritative = !this.net || this.net.isHost;
+        if (authoritative) this.updateFlags(dt);
         this.updateItems(dt);
         this.updateFire(dt);
-        if (this.time >= this.roundLength) this.endRound();
+        if (authoritative && this.time >= this.roundLength) this.endRound();
       }
       // particles
       for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -141,6 +152,11 @@
 
     // ------------------------------------------------------------------ movement
     updatePlayer(p, dt) {
+      // A remote player in online play. Their owner's own client is the one
+      // running physics, input and weapon logic for them; running it again
+      // here too, against a copy of their position that is always slightly
+      // stale, would just fight the network state every frame.
+      if (p.isRemote) return;
       const W = this.world, inp = p.input;
       p.cooldown = Math.max(0, p.cooldown - dt);
       // Recoil recovery runs at the WEAPON's pace, not one flat rate for all of
@@ -531,8 +547,12 @@
     explodeProjectile(q) {
       if (q.type === 'nail' || q.type === 'dart') { this.effects.particle({ pos: q.pos, vel: [0, 1, 0], life: 0.2, size: 0.05, color: [0.9, 0.9, 0.8], gravity: 8 }); return; }
       if (q.type === 'grenade') { this.grenadeExplode(q, false); return; }
-      if (q.type === 'ic') { this.explode(q.pos, q.dmg, q.radius, q.owner, 'incendiary', { burn: q.burn }); this.firePatches.push({ pos: V.copy(q.pos), r: 1.8, until: this.time + 3, owner: q.owner }); return; }
-      this.explode(q.pos, q.dmg, q.radius, q.owner, q.type === 'rocket' ? 'rocket' : q.type === 'pipe' ? 'pipe' : 'pipebomb');
+      // A ghost is a cosmetic replica of another player's projectile (see
+      // js/net.js relayShot/onShot) — it must fly and look right but never
+      // itself deal damage, since the real hit was already decided and relayed
+      // by whoever actually fired it.
+      if (q.type === 'ic') { this.explode(q.pos, q.dmg, q.radius, q.owner, 'incendiary', { burn: q.burn, visualOnly: q.isGhost }); if (!q.isGhost) this.firePatches.push({ pos: V.copy(q.pos), r: 1.8, until: this.time + 3, owner: q.owner }); return; }
+      this.explode(q.pos, q.dmg, q.radius, q.owner, q.type === 'rocket' ? 'rocket' : q.type === 'pipe' ? 'pipe' : 'pipebomb', { visualOnly: q.isGhost });
     }
     // The visible blast: a hot core, a ring of fire puffs and some rising smoke.
     // One big sphere used to do this job, and it showed — a perfect faceted ball
@@ -582,6 +602,11 @@
       const sparks = Math.round(16 * detail);
       for (let i = 0; i < sparks; i++) this.effects.particle({ pos: V.copy(pos), vel: [fxRand(-7, 7), fxRand(1, 10), fxRand(-7, 7)], life: fxRand(0.3, 0.7), size: 0.14, color: [1, fxRand(0.3, 0.7), 0.1], emissive: 1, gravity: 14, collide: true });
       if (this.human && this.human.alive) { const d = V.dist(this.human.center(), pos); if (d < 14) this.effects.shake(Math.max(0, 1 - d / 14) * 0.5); }
+      // A ghost projectile's explosion is look-and-sound only: the real hit was
+      // already decided on the shooter's own machine and relayed separately, so
+      // running the damage loop again here would either double it or apply it
+      // against stale, network-lagged positions.
+      if (opts.visualOnly) return;
       for (const q of this.players) {
         if (!q.alive) continue;
         const c = q.center(); const d = V.dist(c, pos);
@@ -613,6 +638,12 @@
       if (!q.alive || dmg <= 0) return;
       if (attacker && attacker !== q && attacker.team === q.team) return;
       if (q.game.roundOver) return;
+      if (q.isRemote) {
+        // Their own client decides what a hit against THEM actually does —
+        // this client only relays what it believes landed.
+        if (this.net) this.net.relayDamage(q.netId, dmg, kind, dir, knock);
+        return;
+      }
       const absorb = Math.min(q.armor, dmg * q.def.armorType);
       q.armor = Math.max(0, Math.round(q.armor - absorb));
       const hpLoss = Math.max(1, Math.round(dmg - absorb));

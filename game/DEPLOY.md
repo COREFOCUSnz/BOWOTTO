@@ -133,24 +133,76 @@ anything merged goes straight to the live site.
 
 ---
 
-## If you want the game to USE Firebase
+## Online play (letting friends join the same match)
 
-Hosting only serves files; it does not need any key in the page. If you want
-features that talk to Firebase — a leaderboard, saved settings, accounts — then
-you want the **web config** (the public one), and it goes in the page:
+Hosting alone gives everyone who opens the link their own separate game
+against bots. To let a group of friends share one match — same map, same
+flags, one scoreboard — the game also optionally uses **Firebase Realtime
+Database** (`js/net.js`), with anonymous sign-in so players can be told apart
+without an account system. This is the "web config" case from the top of this
+file: the `apiKey` and friends that end up in `firebase-config.js` are public
+by design, not a secret, and Security Rules (`database.rules.json`) are what
+actually protects the data — see the first section of this file if that
+distinction is still unclear.
 
-```html
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-  const app = initializeApp({ apiKey: "AIza...", projectId: "team-fort-4925a", /* ... */ });
-</script>
-```
+**`./publish.sh` tries to set this up for you, automatically, every time it
+deploys.** It looks for a web app on the project (creating one if needed),
+reads its SDK config, and if that config has a `databaseURL` it writes
+`firebase-config.js` and deploys `database.rules.json`. All of this is
+best-effort and never blocks the actual hosting deploy — if any of it fails,
+online play simply stays off (the menu says so) and everything else about the
+game is unaffected.
 
-Being public is fine and expected. Before you ship anything that writes data,
-though, set Security Rules — the default "test mode" rules let anyone on the
-internet read and write your whole database, and they expire after 30 days,
-which tends to be discovered at the worst possible moment.
+Two things it cannot do for you, because they are one-time interactive
+choices Firebase asks for in the console the first time a project uses them:
 
-Nothing in the game currently talks to Firebase; it is entirely client-side and
-works from a file:// URL. So none of this is needed just to let your friends
-play — that is only the hosting step above.
+1. **Enable Realtime Database** — pick any region, it does not matter for
+   this game:
+   `https://console.firebase.google.com/project/<id>/database`
+2. **Enable Anonymous authentication** — Authentication → Sign-in method →
+   Anonymous → Enable:
+   `https://console.firebase.google.com/project/<id>/authentication/providers`
+
+Do both once, then run `./publish.sh` again so it can pick up the database URL
+and deploy the rules. After that, every future deploy keeps it working
+automatically.
+
+**What online play actually does:** each client fully simulates its own
+player locally (same code as against bots) and publishes its position,
+aim, health, weapon and animation state a few times a second; everyone else's
+players are pose-driven from those snapshots and smoothly interpolated, never
+locally simulated. Whoever currently has the lowest player id in the room is
+the "host" for shared state (score, round timer) — this is recomputed from
+who's present, never stored, so there is nothing to hand off when someone
+leaves. Damage always stays authoritative on the target's own client: hitting
+someone sends them a damage event rather than changing their health directly,
+the same way a real multiplayer game has to avoid one player's game state
+overriding another's.
+
+**v1 limitations, honestly:**
+
+- **Bots and sentries are disabled in an online room.** Bot AI and sentry
+  targeting were never designed to run once per room rather than once per
+  player; that's future work, not a fundamental blocker.
+- **Only rockets, pipes, pipebombs and incendiary shots get a "ghost"
+  explosion** — a cosmetic-only replica so you can see and hear other
+  players' attacks land. Hand-thrown grenades don't yet.
+- **Smoothing is simple exponential interpolation toward the latest snapshot,
+  not full snapshot-buffered interpolation with a delay buffer.** It looks
+  fine on a normal home connection between a few friends; it is not going to
+  feel like a AAA shooter's netcode, and a spike in latency will show as a
+  visible little stutter or skip on remote players rather than a perfectly
+  smoothed delay.
+- **This sandbox cannot reach Firebase or Google at all**, so the online
+  feature has only ever been tested against fakes and stubs (`test/net.test.js`,
+  `test/multiplayer.test.js`) — never two real browsers talking through a real
+  Firebase project. The first real deploy with this set up is the first real
+  test of that specific path. If something looks wrong the first time a
+  friend joins, that is expected territory to debug, not a sign the whole
+  approach is broken.
+- The Realtime Database rules (`database.rules.json`) are written for a
+  private match among friends, not a public leaderboard: any signed-in
+  (anonymous) user can write `hits`, `shots` and `state` for a room they know
+  the code to. That's an intentional trade-off for "no backend code at all",
+  not an oversight — don't reuse this project for anything where a
+  participant misbehaving would actually matter.

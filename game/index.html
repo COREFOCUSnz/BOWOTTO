@@ -84,6 +84,12 @@
   #menu .classes button .cn { font-weight: bold; } #menu .classes button .cd { display: block; font-size: 12px; color: #aaa; margin-left: 30px; }
   #menu .classes button:hover .cd { color: #222; }
   #menu .hint { margin-top: 14px; color: #bbb; font-size: 13px; } #menu .hint.big { font-size: 22px; margin: 4px 0 14px; }
+  #menu .roomcode { font-size: 40px; font-weight: 700; letter-spacing: 0.15em; color: #ffd873; }
+  #menu .joinrow { display: flex; gap: 8px; margin: 10px 0; }
+  #menu .joinrow input { flex: 1; font: inherit; font-size: 20px; letter-spacing: 0.2em; text-align: center; text-transform: uppercase; background: #1a1a1a; color: #eee; border: 1px solid #555; border-radius: 4px; padding: 8px; }
+  #menu .joinrow button { padding: 8px 18px; }
+  #menu .small { font-size: 12px; color: #999; }
+  #menu .err { color: #ff8080; font-size: 13px; }
   #menu label { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #ddd; padding: 6px 8px; font-size: 14px; }
   #menu input[type=range] { width: 160px; } #menu input[type=text], #menu input:not([type]) { background: #111; color: #fff; border: 1px solid #666; padding: 3px 6px; }
   #menu .help table { color: #ddd; font-size: 13px; border-collapse: collapse; } #menu .help td { padding: 2px 10px 2px 0; } #menu .help td:first-child { color: #ffb000; font-weight: bold; white-space: nowrap; }
@@ -173,6 +179,12 @@
 <div id="touch" hidden></div>
 <div id="rotate" hidden><div class="icon">&#128241;</div><div><b>Turn your phone sideways</b></div><div style="color:#aaa;font-size:13px">2Fort needs landscape</div></div>
 <div id="menu" hidden></div>
+<!-- Optional: online play. Both fail closed if missing — the game works
+     exactly as before with no online option shown, rather than breaking. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="js/math.js"></script>
 <script src="js/world.js"></script>
 <script src="js/map2fort.js"></script>
@@ -184,6 +196,7 @@
 <script src="js/audio.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/bots.js"></script>
+<script src="js/net.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

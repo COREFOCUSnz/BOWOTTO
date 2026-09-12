@@ -1,7 +1,7 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, Projectile, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H, smooth, smoothAngle, createNetRoom } = window;
   const $ = (id) => document.getElementById(id);
 
   const stored = JSON.parse(localStorage.getItem('tfc2fort.settings') || 'null');
@@ -52,6 +52,23 @@
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
   const brains = new Map();
+
+  // ---- online play (js/net.js) --------------------------------------------
+  // `net` is the active room, or null while playing offline/with bots — every
+  // check below reads that null-ness rather than a separate "am I online"
+  // flag, so there is exactly one thing to keep in sync.
+  let net = null;
+  let netErr = '';                 // last connect/join failure, shown in the menu
+  const onlineRemotes = new Map(); // uid -> the Player object representing them
+  let netAcc = 0; const NET_INTERVAL = 1 / 12;   // ~12 publishes/second is plenty for a shooter this size
+  let stateAcc = 0; const STATE_INTERVAL = 1 / 5; // shared score/flag state changes slowly; no need to spam it
+  // Checked once at load, not per menu render: createNetRoom ALWAYS exists as a
+  // function once net.js has loaded, whether or not Firebase is actually
+  // configured — calling it is what actually tells you. `!!createNetRoom` would
+  // have shown "play online" as available on every single deployment, configured
+  // or not, since the function is never undefined.
+  const netAvailable = !!(createNetRoom && createNetRoom());
+
   const touch = new TouchControls(canvas);
 
   // ---- character models (async; the blocky players stay as the fallback)
@@ -97,7 +114,9 @@
   function syncBots() {
     for (const team of [BLUE, RED]) {
       const humans = game.players.filter((p) => !p.isBot && p.team === team).length;
-      const want = settings.fill ? Math.max(0, settings.teamSize - humans) : 0;
+      // Bots are not networked (see DEPLOY.md) — each client would run its own,
+      // doing different things, invisible to everyone else. Off entirely online.
+      const want = (net && net.connected) ? 0 : (settings.fill ? Math.max(0, settings.teamSize - humans) : 0);
       let bots = game.players.filter((p) => p.isBot && p.team === team);
       while (bots.length > want) { const b = bots.pop(); game.removePlayer(b); brains.delete(b); }
       let idx = bots.length;
@@ -169,7 +188,10 @@
     if (k === 'KeyQ') { if (human.cls === 'spy') game.startDisguise(human); else switchWeapon(lastWeapon.i); }
     if (k === 'KeyG') game.primeGrenade(human, 0);
     if (k === 'KeyF') game.primeGrenade(human, 1);
-    if (k === 'KeyE') { if (human.cls === 'engineer') game.startBuild(human); }
+    // Sentries are not synced in online play yet (see DEPLOY.md), so building
+    // one there would be visible only on this machine and immediately wrong on
+    // everyone else's.
+    if (k === 'KeyE') { if (human.cls === 'engineer' && !net) game.startBuild(human); }
     if (k === 'KeyR' && human.cls === 'demoman') { game.detonatePipes(human); }
     if (k === 'Enter' && game.roundOver) restart();
   });
@@ -268,6 +290,7 @@
         <button data-k="7"><b>7</b> How to play</button>
         <button data-k="8"><b>8</b> Restart round</button>
         <button data-k="9"><b>9</b> Bot difficulty: <span class="diff ${settings.difficulty}">${cap(settings.difficulty)}</span></button>
+        <button data-k="o">Play online: <span class="skin">${net && net.connected ? 'Room ' + net.code : 'Off'}</span></button>
         <button data-k="0"><b>0</b> Credits</button>
       </div><div class="hint">${renderer.skinProg && !modelsReady ? 'Loading characters…<br>' : ''}Click the game and move the mouse to look. Score: <span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>`;
     } else if (menu === 'team') {
@@ -276,6 +299,32 @@
         <button data-k="2" class="red"><b>2</b> Red</button>
         <button data-k="3"><b>3</b> Auto-assign</button>
         <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'online') {
+      const canConnect = netAvailable;
+      if (net && net.connected) {
+        const names = Array.from(onlineRemotes.values()).map((p) => escapeHtml(p.name || '?'));
+        html = title + `<div class="list"><div class="h">Playing online</div>
+          <div class="hint big">Room code<br><span class="roomcode">${net.code}</span></div>
+          <p>Read that to your friends, or have them enter it under <b>Join a room</b>. Anyone with it can join
+          while this stays open.</p>
+          <p>${names.length ? names.length + ' other' + (names.length === 1 ? '' : 's') + ' here: ' + names.join(', ') : 'Nobody else has joined yet.'}</p>
+          <p class="small">Bots and sentries are turned off while playing online (see DEPLOY.md).</p>
+          <button data-k="leave">Leave room</button>
+          <button data-k="0"><b>0</b> Back</button></div>`;
+      } else if (!canConnect) {
+        html = title + `<div class="list"><div class="h">Play online</div>
+          <p>This copy of the game has not been set up for online play yet. Whoever is running it needs to
+          deploy Firebase's Realtime Database once — see <b>DEPLOY.md</b> in the project for the exact steps.</p>
+          <button data-k="0"><b>0</b> Back</button></div>`;
+      } else {
+        html = title + `<div class="list"><div class="h">Play online</div>
+          ${netErr ? `<p class="err">${escapeHtml(netErr)}</p>` : ''}
+          <button data-k="create">Create a room</button>
+          <div class="joinrow"><input id="net_code" maxlength="4" placeholder="CODE" autocapitalize="characters"><button data-k="join">Join</button></div>
+          <p class="small">Whoever creates a room gets a 4-letter code to read out. Everyone plays in the same
+          match — same map, same flags, same scoreboard — instead of their own separate game with bots.</p>
+          <button data-k="0"><b>0</b> Back</button></div>`;
+      }
     } else if (menu === 'class') {
       html = title + '<div class="list classes"><div class="h">Choose a class</div>';
       CLASS_ORDER.forEach((c, i) => { const d = CLASSES[c]; html += `<button data-k="${i + 1}"><b>${i + 1}</b> <span class="cn">${d.name}</span><span class="cd">${d.desc}</span></button>`; });
@@ -415,6 +464,7 @@
     menuEl.innerHTML = html;
     menuEl.querySelectorAll('button[data-k]').forEach((b) => b.addEventListener('click', () => menuSelect(b.dataset.k)));
     if (menu === 'settings') bindSettings();
+    if (menu === 'online') bindOnline();
   }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
   function bindSettings() {
@@ -431,6 +481,148 @@
     $('s_vol').addEventListener('input', (e) => { settings.volume = parseFloat(e.target.value); audio.setVolume(settings.volume); saveSettings(); });
     $('s_ann').addEventListener('change', (e) => { settings.announcer = e.target.checked; audio.announcer = settings.announcer; saveSettings(); });
   }
+  // Text field for a room code: uppercase as you type, Enter submits, and
+  // typing must not trigger the digit-key menu shortcuts (menuKey already
+  // ignores keydowns while an <input> has focus, so this only needs the two
+  // things that are specific to a 4-letter code).
+  function bindOnline() {
+    const el = $('net_code');
+    if (!el) return;
+    el.addEventListener('input', () => { el.value = el.value.toUpperCase().slice(0, 4); });
+    el.addEventListener('keydown', (e) => { if (e.code === 'Enter') menuSelect('join'); });
+    el.focus();
+  }
+
+  async function connectOnline(mode, code) {
+    if (net) return; // already connecting or connected
+    const room = createNetRoom ? createNetRoom() : null;
+    if (!room) { netErr = 'Online play is not set up for this deployment — see DEPLOY.md.'; renderMenu(); return; }
+    net = room; game.net = room;
+    wireNetCallbacks(room);
+    try {
+      await (mode === 'create' ? room.create() : room.join(code));
+      netErr = '';
+      syncBots(); // drop any single-player bots immediately, not on the next settings change
+      // Publish immediately rather than waiting for the next throttled tick,
+      // so a friend who was already in the room sees you the instant you land.
+      room.publishSelf(human);
+    } catch (e) {
+      net = null; game.net = null;
+      netErr = (e && e.message) || 'Could not connect.';
+    }
+    renderMenu();
+  }
+
+  function leaveOnline() {
+    if (!net) return;
+    net.leave();
+    for (const p of onlineRemotes.values()) game.removePlayer(p);
+    onlineRemotes.clear();
+    net = null; game.net = null; netErr = '';
+    syncBots(); // bring single-player bot fill back, if the setting is on
+  }
+
+  function wireNetCallbacks(room) {
+    room.onRemoteJoin = (uid, st) => {
+      const p = game.addPlayer(st.name || 'Player', st.team === 1 ? 1 : 0, false);
+      p.isRemote = true; p.netId = uid;
+      applyRemoteState(p, st, true);
+      onlineRemotes.set(uid, p);
+      effects.message((st.name || 'Someone') + ' joined', null, 'info');
+      if (menu === 'online') renderMenu();
+    };
+    room.onRemoteUpdate = (uid, st) => { const p = onlineRemotes.get(uid); if (p) applyRemoteState(p, st, false); };
+    room.onRemoteLeave = (uid) => {
+      const p = onlineRemotes.get(uid);
+      if (p) { effects.message((p.name || 'A player') + ' left', null, 'info'); game.removePlayer(p); onlineRemotes.delete(uid); }
+      if (menu === 'online') renderMenu();
+    };
+    room.onShot = (shot) => {
+      const owner = onlineRemotes.get(shot.owner) || null;
+      game.projectiles.push(new Projectile(Object.assign({}, shot, { owner, isGhost: true, dmg: 0, age: 0, dead: false, stuck: false })));
+    };
+    room.onState = (st) => {
+      if (st.score) game.score = st.score;
+      if (st.roundOver !== undefined) game.roundOver = st.roundOver;
+    };
+  }
+
+  // Copies a remote player's networked pose/state onto their local Player
+  // object. Discrete fields (team, class, weapon, health, ...) snap straight
+  // across — there is nothing to smooth about a class change. Position and
+  // aim are continuous, so they are stored as a target and eased toward every
+  // rendered frame by smoothRemotePlayers() below, rather than snapping and
+  // making everyone else's movement look like a slideshow at ~12 updates a
+  // second.
+  function applyRemoteState(p, st, isNew) {
+    p.name = st.name || p.name || 'Player';
+    p.team = st.team === 1 ? 1 : 0;
+    if (st.cls && st.cls !== p.cls) { p.cls = st.cls; p.weapons = (CLASSES[p.cls] || CLASSES.soldier).weapons.slice(); }
+    if (!p.weapons || !p.weapons.length) p.weapons = (CLASSES[p.cls] || CLASSES.soldier).weapons.slice();
+    p.wi = Math.max(0, Math.min(p.weapons.length - 1, st.wi || 0));
+    p.hp = st.hp || 0; p.armor = st.armor || 0; p.alive = !!st.alive;
+    p.disguise = st.disguise === undefined ? -1 : st.disguise; p.disguiseCls = st.disguiseCls || null;
+    p.hasFlag = !!st.hasFlag; p.onGround = !!st.onGround; p.inWater = !!st.inWater;
+    p.spinup = st.spinup || 0; p.charge = st.charge === undefined ? -1 : st.charge;
+    p.vel = st.vel || [0, 0, 0];
+    // A rising edge in fireAnim is "they just fired": stamp lastFire on OUR OWN
+    // clock so the existing muzzle-flash timer (game.time - p.lastFire) works
+    // the same way it does for a local player, without needing clocks to agree
+    // across two machines.
+    const prevTarget = p._netFireAnimTarget || 0;
+    if ((st.fireAnim || 0) > 0.85 && prevTarget <= 0.5) p.lastFire = game.time;
+    p._netFireAnimTarget = st.fireAnim || 0;
+    const pos = st.pos || [0, 0, 0], yaw = st.yaw || 0, pitch = st.pitch || 0;
+    p._netTarget = { pos, yaw, pitch };
+    if (isNew) { p.pos = pos.slice(); p.yaw = yaw; p.pitch = pitch; p.fireAnim = 0; p.walkPhase = st.walkPhase || 0; }
+    else { p.walkPhase = st.walkPhase || p.walkPhase; } // corrected here, dead-reckoned smoothly in between below
+  }
+
+  // Runs every rendered frame (not the fixed physics step — remote players are
+  // never simulated locally, only posed). Position/aim ease toward the last
+  // network snapshot; the walk cycle is dead-reckoned from synced velocity
+  // between snapshots, using the same formula sim.js uses for real physics, so
+  // running does not look like a series of poses ~80ms apart.
+  function smoothRemotePlayers(dt) {
+    if (!onlineRemotes.size) return;
+    for (const p of onlineRemotes.values()) {
+      const t = p._netTarget; if (!t) continue;
+      p.pos[0] = smooth(p.pos[0], t.pos[0], dt, 14);
+      p.pos[1] = smooth(p.pos[1], t.pos[1], dt, 14);
+      p.pos[2] = smooth(p.pos[2], t.pos[2], dt, 14);
+      p.yaw = smoothAngle(p.yaw, t.yaw, dt, 14);
+      p.pitch = smoothAngle(p.pitch, t.pitch, dt, 14);
+      p.fireAnim = smooth(p.fireAnim, p._netFireAnimTarget || 0, dt, 20);
+      if (p.alive) p.walkPhase += Math.hypot(p.vel[0], p.vel[2]) * dt * 1.6;
+    }
+  }
+
+  // Broadcast my own pose (throttled) and a cosmetic copy of anything I just
+  // fired that flies (so an incoming rocket is not invisible until it lands),
+  // and, if this client currently considers itself host, the shared score.
+  // Everything here is a no-op the instant `net` is null.
+  const _sentShots = new WeakSet();
+  let netPaused = false;   // test-only, see window.__pauseNet
+  function netUpdate(dt) {
+    if (!net || !net.connected || netPaused) return;
+    smoothRemotePlayers(dt);
+    netAcc += dt;
+    if (netAcc >= NET_INTERVAL) { netAcc = 0; net.publishSelf(human); }
+    for (const q of game.projectiles) {
+      if (q.owner !== human || q.isGhost || _sentShots.has(q)) continue;
+      _sentShots.add(q);
+      net.relayShot({ type: q.type, pos: q.pos, vel: q.vel, radius: q.radius, life: q.life, gravity: q.gravity, bounce: q.bounce, fuse: q.fuse, spin: q.spin });
+    }
+    stateAcc += dt;
+    if (stateAcc >= STATE_INTERVAL && net.isHost) { stateAcc = 0; net.publishState({ score: game.score, roundOver: game.roundOver }); }
+    // Damage other people's clients told me landed on ME. I am always the one
+    // who decides what a hit does to my own health — see sim.js damage().
+    for (const hit of net.hits.splice(0, net.hits.length)) {
+      const attacker = onlineRemotes.get(hit.attackerId) || null;
+      game.damage(human, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
+    }
+  }
+
   function menuKey(e) {
     if (e.code === 'Escape') { if (menu === 'main' && human.spawnT !== undefined) closeMenu(); else if (menu !== 'main' && menu !== 'end') openMenu('main'); return; }
     if (e.target && e.target.tagName === 'INPUT') return;
@@ -450,11 +642,17 @@
       if (k === '0') { openMenu('credits'); return; }
       if (k === '8') { restart(); closeMenu(); }
       if (k === '9') { settings.difficulty = DIFF_ORDER[(DIFF_ORDER.indexOf(settings.difficulty) + 1) % DIFF_ORDER.length]; saveSettings(); syncBots(); renderMenu(); }
+      if (k === 'o') { netErr = ''; openMenu('online'); return; }
     } else if (menu === 'team') {
       if (k === '0') { openMenu('main'); return; }
       let team = k === '1' ? BLUE : k === '2' ? RED : (game.teamCount(BLUE) <= game.teamCount(RED) ? BLUE : RED);
       if (team !== human.team) { human.team = team; if (human.alive) game.kill(human, null, 'teamswitch'); human.respawnAt = game.time; }
       syncBots(); openMenu('class');
+    } else if (menu === 'online') {
+      if (k === '0') { openMenu('main'); return; }
+      if (k === 'leave') { leaveOnline(); renderMenu(); return; }
+      if (k === 'create') { connectOnline('create'); return; }
+      if (k === 'join') { const el = $('net_code'); connectOnline('join', el ? el.value : ''); return; }
     } else if (menu === 'class') {
       if (k === '0') { openMenu('main'); return; }
       const i = parseInt(k, 10) - 1; if (i < 0 || i >= CLASS_ORDER.length) return;
@@ -1090,6 +1288,7 @@
       acc -= DT; steps++;
     }
     flashAmt = Math.max(0, flashAmt - dt * 2); shakeAmt = Math.max(0, shakeAmt - dt * 2.5);
+    netUpdate(dt);
     updateViewModel(dt);
     renderer.time = game.time;
     renderer.fov = settings.fov * Math.PI / 180;
@@ -1129,6 +1328,27 @@
   requestAnimationFrame(frame);
   loadScreens();
   window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm; window.__screens = screens;
+  window.__net = () => net; window.__onlineRemotes = onlineRemotes;
+  window.__connectOnline = connectOnline; window.__leaveOnline = leaveOnline;
+  // Test-only: hand the game a NetRoom-shaped object directly (see
+  // test/net.test.js's FakeBackend / test/multiplayer.test.js), bypassing
+  // real Firebase entirely, so the game.js<->net.js wiring itself is
+  // verifiable from a sandbox that cannot reach Firebase at all.
+  window.__injectNet = (room) => { net = room; game.net = room; wireNetCallbacks(room); syncBots(); };
+  // Test-only: step remote-player smoothing by an EXACT dt, bypassing real
+  // requestAnimationFrame timing entirely. Real frame timing under this
+  // project's headless benches swings from ~1ms to 50ms+ per frame depending
+  // on load, which made a "wait N real frames, then check the position is
+  // partway there" assertion pass or fail by coin flip — not a real bug, pure
+  // timing noise. A fixed step makes the numbers exact and repeatable.
+  window.__stepNetSmoothing = (dt, n) => { for (let i = 0; i < (n || 1); i++) smoothRemotePlayers(dt); };
+  // Test-only: stop the running game's own per-frame netUpdate(), so a test
+  // driving __stepNetSmoothing with an exact dt is not also racing against
+  // background real-frame smoothing happening between page.evaluate calls —
+  // that race is what made the very first version of this check read a
+  // different, larger number on every single run.
+  window.__pauseNet = (v) => { netPaused = v; };
+
   // One step of sim + viewmodel with no drawing, for test/feel.test.js
   window.__stepFeel = (dt) => { game.update(dt); updateViewModel(dt); return viewModelPose(human, human.weapon()); }; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
 })();

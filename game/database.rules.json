@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "auth != null",
+
+        "meta": {
+          ".write": "auth != null && !data.exists()"
+        },
+
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['name', 'team', 'pos', 'yaw', 'pitch', 'hp', 'alive', 'cls', 'wi', 't'])"
+          }
+        },
+
+        "hits": {
+          "$targetUid": {
+            "$hitId": {
+              ".write": "auth != null",
+              ".validate": "newData.hasChildren(['amount', 'attackerId', 't'])"
+            }
+          }
+        },
+
+        "shots": {
+          "$shotId": {
+            ".write": "auth != null"
+          }
+        },
+
+        "state": {
+          ".write": "auth != null"
+        }
+      }
+    }
+  }
+}

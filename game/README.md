@@ -11,9 +11,10 @@ Nine classes, TFC-style weapons, hand grenades with a 4-second fuse, rocket
 jumps, concussion jumps, sentry guns, spies, and bots for both teams. Players
 are skinned 3D character models, animated procedurally and recoloured per team.
 
-Everything is plain JavaScript + WebGL. **No build step, no dependencies, no
-network needed.** It runs from a plain file and from any static host such as
-Firebase Hosting.
+Everything is plain JavaScript + WebGL. **No build step, no dependencies.** It
+runs from a plain file and from any static host such as Firebase Hosting.
+Single-player against bots needs no network at all; playing with friends
+online (see below) is optional and the game works exactly the same without it.
 
 ## Play it locally
 
@@ -109,11 +110,28 @@ firebase deploy --only hosting
 ```
 
 The game is then live at **https://team-fort-4925a.web.app** (also
-`https://team-fort-4925a.firebaseapp.com`). Send your friends that link. Each of them gets their own game against
-bots — this version is **single-player with bots**. Online multiplayer is the
-natural next step: the simulation (`js/sim.js`) is deterministic and
-DOM-free, so a host-authoritative netcode over Firebase Realtime Database or
-WebRTC can drive the same code with remote inputs.
+`https://team-fort-4925a.firebaseapp.com`). Send your friends that link.
+
+## Online play
+
+Friends can join the same match instead of each playing separately against
+bots. From the main menu, **Play online** either creates a room (you get a
+4-letter code to send them) or joins one with a code someone sent you.
+Everyone in a room sees the same map, the same flags, and a shared scoreboard.
+
+This needs Firebase Realtime Database, which is a one-time setup separate
+from Hosting above. `./publish.sh` attempts it automatically each time it
+deploys; see `DEPLOY.md` for what it does, what still needs a manual click in
+the Firebase console the first time, and the v1 limitations (bots and
+sentries are disabled online, and a few v0.1-era rough edges around latency).
+If that setup hasn't been done yet, **Play online** just says so in the menu
+and everything else about the game is unaffected — this is entirely optional.
+
+Under the hood, the simulation (`js/sim.js`) is deterministic and DOM-free:
+each client fully simulates its own player against the shared static map and
+only ever *receives* poses for everyone else, which is what makes a
+lightweight snapshot-based netcode (`js/net.js`) possible without a game
+server.
 
 ## Lighting and materials
 
@@ -247,6 +265,7 @@ js/model.js       .tfm loader, bone hierarchy, GPU skinning, procedural animatio
 js/audio.js       synthesized sound effects + speech announcer
 js/sim.js         movement, weapons, projectiles, grenades, damage, flags, items, sentries
 js/bots.js        A* over waypoints, roles (offense / defense / sniper), aiming, weapon choice
+js/net.js         online play: Firebase Realtime Database rooms, host election, pose sync
 js/game.js        input, HUD, menus, entity drawing, main loop
 tools/            asset pipeline (glTF reader, model/texture extractors) and screenshot tools
 assets/models/    extracted character meshes and textures
@@ -264,6 +283,8 @@ GAME_URL=http://localhost:8080/index.html npm run test:browser   # ...and the mo
 node test/vfx.test.js    # explosion visibility + the demoman's kit (needs a server; slow)
 node test/feel.test.js   # weapon feel: recoil, bob, turn lag, hit confirmation
 node test/audio.test.js  # renders every sound offline and measures it
+npm run test:net         # net.js logic against a fake backend (node, no browser, no Firebase)
+npm run test:multiplayer # game.js <-> net.js integration against an injected stub
 ```
 
 `test/map.test.js` walks a simulated player through every route (spawn → enemy
@@ -343,3 +364,19 @@ resolution to a postage stamp changed nothing — so a 60 ms animation is
 invisible to it. A fixed timestep also makes every number exact and identical on
 any machine. Only the hit-confirmation section needs real frames, and only a
 handful.
+
+`test/net.test.js` tests `js/net.js`'s own logic — host election, pose
+publishing, damage relay, room codes — against a hand-built in-memory fake of
+the Firebase Realtime Database calls it makes, in plain Node with no browser.
+`test/multiplayer.test.js` tests the integration between `js/game.js` and
+`js/net.js` — remote players rendering and smoothing, bots and sentries
+turning off online, damage staying authoritative on the target's own client,
+rockets and pipebombs showing cosmetic "ghost" explosions for other players
+— by injecting a plain-object stub in place of a real `NetRoom` via
+`window.__injectNet`, so it never touches Firebase either. Both exist because
+**this sandbox cannot reach Firebase or Google at all** (outbound network is
+restricted to a small allowlist), so neither of these suites — nor anything
+else run here — has ever exercised the real multi-browser path end to end.
+The first real deploy with online play configured is the first real test of
+that specific path; see `DEPLOY.md` for the v1 limitations that follow from
+that.
