@@ -6258,13 +6258,20 @@ const maxAniso = renderer.capabilities.getMaxAnisotropy();
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(TH.fog[0], TH.fog[1], TH.fog[2]);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 9000);
+// The sky dome (r 8500), the stars (r 8000) and the sun disc (7800 m out) are meant to be at infinity, but they
+// were pinned to the world origin while the camera drives up to 3.4 km away -- so their FAR side sat up to 11.9 km
+// from the eye, past the 9000 m far plane, and got sliced off: a hole of flat background colour in the sky, worst
+// on the starfield worlds where the stars ARE the backdrop. They ride with the camera now, which is what "at
+// infinity" means, and nothing of the sky ever reaches the far plane.
+const skyFollow = [];
+function skyRide() { for (const o of skyFollow) { if (!o.userData.skyBase) o.userData.skyBase = o.position.clone(); o.position.copy(o.userData.skyBase).add(camera.position); } }
 
 // sky: a dome for the night and dusk worlds, stars for the neon ones, an atmosphere model for the day ones, overcast for snow
 scene.background = new THREE.Color(TH.bg);
 const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - TH.sunEl), THREE.MathUtils.degToRad(35));
 {
   const domeCols = TH.dome;
-  if (DAY) { const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(140, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false, toneMapped: false })); sunDisc.position.copy(sunDir).multiplyScalar(7800); sunDisc.position.y -= 200; scene.add(sunDisc); }
+  if (DAY) { const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(140, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false, toneMapped: false })); sunDisc.position.copy(sunDir).multiplyScalar(7800); sunDisc.position.y -= 200; scene.add(sunDisc); skyFollow.push(sunDisc); }
   if (false) {
     const sky = new THREE.Sky(); sky.scale.setScalar(400000); scene.add(sky);
     const u = sky.material.uniforms; u.turbidity.value = THEME === 'desert' ? 6 : 3; u.rayleigh.value = THEME === 'desert' ? 2.2 : 1.4; u.mieCoefficient.value = 0.006; u.mieDirectionalG.value = 0.8; u.sunPosition.value.copy(sunDir);
@@ -6276,12 +6283,12 @@ const sunDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.deg
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
       fragmentShader: 'uniform vec3 top; uniform vec3 horizon; uniform float pw; varying vec3 vP; void main(){ float h = normalize(vP).y; float g = pow(1.0 - clamp(h, 0.0, 1.0), pw); gl_FragColor = vec4(mix(top, horizon, g * 0.9), 1.0); }',
     }));
-    dome.position.y = -200; scene.add(dome);
+    dome.position.y = -200; scene.add(dome); skyFollow.push(dome);
     if (TH.stars) {
       const sp = [], n = TH.starN || 2600;
       for (let i = 0; i < n; i++) { const a = rnd() * Math.PI * 2, e = Math.asin(rnd()) * 0.95 + 0.04, r = 8000; sp.push(Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r - 200, Math.sin(a) * Math.cos(e) * r); }
       const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-      const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: TH.starCol || 0x9fd8ff, size: 14, sizeAttenuation: true, fog: false, toneMapped: false, transparent: true, opacity: 0.75 })); scene.add(stars);
+      const stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: TH.starCol || 0x9fd8ff, size: 14, sizeAttenuation: true, fog: false, toneMapped: false, transparent: true, opacity: 0.75 })); scene.add(stars); skyFollow.push(stars);
     }
   }
 }
@@ -6970,10 +6977,18 @@ const DRESS = {
     const cranes = [[300, -2450], [-100, -2450], [-600, -1900], [-740, -1150], [500, -650], [1150, -400]].filter(([x, z]) => trackDist(x, z) > 30).map(([x, z]) => ({ x, y: 1.2, z, rot: rnd() * 6.28, s: 1 }));
     const leg = new THREE.BoxGeometry(2, 34, 2);
     instanced(mergeGeos([leg.clone().translate(-9, 17, 0), leg.clone().translate(9, 17, 0), new THREE.BoxGeometry(22, 2.4, 2.4).translate(0, 35, 0), new THREE.BoxGeometry(2.4, 2.4, 44).translate(0, 37, 8), new THREE.BoxGeometry(1.2, 6, 1.2).translate(0, 41, 0)]), new THREE.MeshStandardMaterial({ color: 0xd9a520, roughness: 0.6, metalness: 0.4 }), cranes, true);
+    // The road runs the length of these ships at x = 960, ramping from y = 3 up to the deck and back down. The
+    // hull and deck used to be pinned at a fixed height (deck top y = 8.0) regardless, so wherever the road was
+    // still below that -- the whole climb onto ship one, and most of ship two, which the road crosses at y = 6 --
+    // the car was driving INSIDE a solid slab: the chase camera, 1.9 m higher, looked down on an opaque lid with
+    // no car under it. Sit each ship under its own stretch of road instead, measured from the spline.
     for (const [z0, z1] of [[-1180, -1470], [-1600, -1960]]) { const L = z0 - z1, cz = (z0 + z1) / 2;
-      const hull = new THREE.Mesh(new THREE.BoxGeometry(46, 12, L), new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.6, metalness: 0.4 })); hull.position.set(960, 1.5, cz); scene.add(hull);
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(46, 1, L), new THREE.MeshStandardMaterial({ color: 0x7a1a1a, roughness: 0.8 })); deck.position.set(960, 7.5, cz); scene.add(deck);
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(12, 14, 12), new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.6 })); bridge.position.set(960 + 16, 15, z0 - 20); bridge.castShadow = true; scene.add(bridge); }
+      let roadMin = Infinity;
+      for (let i = 0; i < N; i++) { const q = S[i]; if (q.z <= z0 && q.z >= z1 && Math.abs(q.x - 960) < 34) roadMin = Math.min(roadMin, q.y); }
+      const deckTop = (Number.isFinite(roadMin) ? roadMin : 8) - 0.35;
+      const hull = new THREE.Mesh(new THREE.BoxGeometry(46, 12, L), new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.6, metalness: 0.4 })); hull.position.set(960, deckTop - 6.5, cz); scene.add(hull);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(46, 1, L), new THREE.MeshStandardMaterial({ color: 0x7a1a1a, roughness: 0.8 })); deck.position.set(960, deckTop - 0.5, cz); scene.add(deck);
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(12, 14, 12), new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.6 })); bridge.position.set(960 + 16, deckTop + 7, z0 - 20); bridge.castShadow = true; scene.add(bridge); }
     const lamps = []; for (let i = 0; i < N; i += 14) { if (JUMP[i]) continue; const f = frameAt(i), side = (i / 14) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 1.5)); lamps.push({ x: p.x, y: p.y, z: p.z, quat: f.quat }); }
     instanced(new THREE.CylinderGeometry(0.1, 0.14, 9, 5).translate(0, 4.5, 0), new THREE.MeshStandardMaterial({ color: 0x555a60, metalness: 0.6, roughness: 0.5 }), lamps, false);
     instanced(new THREE.BoxGeometry(1.2, 0.3, 0.5).translate(0, 9, 0), new THREE.MeshBasicMaterial({ color: 0xffd080, toneMapped: false }), lamps, false);
@@ -7617,7 +7632,8 @@ function garagePreviewClear() {
 function garagePreviewShow(id, root) {
   const scn = roomScene(garage.room); if (previewGroup) scn.remove(previewGroup);
   const g = root.clone(true); const C = CARS[id];
-  const bb = bodyBounds(g); for (const o of bb.junk) o.visible = false;
+  g.traverse(o => { if (o.isMesh && o.userData.simJunk) { o.visible = true; o.userData.simJunk = false; } });
+  const bb = bodyBounds(g); for (const o of bb.junk) { o.visible = false; o.userData.simJunk = true; }
   const size = bb.box.getSize(new THREE.Vector3()), long = Math.max(size.x, size.z);
   const sc = (C.spec.length || CAR.length) / long; g.scale.setScalar(sc);
   const seated = bodyBounds(g).box, c2 = seated.getCenter(new THREE.Vector3());
@@ -7698,7 +7714,14 @@ function bodyBounds(root) {
   if (out.box.isEmpty()) out.box.copy(core);
   return out;
 }
+// A model that throws halfway through fitting leaves the old body already removed and the procedural one still
+// switched off -- i.e. no car at all, permanently. Wrap it: on failure, put the procedural Revuelto back so the
+// player always has something to drive.
 function installModel(root, name) {
+  try { installModelInner(root, name); }
+  catch (e) { console.error('installModel', e); if (!customModel) { procBody.visible = true; wheels.forEach(w => w.steer.visible = true); } flash('MODEL FAILED', 2200); }
+}
+function installModelInner(root, name) {
   const from = (name === 'embedded' || name === 'revuelto.glb') ? 'revuelto' : (CARS[name] ? name : null);
   if (from) carRoots[from] = root;
   if (from && from !== carId) return;   // a slow download landing after another car was chosen: keep it, do not fit it
@@ -7728,8 +7751,12 @@ function installModel(root, name) {
   let prescaled = !!root.userData.prescaled; root.traverse(o => { if (o.userData && o.userData.prescaled) prescaled = true; });
   if (prescaled) { wrap.rotation.y = Math.PI / 2 + customYaw; }        // converter output: nose on +Z, real size, on the ground
   else {
+    // undo OUR last pass first (only ours -- userData.simJunk): car roots are cached and re-installed when you
+    // switch back to a car, and bodyBounds ignores hidden meshes, so without this the measured body shrinks a
+    // little every time, more of the car qualifies as "scenery", and the car eats itself switch by switch.
+    root.traverse(o => { if (o.isMesh && o.userData.simJunk) { o.visible = true; o.userData.simJunk = false; } });
     const bb = bodyBounds(wrap);
-    for (const o of bb.junk) o.visible = false;   // stage floors and fake light cones are not part of the car
+    for (const o of bb.junk) { o.visible = false; o.userData.simJunk = true; }   // stage floors and fake light cones are not part of the car
     const size = bb.box.getSize(new THREE.Vector3());
     const long = Math.max(size.x, size.z);
     const sc = CAR.length / long; root.scale.setScalar(sc);
@@ -9352,10 +9379,19 @@ function frame(now) {
   if (snowfall.pts) { const P = snowfall.pts.geometry.attributes.position, A = P.array, cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, vy = snowfall.up ? 2.2 : -5.5; for (let k = 0; k < A.length; k += 3) { A[k + 1] += vy * dt; A[k] += 1.2 * dt; let dx = A[k] - cx, dy = A[k + 1] - cy, dz = A[k + 2] - cz; if (dy < -60) A[k + 1] += 120; else if (dy > 60) A[k + 1] -= 120; if (dx > 80) A[k] -= 160; else if (dx < -80) A[k] += 160; if (dz > 80) A[k + 2] -= 160; else if (dz < -80) A[k + 2] += 160; } P.needsUpdate = true; }
   if (window.__signAnimate) window.__signAnimate(now);
   if (window.__bannerAnimate) window.__bannerAnimate(now);
-  if ((frames & 1) === 0) { car.visible = false; if (mirror) mirror.visible = false; for (const a of ai) a.grp.visible = a.pos.distanceToSquared(st.pos) < 45 * 45; cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); car.visible = true; if (mirror) mirror.visible = true; for (const a of ai) a.grp.visible = true; }
+  // the car is hidden for the reflection render so it cannot reflect itself. try/finally because if cubeCam.update
+  // throws (a lost context, a bad texture, a shader that failed to compile on this GPU) the old code left the car
+  // invisible for the rest of the session -- the car simply disappears and never comes back.
+  if ((frames & 1) === 0) {
+    car.visible = false; if (mirror) mirror.visible = false; for (const a of ai) a.grp.visible = a.pos.distanceToSquared(st.pos) < 45 * 45;
+    try { cubeCam.position.copy(st.pos).addScaledVector(st.up, 0.7); cubeCam.update(renderer, scene); }
+    catch (e) { console.error('reflection pass', e); }
+    finally { car.visible = true; if (mirror) mirror.visible = true; for (const a of ai) a.grp.visible = true; }
+  }
   bodyGroup.rotation.z = damp(bodyGroup.rotation.z, st.aLong * 0.004, 8, dt);
   bodyGroup.rotation.x = damp(bodyGroup.rotation.x, st.aLat * 0.006, 8, dt);
   updateCamera(dt);
+  skyRide();
   sun.position.copy(car.position).addScaledVector(sunDir, 300); sun.target.position.copy(car.position); sun.target.updateMatrixWorld();
   updateHUD();
   if (bloomOn && composer) composer.render(); else renderer.render(scene, camera);

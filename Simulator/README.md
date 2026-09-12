@@ -485,6 +485,46 @@ the car model uses 10.7 MB of it): 720 px wide, 6 to 10 s, VP9 WebM or H.264
 MP4. While the game is running you can also drag a picture or a clip onto
 the page to preview it on the board without rebuilding.
 
+## When the view goes away: what was actually wrong
+
+Corey reported that on some worlds "the car disappears and you can't see
+anything — a background or fog type glitch". Four separate causes, found by
+walking every world's whole lap geometrically (the scratchpad's `occlude.js`
+places the car at 170-340 points per world and asks whether any piece of
+furniture is inside the car, inside the chase camera, or between the two —
+a 14-point render sweep steps straight over a 300 m problem) and by reading
+the code paths that can hide things.
+
+- **THE DOCKS put the car inside its own ships.** The two hulls and deck
+  slabs were pinned at a fixed height (deck top y = 8.0) while the road
+  ramps from y = 3 up over them and crosses the second ship at y = 6. So
+  for ~107 m of lap the car was inside a solid hull, for ~53 m inside the
+  deck slab, and for ~54 m the chase camera — 1.9 m higher than the car —
+  sat inside an opaque lid looking down at nothing. Each ship now measures
+  its own stretch of spline and sits under it.
+- **The sky was pinned to the world origin.** The dome (r 8500), the stars
+  (r 8000) and the sun disc (7800 m out) never moved, while the camera
+  drives up to 3.4 km away — so their far side sat up to 11.9 km from the
+  eye, past the 9000 m far plane, and got sliced off: a hole of flat
+  background colour, and on the starfield worlds the stars simply stopped
+  existing over half the sky. They ride with the camera now, which is what
+  "at infinity" means.
+- **The reflection pass could hide the car permanently.** Every other frame
+  the car is hidden so it cannot reflect itself in its own cube map. There
+  was no try/finally, so a single throw inside `cubeCam.update` — a lost
+  context, a shader that failed to compile on someone's GPU — left the car
+  invisible for the rest of the session.
+- **A failed model install left no car at all**, because the old body is
+  removed 40-odd lines before the new one is added and the procedural body
+  is never switched back on. It falls back now.
+
+Measured and deliberately NOT changed: WHITEOUT and DEEP BLUE both render
+with the same detail and contrast spread as the clean baseline, so the dense
+fog is doing its job rather than blinding anyone; NEON CITY's underpasses
+are fine because the ground plane is single-sided and invisible from below;
+and the big boxes flagged on TOUGE, JUNGLE and THE ARENA are bounding boxes
+of a mountain, a tunnel and the stadium you are supposed to be inside.
+
 ## What a downloaded car brings with it that isn't the car
 
 Every shop car is somebody else's Sketchfab model, and they arrive carrying

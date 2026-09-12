@@ -638,6 +638,46 @@ caliper and brake disc present, visible, opaque and textured (Material.077 is
 the tyre, 0.69 x 0.72 x 0.37), and they render identically before and after
 compression -- asked Corey which view he means rather than guessing.
 
+**Blackout hunt 2026-09-12 (Corey: "some of the level the car disappears and
+you cant see anything... a background or fog type glitch").** Ran a Workflow
+(5 code-review agents over fog/camera, tunnels/roof-clip, postprocessing,
+world dressing, lighting + a render sweep), then out-detected the render
+sweep with a purely geometric scan: scratchpad/test/occlude.js walks a whole
+lap (170-340 samples) and tests every piece of furniture against the car
+point and the chase-camera point, skipping meshes over 500 m (terrain,
+water, dome) and see-through ones. A uniform 14-point render sweep found
+NOTHING; the geometric scan found the real thing immediately. Worth
+remembering: for local defects, sample the whole lap and test geometry, do
+not sample sparsely and look at pixels.
+
+FIXED: (1) THE DOCKS -- hull/deck boxes at a fixed y = 8 while the road ramps
+3 -> 8 -> 6 -> 8 over them: 107 m of lap with the car inside a solid hull,
+53 m inside the deck, 54 m with the CAMERA inside the deck. Each ship now
+measures min spline y over its own z-span and sits 0.35 m under it. Verified
+with a 2x finer scan: zero hits. (2) The sky dome (r 8500), stars (r 8000)
+and sun (7800 m) were pinned to the world origin while the camera goes 3.4 km
+out, so their far side crossed the 9000 m far plane and was clipped -- holes
+of flat background colour, stars gone over half the sky. skyFollow[] +
+skyRide() ride them with the camera. (3) The cube-map reflection pass hides
+the car every other frame with no try/finally -- one throw and the car is
+invisible forever. (4) installModel now falls back to the procedural body if
+fitting throws. (5) MY OWN REGRESSION from earlier today: bodyBounds junk
+hiding was a one-way ratchet -- car roots are cached, bodyBounds ignores
+hidden meshes, so re-installing the same car measured a smaller body each
+time and hid more of it. Tagged with userData.simJunk and undone before each
+measure.
+
+RULED OUT BY MEASUREMENT (left alone): WHITEOUT and DEEP BLUE render at
+detail 0.49-0.64 / std 32-58, the same band as the clean SALT baseline, so
+the dense fog is not blinding anyone; NEON CITY's two underpasses (612 m and
+438 m below ground) are fine because the ground plane is single-sided and
+invisible from beneath; TOUGE, JUNGLE and ARENA "car inside a box" hits are
+bounding boxes of a mountain, a tunnel and the stadium; the 56x18x56 box that
+flags on EVERY world at s~70 m is the hollow start gantry. Also checked and
+wrong: my own first two hypotheses (camera leaving the 8500 m dome -- every
+world stays within 3.4 km of origin; STRATOS driving under its cloud decks --
+decks at y 330/430, road at y >= 674).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their
