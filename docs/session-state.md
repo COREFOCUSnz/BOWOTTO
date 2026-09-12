@@ -611,6 +611,19 @@ not to be forgotten: **never cut a player off mid-lap or mid-race when their
 credit runs out. Let the race finish, then stop.** So credit should be spent
 per race, not per minute.
 
-**Firebase auto-deploy: parked.** The workflow is in place and green; it only
-needs the FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM secret added in GitHub to start
-deploying by itself. Corey said to come back to it.
+**Firebase auto-deploy: LIVE as of 2026-09-12.** Corey added the
+FIREBASE_SERVICE_ACCOUNT_LAMBO_SIM secret, and run #34 (workflow_dispatch)
+deployed hosting + Firestore rules green. Every push touching Simulator/**
+on main or the feature branch now publishes to lambo-sim.web.app by itself;
+no terminal step, and the run can also be started by hand from the Actions
+tab. index.html is cached 5 min, the models a week, so a hard refresh is
+needed to see a change immediately.
+
+**Security note from that same session:** the service-account JSON was
+pasted into the chat before it reached GitHub. A key in a transcript is
+burned -- the only fix is deleting it in the Google Cloud console (IAM ->
+Service accounts -> firebase-adminsdk -> KEYS -> delete, then ADD KEY for a
+fresh one, then update the GitHub secret, since a deleted key stops
+authenticating). Exposed key id started f14d1dbf. For next time: `pbcopy <
+file.json` puts it on the clipboard without it ever appearing on screen, and
+the GitHub secret box is the only place it should ever be pasted.
