@@ -1,0 +1,154 @@
+name: Release Firewall APK
+
+# A signed, minified build you can hand to someone.
+#
+# Deliberately NOT on every push. A release is a thing you decide to make:
+# run it by hand, or push a tag like firewall-v0.1.0.
+#
+# The signing key lives in repository secrets and nowhere else. It is written
+# to a temp file for the length of the build and shredded afterwards, and the
+# job fails loudly rather than emitting an unsigned APK, because an unsigned
+# one is worse than none - it installs, then can never be updated.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'firewall-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Signed release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail before doing five minutes of work, and name exactly what is
+      # missing. A half-configured release is the most annoying kind.
+      - name: Check the signing secrets are present
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FIREWALL_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.FIREWALL_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.FIREWALL_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.FIREWALL_KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ]   || missing="$missing FIREWALL_KEYSTORE_BASE64"
+          [ -n "$KEYSTORE_PASSWORD" ] || missing="$missing FIREWALL_KEYSTORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ]         || missing="$missing FIREWALL_KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ]      || missing="$missing FIREWALL_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "See apps/firewall/docs/RELEASING.md for how to create them."
+            exit 1
+          fi
+          echo "ok: all four signing secrets are set"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Unit tests
+        run: gradle --no-daemon --project-dir apps/firewall :app:testReleaseUnitTest
+
+      - name: Decode the keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FIREWALL_KEYSTORE_BASE64 }}
+        run: |
+          # Outside the workspace so no later step can glob it into an artifact.
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/firewall-release.jks"
+          echo "FIREWALL_KEYSTORE_FILE=$RUNNER_TEMP/firewall-release.jks" >> "$GITHUB_ENV"
+
+      - name: Assemble signed release
+        env:
+          FIREWALL_KEYSTORE_PASSWORD: ${{ secrets.FIREWALL_KEYSTORE_PASSWORD }}
+          FIREWALL_KEY_ALIAS: ${{ secrets.FIREWALL_KEY_ALIAS }}
+          FIREWALL_KEY_PASSWORD: ${{ secrets.FIREWALL_KEY_PASSWORD }}
+        run: gradle --no-daemon --project-dir apps/firewall :app:assembleRelease
+
+      # Signed by whom, exactly. The fingerprint is what ties every future
+      # update to this same key, so it is printed on every release and worth
+      # recording once so a swapped key would be noticed.
+      - name: Verify the signature
+        run: |
+          set -euo pipefail
+          apk=apps/firewall/app/build/outputs/apk/release/app-release.apk
+          tools="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+
+          "$tools/apksigner" verify --verbose --print-certs "$apk"
+
+          echo "size:   $(du -h "$apk" | cut -f1)"
+          echo "sha256: $(sha256sum "$apk" | cut -d' ' -f1)"
+
+          # The debug keystore's certificate is always CN=Android Debug. If that
+          # shows up here the wrong key was used and this must not ship.
+          if "$tools/apksigner" verify --print-certs "$apk" | grep -q "CN=Android Debug"; then
+            echo "::error::This APK is signed with the Android debug key, not the release key."
+            exit 1
+          fi
+          echo "ok: signed with a non-debug certificate"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # The release build is minified and resource-shrunk, and the debug build
+      # that all the other tests run against is not. R8 removing something the
+      # app needs at runtime is invisible until launch, so launch it.
+      - name: Smoke test the minified APK on a device
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb install -r apps/firewall/app/build/outputs/apk/release/app-release.apk
+            adb logcat -c
+            adb shell am start -n nz.corefocus.firewall/.game.TetrisActivity
+            sleep 10
+
+            if adb logcat -d | grep -q "FATAL EXCEPTION"; then
+              echo "::error::The release build crashed on launch. R8 most likely stripped something."
+              adb logcat -d | grep -A 30 "FATAL EXCEPTION"
+              exit 1
+            fi
+
+            # Still alive ten seconds later, not just slow to die.
+            if [ -z "$(adb shell pidof nz.corefocus.firewall || true)" ]; then
+              echo "::error::The release build is not running after launch."
+              adb logcat -d | tail -60
+              exit 1
+            fi
+            echo "ok: the minified release build launches and stays up"
+
+      - name: Upload the signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: firewall-release-apk
+          path: apps/firewall/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      # Runs even if something above failed, so a crashed build never leaves
+      # the key sitting on the runner.
+      - name: Shred the keystore
+        if: always()
+        run: shred -u "$RUNNER_TEMP/firewall-release.jks" 2>/dev/null || rm -f "$RUNNER_TEMP/firewall-release.jks"

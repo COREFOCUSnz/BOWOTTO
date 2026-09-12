@@ -156,7 +156,16 @@ From the phone:
 Downloading the artifact needs a GitHub login with access to the repo, so it
 is not a link that can be forwarded to someone else.
 
-### This is a debug build
+### Releases
+
+`.github/workflows/firewall-release.yml` builds a signed, minified release and
+is run by hand or by pushing a `firewall-v*` tag. It needs four repository
+secrets holding your signing key — see [docs/RELEASING.md](docs/RELEASING.md),
+which also covers why losing that key is unrecoverable.
+
+The CI build below is the debug one, and stays useful for day-to-day testing.
+
+### The CI build is a debug build
 
 `assembleDebug` signs with the standard Android debug keystore — the one every
 SDK install shares. That is what makes it installable without setting up
