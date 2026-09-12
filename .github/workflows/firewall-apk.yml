@@ -135,9 +135,14 @@ jobs:
   # ways to fail for reasons that are nothing to do with the code. Keeping it
   # out of the APK job means infrastructure trouble here never stops a build
   # from producing something installable - but a red run here is still a real
-  # failure and means the key hierarchy is broken on device.
+  # failure and means something is broken on device.
+  #
+  # This job covers the three things the unit suite structurally cannot reach:
+  # the Android Keystore, the gallery's layout at real screen constraints, and
+  # the import path through Android's imaging and EXIF stack. Every fault that
+  # has reached a phone so far lived in one of those.
   instrumented:
-    name: Keystore tests on an emulator
+    name: On-device tests
     runs-on: ubuntu-latest
 
     steps:
@@ -163,9 +168,6 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # These tests exist because AndroidKeyStore has no desktop equivalent, so
-      # the unit suite runs against a passthrough stub and cannot see a fault in
-      # the real seal path. One shipped to a phone exactly that way.
       - name: Instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:

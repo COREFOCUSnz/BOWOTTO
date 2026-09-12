@@ -63,12 +63,22 @@ third-party libraries. The debug APK is about 9.2 MB.
   `FLAG_SECURE` applies, so allowing screenshots cannot quietly start leaking
   the vault into the task switcher.
 
-There are also instrumented tests in `app/src/androidTest/` that only run on a
-device or emulator, covering the Android Keystore. They exist because a
-Keystore bug shipped to a phone while all 28 unit tests were green — the unit
-suite substitutes a passthrough stub for the Keystore, so the real path had
-never run. CI runs them on an emulator on every push. See the note in
-docs/SECURITY.md.
+16 more live in `app/src/androidTest/` and only run on a device or emulator,
+covering the three areas the unit suite structurally cannot reach:
+
+- **`KeystoreVaultTest`** — the real Android Keystore. Seal round-trips, a
+  foreign Keystore key cannot unseal, a vault survives a cold start, and
+  `changePasscode` preserves the vault key.
+- **`VaultScreenLayoutTest`** — the gallery rendered at real screen
+  constraints, asserting with `assertIsDisplayed` that the controls are inside
+  the screen bounds in every state.
+- **`ImportTest`** — a real image file in and real bitmaps out, the long-edge
+  cap, a non-image source refused, the file on disk not opening as a JPEG, and
+  GPS/make/model/capture-date absent from what comes back out.
+
+These exist because all three bugs that ever reached a phone were in code no
+desktop test could execute — see [docs/SECURITY.md](docs/SECURITY.md). CI runs
+them on an emulator on every push.
 
 Three unit tests were checked by mutation: deleting the header CRC check makes the
 corruption test fail, collapsing the two section AADs into one makes the
