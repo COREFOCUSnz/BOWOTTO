@@ -2,11 +2,12 @@ package nz.corefocus.firewall.lock
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import nz.corefocus.firewall.FirewallApp
 import nz.corefocus.firewall.ui.FirewallTheme
+import nz.corefocus.firewall.util.AppSettings
+import nz.corefocus.firewall.util.ScreenPrivacy
 import nz.corefocus.firewall.util.VaultSession
 import nz.corefocus.firewall.vault.VaultActivity
 
@@ -23,9 +24,12 @@ class PasscodeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // No screenshots, no screen recording, no thumbnail in the recents
-        // list. Set before setContent so the very first frame is protected.
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        // Screenshots follow the owner's setting; the recents thumbnail never
+        // does. Installed before setContent so the first frame is already right.
+        val settings = AppSettings(this)
+        lifecycle.addObserver(
+            ScreenPrivacy(this) { settings.allowScreenshots }.also { it.install() },
+        )
 
         val keyManager = (application as FirewallApp).keyManager
 

@@ -41,9 +41,27 @@ from cloud backup and device-to-device transfer. See [FORMAT.md](FORMAT.md).
 **Metadata.** Imports are decoded to pixels and re-encoded, which drops GPS,
 capture time, camera serial and the camera's embedded preview thumbnail.
 
-**Screenshots.** Both the passcode screen and the vault set `FLAG_SECURE`, so
-they cannot be screenshotted or screen-recorded, and they show as blank in the
-recents list.
+**Screenshots.** Allowed, by default, inside the app — the owner asked for
+this and it is their call. What is *not* allowed either way is the vault
+appearing in the task switcher: someone who picks up the phone and double-taps
+recents would otherwise see a photo out of the vault without ever meeting the
+passcode. `FLAG_SECURE` conflates those two things, so the app separates them
+(`util/ScreenPrivacy.kt`): on Android 13 and up it calls
+`setRecentsScreenshotEnabled(false)`, which suppresses the thumbnail and leaves
+screen capture alone; below 13, where no such API exists, it carries
+`FLAG_SECURE` only while the window is backgrounded, which is when the
+thumbnail is taken.
+
+A switch in the vault turns screen capture back off, which restores
+`FLAG_SECURE` on every vault window immediately. The truth table behind all of
+this is four cells wide and is unit tested — get one wrong and either a
+screenshot the owner asked for fails, or a vault photo lands in recents.
+
+Two caveats on the below-13 path. The system takes the recents snapshot around
+`onPause`, so applying the flag there is best-effort and OEM-dependent; and
+while screen capture is enabled, anything the *owner* screenshots leaves the
+vault and lands in Gallery as an ordinary unencrypted JPEG, where the whole
+point of the app no longer applies to it.
 
 **Auto-lock.** The key is dropped from memory when the app leaves the screen —
 no timer. The one exception is a two-minute grace window while the system photo

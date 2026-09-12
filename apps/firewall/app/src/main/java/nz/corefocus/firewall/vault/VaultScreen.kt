@@ -23,6 +23,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,6 +57,8 @@ import nz.corefocus.firewall.ui.Panel
 fun VaultScreen(
     repository: VaultRepository,
     thumbnails: ThumbnailCache,
+    allowScreenshots: Boolean,
+    onAllowScreenshotsChange: (Boolean) -> Unit,
     onAddPhotos: (onFinished: () -> Unit) -> Unit,
     onLock: () -> Unit,
 ) {
@@ -63,6 +67,8 @@ fun VaultScreen(
     var loading by remember { mutableStateOf(true) }
     var viewing by remember { mutableStateOf<VaultRepository.Entry?>(null) }
     var pendingDelete by remember { mutableStateOf<VaultRepository.Entry?>(null) }
+    // Seeded from the stored setting; this screen is the only thing that changes it.
+    var screenshotsOn by remember { mutableStateOf(allowScreenshots) }
 
     fun reload() {
         scope.launch {
@@ -130,10 +136,18 @@ fun VaultScreen(
             }
         }
 
+        ScreenshotToggle(
+            checked = screenshotsOn,
+            onCheckedChange = {
+                screenshotsOn = it
+                onAllowScreenshotsChange(it)
+            },
+        )
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
@@ -178,6 +192,47 @@ fun VaultScreen(
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) { Text("Keep", color = Muted) }
             },
+        )
+    }
+}
+
+/**
+ * Lets the owner turn screenshots and screen recording back off.
+ *
+ * The caption is doing real work: it would be easy to read this switch as "hide
+ * the vault from the phone", and it is narrower than that. The task-switcher
+ * thumbnail is suppressed either way - see ScreenPrivacyPolicy - so the only
+ * thing on this switch is whether the system can capture the screen.
+ */
+@Composable
+private fun ScreenshotToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 12.dp, top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Allow screenshots", color = Chalk, fontSize = 13.sp)
+            Text(
+                if (checked) {
+                    "On. The task switcher still shows nothing."
+                } else {
+                    "Off. The system cannot capture these screens."
+                },
+                color = Muted,
+                fontSize = 10.5.sp,
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Ink,
+                checkedTrackColor = Accent,
+                uncheckedThumbColor = Muted,
+                uncheckedTrackColor = Panel,
+            ),
         )
     }
 }

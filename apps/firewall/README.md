@@ -23,6 +23,8 @@ you handed it to. Firewall is built for that, not for a forensics lab.
   system dialog. The vault copy stays until you delete it from inside the vault
   — the two deletions are separate, on purpose.
 - The vault locks itself the moment the app leaves the screen.
+- Screenshots work inside the app. The task switcher still shows nothing, and a
+  switch in the vault turns screen capture back off if you want that.
 
 ## Building it
 
@@ -44,7 +46,7 @@ third-party libraries.
 
 ## Testing
 
-24 unit tests, no device needed. They cover the three things worth proving:
+28 unit tests, no device needed. They cover the four things worth proving:
 
 - **`VaultFormatTest`** — the container round-trips; a foreign key cannot open a
   section; a section cannot be moved into another slot; a single flipped header
@@ -57,10 +59,15 @@ third-party libraries.
 - **`TetrisEngineTest`** — pieces stay inside the well, the seven-bag deals
   fairly, hold swaps once per piece, the game actually ends, and the gravity
   delay never reaches zero.
+- **`ScreenPrivacyPolicyTest`** — the four-cell table deciding when
+  `FLAG_SECURE` applies, so allowing screenshots cannot quietly start leaking
+  the vault into the task switcher.
 
-Two of them were checked by mutation: deleting the header CRC check makes the
-corruption test fail, and collapsing the two section AADs into one makes the
-role-binding test fail. They bite.
+Three were checked by mutation: deleting the header CRC check makes the
+corruption test fail, collapsing the two section AADs into one makes the
+role-binding test fail, and writing the screen policy the naive way — drop the
+flag whenever screenshots are allowed — fails two of the privacy tests. They
+bite.
 
 ## How it is put together
 
@@ -75,6 +82,8 @@ game/TetrisShapes.kt        the tetromino tables, shared with the renderer
 game/TetrisScreen.kt        the board, the controls, and the gold chip
 game/TetrisActivity.kt      the launcher activity — the only exported component
 lock/PasscodeScreen.kt      the pad, the lockout countdown, first-run setup
+util/ScreenPrivacy.kt       screenshots on, recents thumbnail off - unit tested
+util/AppSettings.kt         the owner's preferences
 vault/VaultFormat.kt        the .fwl container
 vault/ImageNormaliser.kt    downsample, rotate, re-encode, strip every EXIF tag
 vault/VaultRepository.kt    the gallery on disk
@@ -86,13 +95,17 @@ and the threat model — including what this does *not* protect against — is i
 [docs/SECURITY.md](docs/SECURITY.md). Read the second one before trusting the
 app with anything that matters.
 
-## Changing the two obvious things
+## Changing the obvious things
 
 - **The decoy's name** is `app_name` in `res/values/strings.xml`. It is
   currently "Blockfall". `vault_name` is the name used inside the vault.
 - **The way in** is `SecretChip` in `game/TetrisScreen.kt`. It is a long-press
   today; swapping `onLongClick` for `onClick` makes it a single tap, at the cost
   of it being hit by accident.
+- **Screen capture** defaults to on. `AppSettings.allowScreenshots` is the
+  stored setting and `util/ScreenPrivacy.kt` decides what the window does with
+  it; flipping the default to `false` restores the original always-`FLAG_SECURE`
+  behaviour.
 
 ## Why it lives here
 

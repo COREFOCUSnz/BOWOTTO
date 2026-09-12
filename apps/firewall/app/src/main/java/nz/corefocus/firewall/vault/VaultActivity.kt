@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
-import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +18,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import nz.corefocus.firewall.ui.FirewallTheme
+import nz.corefocus.firewall.util.AppSettings
+import nz.corefocus.firewall.util.ScreenPrivacy
 import nz.corefocus.firewall.util.VaultSession
 
 /**
@@ -27,6 +28,8 @@ import nz.corefocus.firewall.util.VaultSession
 class VaultActivity : ComponentActivity() {
 
     private lateinit var repository: VaultRepository
+    private lateinit var settings: AppSettings
+    private lateinit var screenPrivacy: ScreenPrivacy
     private val thumbnails = ThumbnailCache()
 
     private var onImportFinished: (() -> Unit)? = null
@@ -44,7 +47,13 @@ class VaultActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
+        // Screenshots follow the owner's setting; the recents thumbnail never
+        // does. Installed before setContent so the first frame is already right.
+        settings = AppSettings(this)
+        screenPrivacy = ScreenPrivacy(this) { settings.allowScreenshots }
+        screenPrivacy.install()
+        lifecycle.addObserver(screenPrivacy)
 
         val key = VaultSession.keyOrNull()
         if (key == null) {
@@ -60,6 +69,12 @@ class VaultActivity : ComponentActivity() {
                 VaultScreen(
                     repository = repository,
                     thumbnails = thumbnails,
+                    allowScreenshots = settings.allowScreenshots,
+                    onAllowScreenshotsChange = { allowed ->
+                        settings.allowScreenshots = allowed
+                        // Takes effect now rather than on the next unlock.
+                        screenPrivacy.refresh()
+                    },
                     onAddPhotos = { onFinished ->
                         onImportFinished = onFinished
                         // The picker is another app, so the process goes to the
