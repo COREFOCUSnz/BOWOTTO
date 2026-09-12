@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>2Fort Classic</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: "Trebuchet MS", Verdana, sans-serif; color: #ffb000; user-select: none;
+    -webkit-user-select: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; touch-action: none; }
+  #c { touch-action: none; }
+  #c { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  [hidden] { display: none !important; }
+  .ov { position: absolute; pointer-events: none; }
+  #hudl { left: 18px; bottom: 16px; display: flex; gap: 22px; align-items: flex-end; }
+  #hudr { right: 18px; bottom: 16px; text-align: right; }
+  .big { font-size: 46px; font-weight: bold; line-height: 1; text-shadow: 0 0 6px #000, 2px 2px 0 #000; font-family: "Arial Black", Impact, sans-serif; }
+  .lbl { font-size: 12px; letter-spacing: 2px; opacity: .8; text-shadow: 1px 1px 0 #000; }
+  #hp.low { color: #ff3020; animation: blink .5s infinite alternate; }
+  @keyframes blink { from { opacity: 1 } to { opacity: .5 } }
+  #weapon { font-size: 15px; letter-spacing: 1px; margin-top: 4px; text-shadow: 1px 1px 0 #000; }
+  #gren { font-size: 13px; margin-top: 6px; opacity: .9; text-shadow: 1px 1px 0 #000; }
+  #gren span { margin-left: 12px; } #gren span.primed { color: #ff4040; }
+  #xhair { left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+  #xhair:before, #xhair:after { content: ""; position: absolute; background: #9f9; box-shadow: 0 0 2px #000; }
+  #xhair:before { left: 8px; top: 0; width: 2px; height: 18px; } #xhair:after { top: 8px; left: 0; width: 18px; height: 2px; }
+  /* --hit runs 1 -> 0 after a shot lands: the crosshair flicks open and goes hot */
+  #xhair { --hit: 0; }
+  #xhair:before, #xhair:after { background: rgb(calc(153 + var(--hit) * 102), calc(255 - var(--hit) * 70), calc(153 - var(--hit) * 100)); }
+  #xhair:before { transform: scaleY(calc(1 + var(--hit) * 0.55)); }
+  #xhair:after { transform: scaleX(calc(1 + var(--hit) * 0.55)); }
+  #score { left: 50%; top: 10px; transform: translateX(-50%); font: bold 18px "Arial Black", Impact, sans-serif; text-shadow: 1px 1px 0 #000; }
+  #score span { margin: 0 12px; }
+  #timer { left: 50%; top: 34px; transform: translateX(-50%); font-size: 14px; opacity: .85; text-shadow: 1px 1px 0 #000; }
+  #flags { left: 16px; top: 12px; font-size: 13px; line-height: 1.5; text-shadow: 1px 1px 0 #000; }
+  #flags .carry { color: #fff; font-weight: bold; font-size: 15px; margin-top: 4px; animation: blink .6s infinite alternate; }
+  #feed { right: 16px; top: 12px; font-size: 13px; text-align: right; line-height: 1.5; text-shadow: 1px 1px 0 #000; color: #eee; }
+  #msgs { left: 50%; top: 20%; transform: translateX(-50%); text-align: center; font-size: 18px; text-shadow: 0 0 4px #000, 1px 1px 0 #000; color: #fff; }
+  #msgs .cap { color: #ffd040; font-size: 22px; font-weight: bold; } #msgs .info, #msgs .pickup { font-size: 15px; color: #ddd; }
+  #status { left: 50%; top: 58%; transform: translateX(-50%); text-align: center; font-size: 14px; color: #ff8040; text-shadow: 1px 1px 0 #000; }
+  #dead { left: 50%; top: 40%; transform: translateX(-50%); text-align: center; font-size: 26px; color: #fff; text-shadow: 0 0 8px #000, 2px 2px 0 #000; }
+  #dead .small { font-size: 14px; color: #ccc; margin-top: 6px; }
+  .blue { color: #6fa0ff; } .red { color: #ff6a5a; }
+  #charge, #build { left: 50%; top: 56%; width: 160px; height: 8px; margin-left: -80px; background: rgba(0,0,0,.6); border: 1px solid #ffb000; }
+  #charge div, #build div { height: 100%; background: #ff3020; width: 0; }
+  #build div { background: #ffb000; }
+  #flash { left: 0; top: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, rgba(255,0,0,0) 40%, rgba(255,0,0,.9) 100%); opacity: 0; }
+  #zoomov { left: 0; top: 0; right: 0; bottom: 0; background: radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,1) 40%); }
+  #zoomov:before, #zoomov:after { content: ""; position: absolute; left: 50%; top: 50%; background: rgba(0,0,0,.8); }
+  #zoomov:before { width: 1px; height: 40vmin; transform: translate(0,-50%); } #zoomov:after { height: 1px; width: 40vmin; transform: translate(-50%,0); }
+  #scores { left: 50%; top: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,.8); padding: 14px 20px; border: 2px solid #ffb000; font-size: 14px; display: flex; gap: 20px; }
+  #scores table { border-collapse: collapse; min-width: 300px; } #scores th { text-align: left; padding: 2px 10px; border-bottom: 1px solid #555; }
+  #scores td { padding: 2px 10px; color: #ddd; } #scores tr.me td { color: #fff; font-weight: bold; }
+  #tags { left: 0; top: 0; } .tag { position: absolute; transform: translate(-50%, -100%); font-size: 12px; text-align: center; text-shadow: 1px 1px 0 #000; line-height: 1.1; }
+  .tag small { color: #ccc; font-size: 10px; }
+  /* Hit confirmation: a number that rises off whatever you just shot. */
+  .dmg { position: absolute; font-weight: 700; font-size: 17px; color: #ffe07a;
+         text-shadow: 0 2px 0 #000, 0 0 6px rgba(0,0,0,.9); pointer-events: none; white-space: nowrap; }
+  .dmg.crit { color: #ff6b4a; font-size: 21px; }
+  #menu { position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 10; background: rgba(0,0,0,.72); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #menu .title { font: bold 44px "Arial Black", Impact, sans-serif; color: #ffb000; letter-spacing: 3px; text-shadow: 3px 3px 0 #000; }
+  #menu .title span { color: #fff; } #menu .sub { color: #aaa; margin-bottom: 26px; font-size: 13px; }
+  #menu .list { background: rgba(20,20,20,.92); border: 2px solid #ffb000; padding: 12px 16px; min-width: 360px; max-width: 640px; max-height: 80vh; overflow: auto; scrollbar-width: thin; scrollbar-color: #8a6000 rgba(255,176,0,.1); }
+  #menu .list::-webkit-scrollbar { width: 11px; }
+  #menu .list::-webkit-scrollbar-track { background: rgba(255,176,0,.1); }
+  #menu .list::-webkit-scrollbar-thumb { background: #8a6000; border: 2px solid rgba(20,20,20,.92); }
+  #menu .list::-webkit-scrollbar-thumb:hover { background: #ffb000; }
+  #menu .h { color: #fff; font-weight: bold; margin-bottom: 8px; font-size: 18px; }
+  #menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: #ffb000; font: 17px "Trebuchet MS", Verdana, sans-serif; padding: 6px 8px; cursor: pointer; }
+  #menu button:hover { background: #ffb000; color: #000; } #menu button b { display: inline-block; width: 22px; }
+  #menu button .on { color: #6f6; } #menu button .off { color: #f66; }
+  #menu .diff.easy { color: #8f8; } #menu .diff.medium { color: #ffd040; } #menu .diff.hard { color: #ffa040; } #menu .diff.difficult { color: #ff5a40; } #menu .diff.godly { color: #e080ff; text-shadow: 0 0 6px #c040ff; }
+  #menu button.blue { color: #6fa0ff; } #menu button.red { color: #ff6a5a; }
+  #menu button .skin { color: #7fe0ff; }
+  #menu .skins button .cn { font-weight: bold; font-size: 17px; }
+  #menu .skins button .cd { display: block; font-size: 12px; color: #aaa; margin-left: 30px; }
+  #menu .skins button:hover .cd { color: #222; }
+  #menu .skins button.cur { background: rgba(255,176,0,.14); }
+  #menu .skins .tick { font-size: 11px; color: #6f6; margin-left: 10px; letter-spacing: 1px; }
+  #menu .skins button:hover .tick { color: #060; }
+  #menu .skins .note { color: #888; font-size: 12px; margin: 10px 8px; line-height: 1.5; }
+  #menu .classes button .cn { font-weight: bold; } #menu .classes button .cd { display: block; font-size: 12px; color: #aaa; margin-left: 30px; }
+  #menu .classes button:hover .cd { color: #222; }
+  #menu .hint { margin-top: 14px; color: #bbb; font-size: 13px; } #menu .hint.big { font-size: 22px; margin: 4px 0 14px; }
+  #menu .roomcode { font-size: 40px; font-weight: 700; letter-spacing: 0.15em; color: #ffd873; }
+  #menu .joinrow { display: flex; gap: 8px; margin: 10px 0; }
+  #menu .joinrow input { flex: 1; font: inherit; font-size: 20px; letter-spacing: 0.2em; text-align: center; text-transform: uppercase; background: #1a1a1a; color: #eee; border: 1px solid #555; border-radius: 4px; padding: 8px; }
+  #menu .joinrow button { padding: 8px 18px; }
+  #menu .small { font-size: 12px; color: #999; }
+  #menu .err { color: #ff8080; font-size: 13px; }
+  #menu label { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #ddd; padding: 6px 8px; font-size: 14px; }
+  #menu input[type=range] { width: 160px; } #menu input[type=text], #menu input:not([type]) { background: #111; color: #fff; border: 1px solid #666; padding: 3px 6px; }
+  #menu .help table { color: #ddd; font-size: 13px; border-collapse: collapse; } #menu .help td { padding: 2px 10px 2px 0; } #menu .help td:first-child { color: #ffb000; font-weight: bold; white-space: nowrap; }
+  #menu .help p { color: #bbb; font-size: 13px; line-height: 1.5; margin: 6px 0; }
+  #menu .help h4 { color: #fff; font-size: 15px; letter-spacing: 1px; text-transform: uppercase; margin: 16px 0 4px; border-bottom: 1px solid #4a3a12; padding-bottom: 3px; }
+  #menu .help h4:first-of-type { margin-top: 6px; }
+  #menu .help b { color: #ffb000; }
+  #menu .help ol, #menu .help ul { color: #bbb; font-size: 13px; line-height: 1.5; margin: 6px 0; padding-left: 22px; }
+  #menu .help li { margin: 3px 0; }
+  #menu .howto { max-width: 620px; }
+
+  /* ---- touch controls ---- */
+  #touch { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 5; }
+  #touch .tb { position: absolute; pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none;
+    background: rgba(20,20,20,.42); border: 2px solid rgba(255,176,0,.65); color: #ffb000;
+    font: bold 13px "Trebuchet MS", Verdana, sans-serif; letter-spacing: 1px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; padding: 0; }
+  #touch .tb b { font-size: 11px; opacity: .85; margin-left: 4px; }
+  #touch .tb.on { background: rgba(255,176,0,.55); color: #000; border-color: #ffb000; }
+  #touch .fire { right: calc(16px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom)); width: 92px; height: 92px; border-radius: 50%; font-size: 15px; }
+  #touch .jump { right: calc(116px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); width: 72px; height: 72px; border-radius: 50%; }
+  #touch .action { right: calc(16px + env(safe-area-inset-right)); bottom: calc(116px + env(safe-area-inset-bottom)); width: 92px; height: 42px; font-size: 12px; }
+  #touch .down { right: calc(116px + env(safe-area-inset-right)); bottom: calc(98px + env(safe-area-inset-bottom)); width: 72px; height: 42px; }
+  #touch .gren { right: calc(198px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); width: 70px; height: 54px; }
+  #touch .gren2 { right: calc(198px + env(safe-area-inset-right)); bottom: calc(82px + env(safe-area-inset-bottom)); width: 70px; height: 54px; }
+  #touch .menu { right: calc(14px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); width: 46px; height: 38px; font-size: 18px; }
+  #touch .scores { right: calc(68px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); width: 62px; height: 38px; font-size: 11px; }
+  #touch .wcol { position: absolute; right: calc(14px + env(safe-area-inset-right)); top: calc(58px + env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  #touch .wcol .tb { position: relative; right: auto; bottom: auto; width: 116px; height: 34px; font-size: 11px; justify-content: space-between; padding: 0 8px; }
+  #touch .wcol .tb.sel { background: rgba(255,176,0,.3); border-color: #ffb000; color: #fff; }
+  #touch .wcol .tb.empty { opacity: .45; }
+  #touch .stick { position: absolute; width: 116px; height: 116px; margin: -58px 0 0 -58px; border-radius: 50%;
+    border: 2px solid rgba(255,176,0,.4); background: rgba(255,176,0,.08); pointer-events: none; }
+  #touch .knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+    background: rgba(255,176,0,.4); border: 2px solid rgba(255,176,0,.8); }
+  body.inmenu #touch { display: none; }
+  #rotate { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: #000; color: #ffb000; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+  #rotate .icon { font-size: 54px; animation: tip 1.6s ease-in-out infinite; }
+  @keyframes tip { 0%,100% { transform: rotate(0deg) } 50% { transform: rotate(90deg) } }
+  /* the weapon column already shows ammo, so the corner readout is redundant on touch */
+  body.touch #hudr { display: none; }
+  body.touch #hudl { left: calc(12px + env(safe-area-inset-left)); bottom: calc(10px + env(safe-area-inset-bottom)); gap: 14px; }
+  body.touch #feed { right: 140px; top: 54px; font-size: 11px; }
+  body.touch #flags { left: calc(12px + env(safe-area-inset-left)); font-size: 11px; }
+  @media (max-height: 520px) {
+    .big { font-size: 30px; } .lbl { font-size: 10px; letter-spacing: 1px; }
+    #score { font-size: 15px; } #timer { font-size: 12px; top: 28px; }
+    #msgs { font-size: 15px; top: 16%; } #msgs .cap { font-size: 18px; }
+    #dead { font-size: 20px; } #scores { font-size: 11px; padding: 8px 12px; }
+    #scores table { min-width: 0; } #scores th, #scores td { padding: 1px 6px; }
+    #menu .title { font-size: 28px; } #menu .sub { margin-bottom: 12px; }
+    #menu .list { max-height: 86vh; }
+  }
+  #menu .list { min-width: min(360px, 92vw); }
+  body.touch #menu button { padding: 10px 8px; font-size: 16px; }
+  #loading, #nogl { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 18px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="loading">Building 2Fort…</div>
+<div id="nogl" hidden>This game needs WebGL.</div>
+<div id="flash" class="ov"></div>
+<div id="zoomov" class="ov" hidden></div>
+<div id="xhair" class="ov" hidden></div>
+<div id="tags" class="ov"></div>
+<div id="score" class="ov"></div>
+<div id="timer" class="ov"></div>
+<div id="flags" class="ov"></div>
+<div id="feed" class="ov"></div>
+<div id="msgs" class="ov"></div>
+<div id="status" class="ov"></div>
+<div id="dead" class="ov" hidden></div>
+<div id="charge" class="ov" hidden><div></div></div>
+<div id="build" class="ov" hidden><div></div></div>
+<div id="scores" class="ov" hidden></div>
+<div id="hudl" class="ov">
+  <div><div class="lbl">HEALTH</div><div id="hp" class="big">0</div></div>
+  <div><div class="lbl">ARMOR</div><div id="armor" class="big">0</div></div>
+</div>
+<div id="hudr" class="ov">
+  <div class="lbl" id="ammolabel">AMMO</div><div id="ammo" class="big">0</div>
+  <div id="weapon"></div>
+  <div id="gren"></div>
+</div>
+<div id="touch" hidden></div>
+<div id="rotate" hidden><div class="icon">&#128241;</div><div><b>Turn your phone sideways</b></div><div style="color:#aaa;font-size:13px">2Fort needs landscape</div></div>
+<div id="menu" hidden></div>
+<!-- Optional: online play. Both fail closed if missing — the game works
+     exactly as before with no online option shown, rather than breaking. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/math.js"></script>
+<script src="js/world.js"></script>
+<script src="js/map2fort.js"></script>
+<script src="js/defs.js"></script>
+<script src="js/render.js"></script>
+<script src="js/weaponmodels.js"></script>
+<script src="js/model.js"></script>
+<script src="js/touch.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/bots.js"></script>
+<script src="js/net.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

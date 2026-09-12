@@ -112,3 +112,42 @@ UI iterated three times based on Corey's feedback:
 - Measured cabinet IR (method known, no capture session yet).
 - Still in scope but deferred: ORION PACK completion (AAX for Pro Tools,
   Windows builds on real hardware).
+
+---
+
+## Side project (not the plugin): `game/`
+
+Corey asked for a browser Team Fortress Classic / 2Fort tribute to host on
+Firebase later. It lives entirely in `game/` (plain JS + WebGL, no deps, no
+build), with its own README, tests (`cd game && npm test`), and
+`firebase.json`. It does not touch the plugin sources, CMake, version or the
+plugin README. Branch: `claude/team-fortress-classic-game-l8qs5f` (open PR #1,
+not merged — merging is Corey's call, not something to do unprompted).
+
+Built across sessions: bots with difficulty levels, TF2/Tron skin sets,
+mobile touch controls, a Blender/procedural asset pipeline (incl. a generated
+Demoman model), a spawn-room video/image screen, a weapon-feel pass (recoil,
+hit numbers, spatial audio, footsteps), and **online play** — friends can now
+share one match instead of separate bot games. Room codes over Firebase
+Realtime Database + anonymous auth, host elected locally (lowest uid
+present, no handoff), remote players pose-driven/smoothed rather than
+simulated, damage always stays authoritative on the target's own client.
+`publish.sh` best-effort automates the one-time Firebase project setup; two
+console clicks (enable Realtime Database, enable Anonymous auth) still need
+doing by hand once — see `game/DEPLOY.md`. Bots and sentries are off in an
+online room for now (v1 limitation, not yet a priority).
+
+**Never tested against real Firebase from this sandbox** — no outbound
+access to Firebase/Google here at all — so `test/net.test.js` and
+`test/multiplayer.test.js` run against a hand-built fake backend / an
+injected stub, not a live project. The first real multi-browser deploy is
+the first real test of that path; flag anything that looks wrong there as
+expected first-run territory, not a sign the approach is broken.
+
+All existing benches (map/sim/difficulty/vfx/audio/net/multiplayer) pass
+clean. `test/browser.test.js` and `test/mobile.test.js` fail on a
+pre-existing, unrelated `file://` fetch of `screens.json` (fine when served
+over http, which is how the game is actually played); `test/feel.test.js`
+has a pre-existing flaky wall-clock-timing assertion on the hit-confirmation
+merge window. Both verified present on the pre-multiplayer baseline too —
+not regressions from the online-play work.

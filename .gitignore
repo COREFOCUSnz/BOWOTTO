@@ -70,3 +70,10 @@ Testing/
 
 # macOS
 .DS_Store
+
+# Firebase service account keys — these are secrets and belong in a repository
+# secret, never in the repo. Named guard so a downloaded key cannot be committed
+# by accident.
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json

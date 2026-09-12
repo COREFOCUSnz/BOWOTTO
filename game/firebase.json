@@ -1,0 +1,34 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/.*",
+      "test/**",
+      "tools/**",
+      "node_modules/**",
+      "package.json",
+      "package-lock.json",
+      "README.md",
+      "DEPLOY.md",
+      "BLENDER.md",
+      "**/*.md",
+      "database.rules.json"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

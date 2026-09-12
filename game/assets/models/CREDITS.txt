@@ -1,0 +1,38 @@
+Character models
+================
+
+GRID SUITS (default: one per team)
+  "Tron Willow"          by SpringSociety   - Blue team
+  "Ares (Tron) Helmet"   by SpringSociety   - Red team
+  Published on Sketchfab, licensed under Creative Commons Attribution (CC BY).
+
+MERCENARIES (optional: one per class, chosen under Settings > Characters)
+  "All of the team Fortress 2 red team Mercenaries" by inonshalev42
+  Published on Sketchfab, licensed under Creative Commons Attribution (CC BY).
+
+What was changed
+----------------
+None of the source files contain animation clips, so every pose in this game is
+generated at runtime from code: the spine, head and run cycle are driven by
+eulers and both hands are placed on the weapon by two-bone inverse kinematics.
+
+For each character the pipeline:
+  - keeps only the skinned meshes (separate sculpts and static props are dropped)
+  - normalises orientation, scale and floor level; heading is resolved from the
+    feet, or from the eye meshes where the feet are ambiguous
+  - retargets the source skeleton (74-282 bones, three different naming
+    conventions) onto a shared 23-bone rig, merging skin weights onto the
+    nearest surviving ancestor bone
+  - quantises vertices (int16 positions, int8 normals, uint16 UVs)
+  - downscales textures to at most 512 px and re-encodes them as JPEG
+  - keeps the emissive map, which is what team colour is painted through on the
+    Grid suits: the circuitry glows cyan for Blue and orange for Red
+
+Rebuild:
+  tools/build-assets.sh <mercenaries.glb>                       # the class set
+  node tools/extract-character.js <suit.glb> tron_blue assets/models
+  node tools/extract-character-textures.js <suit.glb> tron_blue assets/models
+
+Team Fortress is a trademark of Valve Corporation and Tron is a trademark of
+Disney. Neither is affiliated with this project, and no game files from either
+are used here.
