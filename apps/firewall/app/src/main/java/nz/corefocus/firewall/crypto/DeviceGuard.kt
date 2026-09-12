@@ -3,8 +3,10 @@ package nz.corefocus.firewall.crypto
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
+import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 /**
  * A second wrap around the passcode-wrapped vault key, using a key that never
@@ -34,11 +36,49 @@ class KeystoreDeviceGuard(
     private val alias: String = DEFAULT_ALIAS,
 ) : DeviceGuard {
 
-    override fun seal(plaintext: ByteArray): ByteArray =
-        Crypto.encrypt(key(), plaintext, AAD)
+    /**
+     * Note this does NOT go through [Crypto.encrypt], and must not.
+     *
+     * Keystore keys are created with `setRandomizedEncryptionRequired(true)`,
+     * which forbids a caller-supplied IV: the keystore insists on generating
+     * its own, and `init(ENCRYPT_MODE, key, GCMParameterSpec(...))` throws
+     * `InvalidAlgorithmParameterException: Caller-provided IV not permitted`.
+     * So init with no parameters and read the IV back off the cipher.
+     *
+     * This cost the first build on a real phone: [Crypto.encrypt] supplies its
+     * own nonce, which is right for every other key in the app and fatal for
+     * this one. It threw on first run, inside vault creation, and the app died
+     * back to the game. Nothing caught it because the unit tests run against
+     * DeviceGuard.PASSTHROUGH - there is no Keystore on a desktop JVM - so
+     * this method had never once executed. The instrumented test in
+     * androidTest covers it now.
+     */
+    override fun seal(plaintext: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, key())
+        cipher.updateAAD(AAD)
+        val sealed = cipher.doFinal(plaintext)
 
-    override fun unseal(sealed: ByteArray): ByteArray =
-        Crypto.decrypt(key(), sealed, AAD)
+        val iv = cipher.iv
+        check(iv.size == Crypto.NONCE_BYTES) {
+            // Would silently corrupt the layout unseal() expects.
+            "keystore produced a ${iv.size}-byte IV, expected ${Crypto.NONCE_BYTES}"
+        }
+        return iv + sealed
+    }
+
+    /** Decryption is the direction where passing the IV is both required and allowed. */
+    override fun unseal(sealed: ByteArray): ByteArray {
+        require(sealed.size > Crypto.NONCE_BYTES) { "sealed blob is too short to hold an IV" }
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            key(),
+            GCMParameterSpec(Crypto.TAG_BITS, sealed, 0, Crypto.NONCE_BYTES),
+        )
+        cipher.updateAAD(AAD)
+        return cipher.doFinal(sealed, Crypto.NONCE_BYTES, sealed.size - Crypto.NONCE_BYTES)
+    }
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance(PROVIDER).apply { load(null) }
@@ -65,6 +105,7 @@ class KeystoreDeviceGuard(
     companion object {
         const val DEFAULT_ALIAS = "firewall.vault.guard.v1"
         private const val PROVIDER = "AndroidKeyStore"
+        private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private val AAD = "firewall/guard/v1".toByteArray()
     }
 }

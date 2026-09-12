@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,7 +80,8 @@ fun ViewerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Ink),
+            .background(Ink)
+            .safeDrawingPadding(),
     ) {
         Row(
             modifier = Modifier

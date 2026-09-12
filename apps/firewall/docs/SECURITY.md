@@ -127,6 +127,35 @@ whoever wrote this — can get them back.
 **Anything not yet reviewed by someone else.** This code has unit tests and has
 not had an independent security review.
 
+**A Keystore that stops cooperating.** The device-bound wrap is a single point
+of failure by design: if the Keystore entry is lost — a factory reset, some
+restore paths, certain OEM migrations — the vault key cannot be unwrapped and
+the photos are gone, exactly as if the passcode were forgotten. That is the
+price of being device-bound, and it is why `unlock` reporting "wrong passcode"
+for a Keystore fault was misleading enough to fix.
+
+## What running it on a phone found
+
+The first build to reach a handset could not create a vault at all. The
+Keystore guard generated its own GCM nonce, which AndroidKeyStore rejects for
+encryption when the key requires randomised encryption — *Caller-provided IV
+not permitted*. It threw inside `setUp`, which had no handler, so the process
+died and dropped the user back into the decoy game with no message.
+
+Worth being precise about why the tests missed it. Every unit test runs the key
+hierarchy against `DeviceGuard.PASSTHROUGH`, because there is no AndroidKeyStore
+on a desktop JVM. So `KeystoreDeviceGuard.seal` had never executed anywhere, on
+any machine, while the suite reported green — a whole layer of the design
+untested and invisible. The comment in `VaultKeyManagerTest` even said the
+guard's behaviour was "one Keystore call that only a device can prove", which
+was true and should have been read as a gap rather than a note.
+
+`app/src/androidTest/KeystoreVaultTest.kt` now covers it on real hardware —
+seal round-trips, a foreign Keystore key cannot unseal, a vault reopens after a
+cold start, and `changePasscode` preserves the vault key — and CI runs it on an
+emulator on every push. Decryption was never affected, which is why the fault
+sat precisely on the one path that runs once per install.
+
 ## Known gaps worth closing
 
 - Passcode handling should be `CharArray` end to end (see above).

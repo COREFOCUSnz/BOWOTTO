@@ -72,4 +72,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+
+    // The Keystore has no desktop implementation, so the key hierarchy can
+    // only really be proven on a device. See androidTest/KeystoreVaultTest.
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

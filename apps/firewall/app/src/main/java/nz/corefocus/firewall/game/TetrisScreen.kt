@@ -12,11 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +81,10 @@ fun TetrisScreen(onSecretItem: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Ink)
+            // enableEdgeToEdge() lets us draw behind the system bars, which
+            // means we owe the content an inset. Without this the wordmark
+            // sits under the status bar and the pads under the nav bar.
+            .safeDrawingPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Text(
@@ -254,12 +258,13 @@ private fun Well(snapshot: TetrisEngine.Snapshot, modifier: Modifier = Modifier)
             .border(1.dp, PanelEdge, RoundedCornerShape(6.dp))
             .padding(4.dp),
     ) {
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .aspectRatio(TetrisEngine.WIDTH.toFloat() / TetrisEngine.HEIGHT, matchHeightConstraintsFirst = true)
-                .align(Alignment.Center),
-        ) {
+        // No aspectRatio here, deliberately. matchHeightConstraintsFirst
+        // derives the width from the height, and on a tall phone that width is
+        // larger than the box actually has - so the board overflowed its own
+        // frame and got clipped at the edges. The draw below already centres
+        // itself from a square cell size, so filling the box is correct and
+        // the aspect modifier was only fighting it.
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
             val cell = minOf(size.width / TetrisEngine.WIDTH, size.height / TetrisEngine.HEIGHT)
             val originX = (size.width - cell * TetrisEngine.WIDTH) / 2f
             val originY = (size.height - cell * TetrisEngine.HEIGHT) / 2f

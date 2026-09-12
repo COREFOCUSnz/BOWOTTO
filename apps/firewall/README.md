@@ -63,7 +63,14 @@ third-party libraries. The debug APK is about 9.2 MB.
   `FLAG_SECURE` applies, so allowing screenshots cannot quietly start leaking
   the vault into the task switcher.
 
-Three were checked by mutation: deleting the header CRC check makes the
+There are also instrumented tests in `app/src/androidTest/` that only run on a
+device or emulator, covering the Android Keystore. They exist because a
+Keystore bug shipped to a phone while all 28 unit tests were green — the unit
+suite substitutes a passthrough stub for the Keystore, so the real path had
+never run. CI runs them on an emulator on every push. See the note in
+docs/SECURITY.md.
+
+Three unit tests were checked by mutation: deleting the header CRC check makes the
 corruption test fail, collapsing the two section AADs into one makes the
 role-binding test fail, and writing the screen policy the naive way — drop the
 flag whenever screenshots are allowed — fails two of the privacy tests. They

@@ -1,5 +1,6 @@
 package nz.corefocus.firewall.lock
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +50,7 @@ import nz.corefocus.firewall.ui.Panel
 import javax.crypto.SecretKey
 import kotlin.math.max
 
+private const val TAG = "Firewall"
 private const val MIN_LENGTH = 6
 private const val MAX_LENGTH = 12
 
@@ -110,15 +113,31 @@ fun PasscodeScreen(
                 val chars = candidate.toCharArray()
                 // PBKDF2 at 200k iterations is roughly a second of CPU. Off the
                 // main thread, or the whole screen freezes mid-unlock.
-                val key = withContext(Dispatchers.Default) {
+                //
+                // Creating the vault touches the Android Keystore, which is the
+                // one part of this flow that can fail for reasons that are
+                // nothing to do with the passcode. An uncaught throw here used
+                // to kill the process and drop the user back into the game with
+                // no idea why, so it is caught and shown.
+                val outcome = withContext(Dispatchers.Default) {
                     try {
-                        keyManager.setUp(chars)
+                        Result.success(keyManager.setUp(chars))
+                    } catch (e: Exception) {
+                        Result.failure(e)
                     } finally {
                         Crypto.wipe(chars)
                     }
                 }
                 busy = false
-                onUnlocked(key)
+                outcome.fold(
+                    onSuccess = onUnlocked,
+                    onFailure = { error ->
+                        Log.e(TAG, "could not create the vault", error)
+                        confirming = null
+                        isError = true
+                        message = "Could not create the vault on this device."
+                    },
+                )
             }
             return
         }
@@ -129,11 +148,23 @@ fun PasscodeScreen(
             val outcome = withContext(Dispatchers.Default) {
                 try {
                     keyManager.unlock(chars)
+                } catch (e: Exception) {
+                    // unlock() already folds a wrong passcode into its return
+                    // value, so anything thrown here is the Keystore or the
+                    // stored blob being broken, not a bad guess. Say so rather
+                    // than taking the app down.
+                    Log.e(TAG, "unlock failed outside the passcode path", e)
+                    null
                 } finally {
                     Crypto.wipe(chars)
                 }
             }
             busy = false
+            if (outcome == null) {
+                isError = true
+                message = "Could not open the vault on this device."
+                return@launch
+            }
             when (outcome) {
                 is VaultKeyManager.Unlock.Success -> onUnlocked(outcome.key)
                 is VaultKeyManager.Unlock.Wrong -> {
@@ -162,6 +193,7 @@ fun PasscodeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Ink)
+            .safeDrawingPadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
