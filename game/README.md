@@ -259,6 +259,7 @@ npm run test:browser     # headless Chromium over file:// (checks the blocky fal
 GAME_URL=http://localhost:8080/index.html npm run test:browser   # ...and the model path
 node test/vfx.test.js    # explosion visibility + the demoman's kit (needs a server; slow)
 node test/feel.test.js   # weapon feel: recoil, bob, turn lag, hit confirmation
+node test/audio.test.js  # renders every sound offline and measures it
 ```
 
 `test/map.test.js` walks a simulated player through every route (spawn → enemy
@@ -308,6 +309,20 @@ counting as "team red" pixels.
 Every budget was checked against the behaviour it exists to catch: with the
 original explosion restored, the bench reports 63.5% peak, 38% glare, 63.5% still
 in the way as it dies and 0.90s, and rejects all four.
+
+`test/audio.test.js` renders sound rather than describing it. Every effect is
+synthesised, so each one is played into an `OfflineAudioContext` and the
+resulting waveform measured: peak level, length, stereo balance and the share of
+energy in the high band. Loudness is measured, never guessed — the same rule the
+rest of the project uses.
+
+That is how the levels were set. Several sounds summed oscillators and noise past
+full scale on their own: the shotgun peaked at 2.3 and the super shotgun at 3.0,
+so every shot was clipped square before the mixer saw it. Levels now come from
+the worst peak over five renders, scaled to 0.85. A `DynamicsCompressorNode` sits
+downstream of the master bus for when a dozen sounds land in one tick — and
+deliberately downstream, so the bench measures the raw sum and a source that
+clips on its own cannot hide behind it.
 
 `test/feel.test.js` asks whether the gun in your hands reacts to you: does it
 kick when you fire, settle at its own weapon's pace, overshoot past rest rather

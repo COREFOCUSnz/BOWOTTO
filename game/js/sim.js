@@ -205,7 +205,19 @@
       if (p.pos[1] < -20) { this.damage(p, 9999, null, 'fall'); }
       // walk animation
       const hs = Math.hypot(p.vel[0], p.vel[2]);
-      if (p.onGround || water) p.walkPhase += hs * dt * 1.6;
+      if (p.onGround || water) {
+        const before = p.walkPhase;
+        p.walkPhase += hs * dt * 1.6;
+        // A footstep on each half stride. Nothing in the game made a sound while
+        // moving, so an enemy could walk into the room behind you in silence —
+        // in a game about holding corridors that is the most useful sound there
+        // is. Pitch varies a little per player so a crowd is not one machine.
+        if (hs > 1.5 && Math.floor(before / Math.PI) !== Math.floor(p.walkPhase / Math.PI)) {
+          const fast = Math.min(1, hs / (p.def.speed || 8));
+          this.effects.sound(water ? 'stepwater' : 'step', p.pos,
+            { gain: 0.35 + fast * 0.45, pitch: 0.86 + ((p.id * 37) % 100) / 100 * 0.28 });
+        }
+      }
       // status effects
       if (p.burn > 0) {
         p.burn -= dt; p.burnTick = (p.burnTick || 0) - dt;
@@ -612,7 +624,8 @@
       if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [fxRand(-2, 2), fxRand(0, 3), fxRand(-2, 2)], life: 0.35, size: 0.045, color: [0.6, 0.04, 0.04], gravity: 14, count: 4 });
       if (q === this.human) this.effects.flash(Math.min(1, hpLoss / 40));
       if (attacker === this.human && attacker !== q) {
-        this.effects.sound('hit', null);
+        // pitch rides the damage: a graze is high and thin, a heavy hit is low
+        this.effects.sound('hit', null, { pitch: 1.35 - Math.min(1, hpLoss / 90) * 0.55 });
         // Confirm the hit on screen, not just in the ears. A number that rises off
         // the target and a tick on the crosshair are how you know a shot landed
         // without watching a health bar you cannot see.
@@ -621,7 +634,10 @@
         if (this.effects.damageNumber) this.effects.damageNumber(q, hpLoss, kind);
       }
       else if (q === this.human) this.effects.sound('hurt', null);
-      if (q.hp <= 0) this.kill(q, attacker, kind);
+      if (q.hp <= 0) {
+        if (attacker === this.human && attacker !== q) this.effects.sound('killconfirm', null);
+        this.kill(q, attacker, kind);
+      }
     }
     kill(q, attacker, kind) {
       q.alive = false; q.deaths++; q.deadAt = this.time; q.respawnAt = this.time + 5; q.wantsRespawn = q.isBot; q.charge = -1; q.grenPrime && (q.grenPrime = null);

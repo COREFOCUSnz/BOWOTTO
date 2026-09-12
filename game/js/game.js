@@ -26,7 +26,7 @@
   const effects = {
     particle(o) { const n = o.count || 1; for (let i = 0; i < n; i++) { const q = Object.assign({ maxLife: o.life, gravity: 0 }, o); q.pos = V.copy(o.pos); q.vel = n > 1 ? [rand(-2, 2), rand(0, 3), rand(-2, 2)] : V.copy(o.vel); game.particles.push(q); } const cap = settings.particleBudget; if (game.particles.length > cap) game.particles.splice(0, game.particles.length - cap); },
     tracer(a, b, color, life) { game.tracers.push({ a, b, color, life, maxLife: life }); },
-    sound(name, pos) { audio.play(name, pos); },
+    sound(name, pos, opts) { audio.play(name, pos, opts); },
     say(text) { audio.say(text); },
     message(text, team, kind, who) { if (!text) return; if (who && who !== human && kind !== 'flag' && kind !== 'cap' && kind !== 'round') return; messages.push({ text, time: game.time, kind, team }); if (messages.length > 5) messages.shift(); },
     flash(a) { flashAmt = Math.min(1, flashAmt + a); },
@@ -1103,7 +1103,7 @@
     const underwater = !!game.world.inWater(camPos);
     renderer.fogColor = underwater ? [0.12, 0.3, 0.38] : [0.62, 0.68, 0.76];
     renderer.fogDensity = underwater ? 0.09 : 0.011;
-    audio.listener = camPos;
+    audio.setListener(camPos, yaw);
     cull.pos = camPos; cull.fwd = V.forward(yaw, pitch);
     renderer.begin({ pos: camPos, yaw, pitch, zoom: zoomed && human.alive && human.weapon().zoom ? 0.3 : 1 });
     renderer.drawWorld();
