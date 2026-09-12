@@ -203,7 +203,13 @@ void main(){
   class Renderer {
     constructor(canvas) {
       this.canvas = canvas;
-      const gl = canvas.getContext('webgl', { antialias: true, alpha: false }) || canvas.getContext('experimental-webgl');
+      // preserveDrawingBuffer lets a bench read the frame back with gl.readPixels
+      // instead of going through a page screenshot, which under the headless
+      // software rasterizer costs tens of seconds per frame. Off by default: it
+      // blocks an optimisation real browsers use on every swap.
+      const keep = typeof location !== 'undefined' && /[?&]readback\b/.test(location.search);
+      const attrs = { antialias: true, alpha: false, preserveDrawingBuffer: keep };
+      const gl = canvas.getContext('webgl', attrs) || canvas.getContext('experimental-webgl', attrs);
       if (!gl) throw new Error('WebGL not available');
       this.gl = gl;
       this.prog = program(gl, VS, FS);

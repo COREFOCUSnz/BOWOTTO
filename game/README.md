@@ -262,10 +262,28 @@ The pipebomb team band is checked by measuring team-coloured pixels around the
 bomb rather than diffing frames — a proxy you have to subtract noise from is
 worse than measuring the thing itself.
 
-It takes a few minutes under software GL (big alpha-blended spheres are
-expensive to rasterize in software), and it drops the renderer's resolution
-scale to compensate. Coverage is a fraction of the frame, so the numbers do not
-depend on the viewport.
+Explosion coverage is computed **analytically** — every live particle is
+projected as a sphere and stamped on a coarse grid — rather than by screenshotting
+the game. It has to be: rendering one frame costs ten to twenty seconds here, and
+sampling a blast needs dozens, so the screenshot version could not finish inside
+ten minutes. The analytic measure was validated against the pixel one on the same
+blasts (8.4 vs 8.1, 11.5 vs 11.9, 14.7 vs 14.2) and reads slightly high on the
+faded tail, which is the safe direction for a ceiling. Being free, it averages
+eight effect seeds instead of trusting one: the same explosion measures 21% peak
+on one seed and 13% on another, so a budget within a few points of the mean would
+be measuring the dice.
+
+The parts that genuinely need rendering — are the two launchers different models,
+is a pipebomb painted in its team's colours — read the GL back buffer in the page
+and compare there, which is why `js/render.js` enables `preserveDrawingBuffer`
+for the `?readback` query this bench loads with. Reading the buffer also skips
+the DOM HUD entirely; an earlier screenshot version had to hide it, guessed the
+element ids wrong, and spent a while blaming the game for orange HUD text it was
+counting as "team red" pixels.
+
+Every budget was checked against the behaviour it exists to catch: with the
+original explosion restored, the bench reports 63.5% peak, 38% glare, 63.5% still
+in the way as it dies and 0.90s, and rejects all four.
 
 `test/feel.test.js` asks whether the gun in your hands reacts to you: does it
 kick when you fire, settle at its own weapon's pace, overshoot past rest rather

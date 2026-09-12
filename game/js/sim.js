@@ -10,6 +10,23 @@
   const GRAVITY = 20, JUMP_V = 6.7, STEP_H = 0.45, PLAYER_HALF = 0.4, PLAYER_H = 1.8, EYE_H = 1.6;
   const TEAM_COLORS = [[0.2, 0.4, 0.95], [0.95, 0.25, 0.2]];
 
+  // Effects get their own random stream, separate from gameplay.
+  //
+  // Particles used to draw from the same Math.random as spawn jitter, grenade
+  // bomblets and caltrop scatter. That means changing how many puffs an
+  // explosion spawns shifts every later draw in a seeded match onto a different
+  // path: the explosion rework did exactly that and walked the capturability
+  // bench from 4 of 4 seeds scoring down to 2 of 4, its pass threshold, without
+  // touching a line of gameplay. A purely visual change must not be able to do
+  // that. Seeded via game.seedEffects() so visual benches stay repeatable.
+  let fxSeed = 0x9e3779b9;
+  const fxRand = (a, b) => {
+    fxSeed = (Math.imul(fxSeed, 1664525) + 1013904223) >>> 0;
+    const u = fxSeed / 4294967296;
+    return a === undefined ? u : a + u * (b - a);
+  };
+
+
   let nextId = 1;
   class Player {
     constructor(game, name, team, isBot) {
@@ -193,7 +210,7 @@
       if (p.burn > 0) {
         p.burn -= dt; p.burnTick = (p.burnTick || 0) - dt;
         if (p.burnTick <= 0) { p.burnTick = 0.5; this.damage(p, 3, p.burnBy, 'burn'); }
-        if (Math.random() < dt * 20) this.effects.particle({ pos: V.add(p.center(), [rand(-0.3, 0.3), rand(-0.6, 0.6), rand(-0.3, 0.3)]), vel: [rand(-0.5, 0.5), rand(1, 2.5), rand(-0.5, 0.5)], life: 0.5, size: 0.25, color: [1, rand(0.3, 0.7), 0.1], emissive: 1 });
+        if (fxRand() < dt * 20) this.effects.particle({ pos: V.add(p.center(), [fxRand(-0.3, 0.3), fxRand(-0.6, 0.6), fxRand(-0.3, 0.3)]), vel: [fxRand(-0.5, 0.5), fxRand(1, 2.5), fxRand(-0.5, 0.5)], life: 0.5, size: 0.25, color: [1, fxRand(0.3, 0.7), 0.1], emissive: 1 });
       }
       if (p.infected) {
         p.infTick = (p.infTick || 0) - dt;
@@ -217,7 +234,7 @@
     // ------------------------------------------------------------------ weapons
     ejectShell(p, n) {
       const right = V.right(p.yaw), fwd = V.forward(p.yaw, p.pitch);
-      for (let i = 0; i < n; i++) this.effects.particle({ pos: V.madd(V.madd(p.eye(), right, 0.22), fwd, 0.35), vel: V.madd(V.madd(V.scale(right, rand(1.5, 2.5)), [0, rand(1.5, 2.5), 0], 1), p.vel, 1), life: 1.2, size: 0.035, color: [0.8, 0.65, 0.25], gravity: 14, collide: true });
+      for (let i = 0; i < n; i++) this.effects.particle({ pos: V.madd(V.madd(p.eye(), right, 0.22), fwd, 0.35), vel: V.madd(V.madd(V.scale(right, fxRand(1.5, 2.5)), [0, fxRand(1.5, 2.5), 0], 1), p.vel, 1), life: 1.2, size: 0.035, color: [0.8, 0.65, 0.25], gravity: 14, collide: true });
     }
     updateWeapon(p, dt) {
       const w = p.weapon(); const inp = p.input;
@@ -297,7 +314,7 @@
       else this.impact(h.point, h.normal);
     }
     impact(point, normal) {
-      for (let i = 0; i < 3; i++) this.effects.particle({ pos: point, vel: V.madd(V.scale(normal, rand(1, 4)), [rand(-2, 2), rand(-1, 2), rand(-2, 2)], 1), life: rand(0.25, 0.5), size: 0.04, color: [1, 0.85, 0.4], emissive: 1, gravity: 12 });
+      for (let i = 0; i < 3; i++) this.effects.particle({ pos: point, vel: V.madd(V.scale(normal, fxRand(1, 4)), [fxRand(-2, 2), fxRand(-1, 2), fxRand(-2, 2)], 1), life: fxRand(0.25, 0.5), size: 0.04, color: [1, 0.85, 0.4], emissive: 1, gravity: 12 });
       this.effects.particle({ pos: V.madd(point, normal, 0.05), vel: V.scale(normal, 0.6), life: 0.5, size: 0.15, grow: 0.35, color: [0.6, 0.58, 0.55], alpha: 0.45, sphere: true });
     }
     fireSniper(p, w) {
@@ -339,7 +356,7 @@
       this.effects.sound('flame', p.pos);
       for (let i = 0; i < 4; i++) {
         const d = this.spreadDir(fwd, 0.12);
-        this.effects.particle({ pos: V.madd(V.madd(eye, fwd, 0.6), [0, -0.25, 0], 1), vel: V.madd(V.scale(d, 9 + Math.random() * 3), p.vel, 1), life: 0.55, size: 0.3, grow: 1.2, color: [1, rand(0.35, 0.75), 0.1], emissive: 1, drag: 2 });
+        this.effects.particle({ pos: V.madd(V.madd(eye, fwd, 0.6), [0, -0.25, 0], 1), vel: V.madd(V.scale(d, 9 + fxRand() * 3), p.vel, 1), life: 0.55, size: 0.3, grow: 1.2, color: [1, fxRand(0.35, 0.75), 0.1], emissive: 1, drag: 2 });
       }
       for (const q of this.players) {
         if (!q.alive || q === p || q.team === p.team) continue;
@@ -380,7 +397,7 @@
         if (s.team === p.team && w === WEAPONS.spanner) { if (p.ammo.cells >= 10 && s.hp < s.maxHp) { p.ammo.cells -= 10; s.hp = Math.min(s.maxHp, s.hp + 40); this.effects.sound('build', s.pos); } else if (s.owner === p && p.ammo.cells >= 130 && s.level < 3) { p.ammo.cells -= 130; s.level++; s.maxHp += 50; s.hp = s.maxHp; this.effects.sound('resupply', s.pos); this.effects.message('Sentry upgraded to level ' + s.level, p.team, 'info', p); } }
         else if (s.team !== p.team) this.damageSentry(s, w.dmg, p);
       } else {
-        this.effects.particle({ pos: h.point, vel: [rand(-1, 1), rand(1, 2), rand(-1, 1)], life: 0.3, size: 0.05, color: [0.8, 0.8, 0.7], gravity: 10 });
+        this.effects.particle({ pos: h.point, vel: [fxRand(-1, 1), fxRand(1, 2), fxRand(-1, 1)], life: 0.3, size: 0.05, color: [0.8, 0.8, 0.7], gravity: 10 });
       }
     }
     // ------------------------------------------------------------------ grenades
@@ -495,7 +512,7 @@
           }
           q.pos = next;
         }
-        if ((q.type === 'rocket' || q.type === 'ic') && q.age > 0.08) this.effects.particle({ pos: V.copy(q.pos), vel: [rand(-0.3, 0.3), rand(0.2, 0.8), rand(-0.3, 0.3)], life: 0.5, size: 0.12, grow: 0.4, color: q.type === 'ic' ? [1, 0.5, 0.2] : [0.75, 0.75, 0.75], alpha: 0.5 });
+        if ((q.type === 'rocket' || q.type === 'ic') && q.age > 0.08) this.effects.particle({ pos: V.copy(q.pos), vel: [fxRand(-0.3, 0.3), fxRand(0.2, 0.8), fxRand(-0.3, 0.3)], life: 0.5, size: 0.12, grow: 0.4, color: q.type === 'ic' ? [1, 0.5, 0.2] : [0.75, 0.75, 0.75], alpha: 0.5 });
       }
       this.projectiles = this.projectiles.filter((q) => !q.dead);
     }
@@ -510,6 +527,12 @@
     // that at radius*2.2 covered the whole screen. Offset puffs of differing size
     // and lifetime break the silhouette AND clear the view sooner, because none of
     // them is ever as large as the single sphere was.
+    // Pin the effects stream, so a visual bench measures the same blast twice.
+    // Also forgets recent blasts: nearby simultaneous explosions deliberately
+    // thin each other out, and a bench that freezes the clock to hold an effect
+    // still makes every blast it fires look simultaneous — which silently
+    // suppressed all of them after the fourth.
+    seedEffects(n) { fxSeed = (n >>> 0) || 1; this._recentBlasts = []; }
     blastPuffs(pos, radius) {
       const fx = this.effects;
       let detail = fx.detail ? fx.detail() : 1;
@@ -525,17 +548,17 @@
       recent.push({ pos: V.copy(pos), t: this.time });
       if (near >= 4) return 0;                     // the view is already full of fire
       if (near > 0) detail *= near >= 2 ? 0.34 : 0.6;
-      const at = (spread, y) => [pos[0] + rand(-spread, spread), pos[1] + rand(-spread * 0.6, spread * 0.6) + (y || 0), pos[2] + rand(-spread, spread)];
+      const at = (spread, y) => [pos[0] + fxRand(-spread, spread), pos[1] + fxRand(-spread * 0.6, spread * 0.6) + (y || 0), pos[2] + fxRand(-spread, spread)];
       // white-hot core, gone almost immediately — this is the "hit" you read
       fx.particle({ pos: V.copy(pos), vel: [0, 0, 0], life: 0.12, size: 0.4, grow: radius * 0.55, color: [1, 0.95, 0.75], emissive: 1, alpha: 0.9, fade: 2.2, sphere: true });
       const fire = Math.max(1, Math.round(5 * detail));
       for (let i = 0; i < fire; i++)
-        fx.particle({ pos: at(radius * 0.24), vel: [rand(-1.4, 1.4), rand(0.4, 1.8), rand(-1.4, 1.4)], life: rand(0.18, 0.30),
-          size: 0.45, grow: radius * rand(0.55, 0.80), color: [1, rand(0.45, 0.75), rand(0.1, 0.25)], emissive: 1, alpha: 0.72, fade: 1.7, sphere: true });
+        fx.particle({ pos: at(radius * 0.24), vel: [fxRand(-1.4, 1.4), fxRand(0.4, 1.8), fxRand(-1.4, 1.4)], life: fxRand(0.18, 0.30),
+          size: 0.45, grow: radius * fxRand(0.55, 0.80), color: [1, fxRand(0.45, 0.75), fxRand(0.1, 0.25)], emissive: 1, alpha: 0.72, fade: 1.7, sphere: true });
       const smoke = Math.max(detail < 0.5 ? 0 : 1, Math.round(3 * detail));
       for (let i = 0; i < smoke; i++)
-        fx.particle({ pos: at(radius * 0.26, 0.25), vel: [rand(-0.8, 0.8), rand(0.9, 2.0), rand(-0.8, 0.8)], life: rand(0.4, 0.6),
-          size: 0.55, grow: radius * rand(0.36, 0.52), color: [0.3, 0.28, 0.26], alpha: 0.28, fade: 1.9, sphere: true });
+        fx.particle({ pos: at(radius * 0.26, 0.25), vel: [fxRand(-0.8, 0.8), fxRand(0.9, 2.0), fxRand(-0.8, 0.8)], life: fxRand(0.4, 0.6),
+          size: 0.55, grow: radius * fxRand(0.36, 0.52), color: [0.3, 0.28, 0.26], alpha: 0.28, fade: 1.9, sphere: true });
       return detail;
     }
     explode(pos, dmg, radius, attacker, kind, opts) {
@@ -545,7 +568,7 @@
       // shot — but they still cost a draw call each, so they thin with the puffs
       const detail = this.blastPuffs(pos, radius);
       const sparks = Math.round(16 * detail);
-      for (let i = 0; i < sparks; i++) this.effects.particle({ pos: V.copy(pos), vel: [rand(-7, 7), rand(1, 10), rand(-7, 7)], life: rand(0.3, 0.7), size: 0.14, color: [1, rand(0.3, 0.7), 0.1], emissive: 1, gravity: 14, collide: true });
+      for (let i = 0; i < sparks; i++) this.effects.particle({ pos: V.copy(pos), vel: [fxRand(-7, 7), fxRand(1, 10), fxRand(-7, 7)], life: fxRand(0.3, 0.7), size: 0.14, color: [1, fxRand(0.3, 0.7), 0.1], emissive: 1, gravity: 14, collide: true });
       if (this.human && this.human.alive) { const d = V.dist(this.human.center(), pos); if (d < 14) this.effects.shake(Math.max(0, 1 - d / 14) * 0.5); }
       for (const q of this.players) {
         if (!q.alive) continue;
@@ -569,7 +592,7 @@
     updateFire(dt) {
       this.firePatches = this.firePatches.filter((f) => f.until > this.time);
       for (const f of this.firePatches) {
-        if (Math.random() < dt * 30) this.effects.particle({ pos: V.add(f.pos, [rand(-f.r, f.r), 0.1, rand(-f.r, f.r)]), vel: [rand(-0.3, 0.3), rand(1.5, 3), rand(-0.3, 0.3)], life: 0.6, size: 0.3, grow: 0.3, color: [1, rand(0.3, 0.7), 0.1], emissive: 1 });
+        if (fxRand() < dt * 30) this.effects.particle({ pos: V.add(f.pos, [fxRand(-f.r, f.r), 0.1, fxRand(-f.r, f.r)]), vel: [fxRand(-0.3, 0.3), fxRand(1.5, 3), fxRand(-0.3, 0.3)], life: 0.6, size: 0.3, grow: 0.3, color: [1, fxRand(0.3, 0.7), 0.1], emissive: 1 });
         for (const q of this.players) if (q.alive && !q.inWater && V.distXZ(q.pos, f.pos) < f.r && Math.abs(q.pos[1] - f.pos[1]) < 1.5 && (!f.owner || q.team !== f.owner.team)) { q.burn = Math.max(q.burn, 3); q.burnBy = f.owner; }
       }
     }
@@ -586,7 +609,7 @@
       if (dir && knock) { q.vel = V.madd(q.vel, dir, knock); if (knock > 2) q.onGround = false; }
       if (attacker && attacker !== q) { q.lastAttacker = attacker; q.lastHurt = this.time; }
       q.hitFlash = 0.15;
-      if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [rand(-2, 2), rand(0, 3), rand(-2, 2)], life: 0.35, size: 0.045, color: [0.6, 0.04, 0.04], gravity: 14, count: 4 });
+      if (kind !== 'burn' && kind !== 'infection') this.effects.particle({ pos: q.center(), vel: [fxRand(-2, 2), fxRand(0, 3), fxRand(-2, 2)], life: 0.35, size: 0.045, color: [0.6, 0.04, 0.04], gravity: 14, count: 4 });
       if (q === this.human) this.effects.flash(Math.min(1, hpLoss / 40));
       if (attacker === this.human && attacker !== q) {
         this.effects.sound('hit', null);
@@ -607,7 +630,7 @@
       else { q.score -= 1; }
       if (q.flag) this.dropFlag(q);
       this.effects.sound('die', q.pos);
-      for (let i = 0; i < 10; i++) this.effects.particle({ pos: q.center(), vel: [rand(-4, 4), rand(1, 6), rand(-4, 4)], life: rand(0.5, 1.1), size: 0.07, color: [0.55, 0.04, 0.04], gravity: 14, collide: true });
+      for (let i = 0; i < 10; i++) this.effects.particle({ pos: q.center(), vel: [fxRand(-4, 4), fxRand(1, 6), fxRand(-4, 4)], life: fxRand(0.5, 1.1), size: 0.07, color: [0.55, 0.04, 0.04], gravity: 14, collide: true });
       const verb = { rocket: 'rocketed', pipe: 'piped', pipebomb: 'pipebombed', grenade: 'fragged', 'own grenade': 'held the grenade too long', headshot: 'headshot', sniper: 'sniped', nail: 'nailed', hitscan: 'shot', flame: 'roasted', burn: 'burned', melee: 'beat down', backstab: 'backstabbed', medkit: 'infected', infection: 'died of infection', fall: 'fell to their death', tranq: 'darted', sentry: 'was sentried by', mirv: 'MIRVed', napalm: 'napalmed', incendiary: 'torched', caltrop: 'stepped on caltrops', EMP: 'EMPed', 'nail grenade': 'nail-grenaded' }[kind] || 'killed';
       this.killFeed.push({ attacker: attacker && attacker !== q ? attacker : null, victim: q, verb, time: this.time, kind });
       if (this.killFeed.length > 6) this.killFeed.shift();
@@ -707,7 +730,7 @@
     damageSentry(s, dmg, attacker) {
       if (attacker && attacker.team === s.team) return;
       s.hp -= dmg; if (attacker) s.lastAttacker = attacker;
-      this.effects.particle({ pos: V.add(s.pos, [0, 0.8, 0]), vel: [rand(-2, 2), rand(1, 3), rand(-2, 2)], life: 0.4, size: 0.08, color: [1, 0.8, 0.3], emissive: 1, gravity: 10 });
+      this.effects.particle({ pos: V.add(s.pos, [0, 0.8, 0]), vel: [fxRand(-2, 2), fxRand(1, 3), fxRand(-2, 2)], life: 0.4, size: 0.08, color: [1, 0.8, 0.3], emissive: 1, gravity: 10 });
       if (s.hp <= 0) { this.destroySentry(s, attacker); if (attacker) attacker.score += 1; }
     }
     destroySentry(s, attacker) {
