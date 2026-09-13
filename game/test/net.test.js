@@ -63,6 +63,10 @@ function makeFakeBackend() {
       const [parent, key] = parentAndKey(path);
       setAt(path, undefined);
       fire('removed', parent, key, undefined);
+      // Real Firebase also fires 'value' at the removed path itself, for
+      // whole-node onValue() listeners (like net.js's own bots subscription)
+      // rather than only the child_removed listeners real players use.
+      fire('value', path, null, undefined);
       return Promise.resolve();
     },
     push(path, val) {
@@ -201,6 +205,30 @@ function makeClient(backend, uid, clock) {
   check(bSawState === null, 'a non-host publishing state does nothing — otherwise two clients could disagree about the score');
   A.publishState({ score: [3, 1] });
   check(bSawState && bSawState.score[0] === 3 && bSawState.hostId === 'alice', "the host's state reaches everyone, tagged with who is authoritative for it");
+
+  // ---- bots: simulated only by the host, published to everyone else ---------
+  check(A.hostUid === 'alice', 'hostUid agrees with isHost about who currently hosts, and with it, every bot');
+  const fakeBot = (id, over) => Object.assign({ id }, fakePlayer(over));
+  let bSawBots = null;
+  B.onBotsUpdate = (bots) => { bSawBots = bots; };
+  B.publishBots([fakeBot(7, { name: 'Bot Seven', cls: 'demoman' })]); // bob is not host; must be a no-op
+  check(bSawBots === null, 'a non-host publishing bots does nothing — a bot must have exactly one client simulating it');
+  A.publishBots([fakeBot(7, { name: 'Bot Seven', cls: 'demoman' })]);
+  check(bSawBots && bSawBots['7'] && bSawBots['7'].name === 'Bot Seven' && bSawBots['7'].cls === 'demoman',
+    "the host's bots reach everyone else, keyed by the bot's own id");
+
+  A.hits.length = 0; // isolate from the hit-relay assertions earlier in this file
+  B.relayBotDamage('7', 25, 'hitscan', [0, 0, 1], 2);
+  check(A.hits.length === 1 && A.hits[0].targetBotId === '7' && A.hits[0].amount === 25 && A.hits[0].attackerId === 'bob',
+    'damaging a bot relays to whoever hosts it, tagged with which bot and who hit it, not to the bot itself (it has no client)');
+
+  A.publishBots([]);
+  check(bSawBots && Object.keys(bSawBots).length === 0, 'publishing an empty bot list clears everyone else\'s view of them');
+
+  A.publishBots([fakeBot(7, { name: 'Bot Seven' })]);
+  backend.disconnectClient(`rooms/${code}/bots`);
+  check(bSawBots && Object.keys(bSawBots).length === 0,
+    "if the host's own connection drops, its bots disappear for everyone rather than freezing mid-room forever");
 
   // ---- disconnect cleanup ------------------------------------------------------
   const bobLeft = { seen: false };

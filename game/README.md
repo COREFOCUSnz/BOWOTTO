@@ -118,12 +118,16 @@ Friends can join the same match instead of each playing separately against
 bots. From the main menu, **Play online** either creates a room (you get a
 4-letter code to send them) or joins one with a code someone sent you.
 Everyone in a room sees the same map, the same flags, and a shared scoreboard.
+Whoever hosts the room (recomputed automatically, nothing to set up) can
+still turn on Fill teams with bots in Settings if the group's a little
+short-handed — everyone sees the same bots doing the same things, not their
+own separate copies.
 
 This needs Firebase Realtime Database, which is a one-time setup separate
 from Hosting above. `./publish.sh` attempts it automatically each time it
 deploys; see `DEPLOY.md` for what it does, what still needs a manual click in
-the Firebase console the first time, and the v1 limitations (bots and
-sentries are disabled online, and a few v0.1-era rough edges around latency).
+the Firebase console the first time, and the v1 limitations (sentries are
+disabled online, and a few v0.1-era rough edges around latency).
 If that setup hasn't been done yet, **Play online** just says so in the menu
 and everything else about the game is unaffected — this is entirely optional.
 
@@ -369,10 +373,12 @@ handful.
 publishing, damage relay, room codes — against a hand-built in-memory fake of
 the Firebase Realtime Database calls it makes, in plain Node with no browser.
 `test/multiplayer.test.js` tests the integration between `js/game.js` and
-`js/net.js` — remote players rendering and smoothing, bots and sentries
-turning off online, damage staying authoritative on the target's own client,
-rockets and pipebombs showing cosmetic "ghost" explosions for other players
-— by injecting a plain-object stub in place of a real `NetRoom` via
+`js/net.js` — remote players rendering and smoothing, host-only bots
+publishing and rendering the same way, sentries turning off online, damage
+staying authoritative on the target's own client (a bot's included — it
+routes to whoever hosts it, since a bot has no client of its own), rockets
+and pipebombs showing cosmetic "ghost" explosions for other players — by
+injecting a plain-object stub in place of a real `NetRoom` via
 `window.__injectNet`, so it never touches Firebase either. Both exist because
 **this sandbox cannot reach Firebase or Google at all** (outbound network is
 restricted to a small allowlist), so neither of these suites — nor anything

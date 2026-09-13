@@ -60,8 +60,10 @@
   let net = null;
   let netErr = '';                 // last connect/join failure, shown in the menu
   const onlineRemotes = new Map(); // uid -> the Player object representing them
+  const onlineBotPlayers = new Map(); // botId -> the Player object representing a HOST'S bot, on everyone else
   let netAcc = 0; const NET_INTERVAL = 1 / 12;   // ~12 publishes/second is plenty for a shooter this size
   let stateAcc = 0; const STATE_INTERVAL = 1 / 5; // shared score/flag state changes slowly; no need to spam it
+  let wasHost = false; // see the isHost-transition check in netUpdate() below
   // Checked once at load, not per menu render: createNetRoom ALWAYS exists as a
   // function once net.js has loaded, whether or not Firebase is actually
   // configured — calling it is what actually tells you. `!!createNetRoom` would
@@ -114,10 +116,16 @@
   function syncBots() {
     for (const team of [BLUE, RED]) {
       const humans = game.players.filter((p) => !p.isBot && p.team === team).length;
-      // Bots are not networked (see DEPLOY.md) — each client would run its own,
-      // doing different things, invisible to everyone else. Off entirely online.
-      const want = (net && net.connected) ? 0 : (settings.fill ? Math.max(0, settings.teamSize - humans) : 0);
-      let bots = game.players.filter((p) => p.isBot && p.team === team);
+      // Online, only the host may run bots: they're simulated once (right
+      // here, exactly like single-player) and published to everyone else
+      // (see net.js publishBots / onBotsUpdate below) — a non-host client
+      // must never create its own competing local bots.
+      const canHostBotsHere = !net || !net.connected || net.isHost;
+      const want = (canHostBotsHere && settings.fill) ? Math.max(0, settings.teamSize - humans) : 0;
+      // isRemote excludes bots received over the network (onlineBotPlayers),
+      // which this function must never touch — those are reconciled only by
+      // onBotsUpdate.
+      let bots = game.players.filter((p) => p.isBot && !p.isRemote && p.team === team);
       while (bots.length > want) { const b = bots.pop(); game.removePlayer(b); brains.delete(b); }
       let idx = bots.length;
       while (bots.length < want) {
@@ -145,9 +153,22 @@
   document.addEventListener('pointerlockerror', () => enableFallback());
   let menu = 'main'; // 'main' | 'class' | 'team' | 'settings' | 'help' | null | 'end'
   let showScores = false;
+  let relockOnTabRelease = false; // see pointerlockchange below
   const lastWeapon = { i: 0 };
   canvas.addEventListener('click', () => { if (!menu && !locked && !touch.enabled) requestLock(); });
-  document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; if (locked) { fallbackLook = false; canvas.style.cursor = 'crosshair'; } if (!locked && !menu && !fallbackLook) openMenu('main'); });
+  document.addEventListener('pointerlockchange', () => {
+    locked = document.pointerLockElement === canvas;
+    if (locked) { fallbackLook = false; canvas.style.cursor = 'crosshair'; return; }
+    // Some browsers release pointer lock the instant Tab is held down, even
+    // with preventDefault() on it — an accessibility guarantee that Tab can
+    // never be fully trapped by a page. Without this check that read as the
+    // menu suddenly yanking open mid-match while WASD was still held (no
+    // keyup ever arrives for keys held when focus moves), mouse-look dead,
+    // and the player sliding around uncontrolled underneath the menu.
+    // Silently re-lock once Tab comes back up instead of opening the menu.
+    if (keys.Tab) { relockOnTabRelease = true; return; }
+    if (!menu && !fallbackLook) openMenu('main');
+  });
   document.addEventListener('mousemove', (e) => {
     if (menu || (!locked && !fallbackLook)) return;
     const s = settings.sens * (zoomed ? 0.35 : 1);
@@ -195,8 +216,14 @@
     if (k === 'KeyR' && human.cls === 'demoman') { game.detonatePipes(human); }
     if (k === 'Enter' && game.roundOver) restart();
   });
-  document.addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Tab') showScores = false; });
-  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseDown = [false, false, false]; });
+  document.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+    if (e.code === 'Tab') {
+      showScores = false;
+      if (relockOnTabRelease) { relockOnTabRelease = false; if (!menu && !touch.enabled) requestLock(); }
+    }
+  });
+  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseDown = [false, false, false]; showScores = false; relockOnTabRelease = false; });
 
   function humanInput() {
     const inp = human.input;
@@ -333,6 +360,7 @@
       html = title + `<div class="list settings"><div class="h">Settings</div>
         <label>Your name <input id="s_name" value="${escapeHtml(settings.name)}" maxlength="16"></label>
         <label>Fill teams with bots <input id="s_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
+        ${net && net.connected && !net.isHost ? '<p class="hint small">Only whoever hosts the room can add bots — ask them to turn this on instead.</p>' : ''}
         <label>Players per team <input id="s_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="s_size_v">${settings.teamSize}</span></label>
         <label>Bot difficulty <select id="s_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
@@ -502,6 +530,7 @@
     try {
       await (mode === 'create' ? room.create() : room.join(code));
       netErr = '';
+      wasHost = room.isHost; // baseline for netUpdate's own host-change detection
       syncBots(); // drop any single-player bots immediately, not on the next settings change
       // Publish immediately rather than waiting for the next throttled tick,
       // so a friend who was already in the room sees you the instant you land.
@@ -518,7 +547,9 @@
     net.leave();
     for (const p of onlineRemotes.values()) game.removePlayer(p);
     onlineRemotes.clear();
-    net = null; game.net = null; netErr = '';
+    for (const p of onlineBotPlayers.values()) game.removePlayer(p);
+    onlineBotPlayers.clear();
+    net = null; game.net = null; netErr = ''; wasHost = false;
     syncBots(); // bring single-player bot fill back, if the setting is on
   }
 
@@ -544,6 +575,28 @@
     room.onState = (st) => {
       if (st.score) game.score = st.score;
       if (st.roundOver !== undefined) game.roundOver = st.roundOver;
+    };
+    // The host never renders its own bots this way — it already has the real
+    // sim.js Player objects, fully simulated (see netUpdate below). Without
+    // this guard the host would receive its own published snapshot right
+    // back and create a second, pose-driven ghost of every bot it already has.
+    room.onBotsUpdate = (bots) => {
+      if (room.isHost) return;
+      const seen = new Set();
+      for (const id of Object.keys(bots || {})) {
+        seen.add(id);
+        const st = bots[id];
+        let p = onlineBotPlayers.get(id);
+        if (!p) {
+          p = game.addPlayer(st.name || 'Bot', st.team === 1 ? 1 : 0, true);
+          p.isRemote = true; p.isOnlineBot = true; p.netId = id;
+          applyRemoteState(p, st, true);
+          onlineBotPlayers.set(id, p);
+        } else {
+          applyRemoteState(p, st, false);
+        }
+      }
+      for (const [id, p] of onlineBotPlayers) if (!seen.has(id)) { game.removePlayer(p); onlineBotPlayers.delete(id); }
     };
   }
 
@@ -584,17 +637,19 @@
   // between snapshots, using the same formula sim.js uses for real physics, so
   // running does not look like a series of poses ~80ms apart.
   function smoothRemotePlayers(dt) {
-    if (!onlineRemotes.size) return;
-    for (const p of onlineRemotes.values()) {
-      const t = p._netTarget; if (!t) continue;
-      p.pos[0] = smooth(p.pos[0], t.pos[0], dt, 14);
-      p.pos[1] = smooth(p.pos[1], t.pos[1], dt, 14);
-      p.pos[2] = smooth(p.pos[2], t.pos[2], dt, 14);
-      p.yaw = smoothAngle(p.yaw, t.yaw, dt, 14);
-      p.pitch = smoothAngle(p.pitch, t.pitch, dt, 14);
-      p.fireAnim = smooth(p.fireAnim, p._netFireAnimTarget || 0, dt, 20);
-      if (p.alive) p.walkPhase += Math.hypot(p.vel[0], p.vel[2]) * dt * 1.6;
-    }
+    if (!onlineRemotes.size && !onlineBotPlayers.size) return;
+    for (const p of onlineRemotes.values()) smoothOnePose(p, dt);
+    for (const p of onlineBotPlayers.values()) smoothOnePose(p, dt);
+  }
+  function smoothOnePose(p, dt) {
+    const t = p._netTarget; if (!t) return;
+    p.pos[0] = smooth(p.pos[0], t.pos[0], dt, 14);
+    p.pos[1] = smooth(p.pos[1], t.pos[1], dt, 14);
+    p.pos[2] = smooth(p.pos[2], t.pos[2], dt, 14);
+    p.yaw = smoothAngle(p.yaw, t.yaw, dt, 14);
+    p.pitch = smoothAngle(p.pitch, t.pitch, dt, 14);
+    p.fireAnim = smooth(p.fireAnim, p._netFireAnimTarget || 0, dt, 20);
+    if (p.alive) p.walkPhase += Math.hypot(p.vel[0], p.vel[2]) * dt * 1.6;
   }
 
   // Broadcast my own pose (throttled) and a cosmetic copy of anything I just
@@ -605,9 +660,31 @@
   let netPaused = false;   // test-only, see window.__pauseNet
   function netUpdate(dt) {
     if (!net || !net.connected || netPaused) return;
+    // Host is recomputed from presence, not stored (see net.js) — so if the
+    // previous host leaves, or a lower-uid player joins and outranks the
+    // current one, host changes hands with nobody telling either side. Re-run
+    // the same sync a settings change would trigger the instant that
+    // happens, not only on the events that already call it, so the newly
+    // promoted client picks up bot-filling and a demoted one drops its own
+    // local bots. A demotion also explicitly clears what it had published —
+    // otherwise those bots go stale in the room forever, since a demoted
+    // client stops calling publishBots but was never going to disconnect.
+    if (net.isHost !== wasHost) {
+      const promoted = net.isHost && !wasHost;
+      wasHost = net.isHost;
+      syncBots();
+      if (!promoted) net.publishBots([]);
+    }
     smoothRemotePlayers(dt);
     netAcc += dt;
-    if (netAcc >= NET_INTERVAL) { netAcc = 0; net.publishSelf(human); }
+    if (netAcc >= NET_INTERVAL) {
+      netAcc = 0;
+      net.publishSelf(human);
+      // Bots are simulated only here, on whoever is host, exactly like
+      // single-player (see syncBots) — this just also tells everyone else
+      // what they're doing. A no-op call while not host (see publishBots).
+      if (net.isHost) net.publishBots(game.players.filter((p) => p.isBot && !p.isRemote));
+    }
     for (const q of game.projectiles) {
       if (q.owner !== human || q.isGhost || _sentShots.has(q)) continue;
       _sentShots.add(q);
@@ -615,11 +692,17 @@
     }
     stateAcc += dt;
     if (stateAcc >= STATE_INTERVAL && net.isHost) { stateAcc = 0; net.publishState({ score: game.score, roundOver: game.roundOver }); }
-    // Damage other people's clients told me landed on ME. I am always the one
-    // who decides what a hit does to my own health — see sim.js damage().
+    // Damage other people's clients told me landed on ME, or on a bot I host.
+    // I am always the one who decides what a hit does to my own health or my
+    // own bots' — see sim.js damage().
     for (const hit of net.hits.splice(0, net.hits.length)) {
       const attacker = onlineRemotes.get(hit.attackerId) || null;
-      game.damage(human, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
+      if (hit.targetBotId) {
+        const bot = game.players.find((p) => p.isBot && !p.isRemote && String(p.id) === hit.targetBotId);
+        if (bot) game.damage(bot, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
+      } else {
+        game.damage(human, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
+      }
     }
   }
 
@@ -1328,13 +1411,13 @@
   requestAnimationFrame(frame);
   loadScreens();
   window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm; window.__screens = screens;
-  window.__net = () => net; window.__onlineRemotes = onlineRemotes;
-  window.__connectOnline = connectOnline; window.__leaveOnline = leaveOnline;
+  window.__net = () => net; window.__onlineRemotes = onlineRemotes; window.__onlineBotPlayers = onlineBotPlayers;
+  window.__connectOnline = connectOnline; window.__leaveOnline = leaveOnline; window.__syncBots = syncBots;
   // Test-only: hand the game a NetRoom-shaped object directly (see
   // test/net.test.js's FakeBackend / test/multiplayer.test.js), bypassing
   // real Firebase entirely, so the game.js<->net.js wiring itself is
   // verifiable from a sandbox that cannot reach Firebase at all.
-  window.__injectNet = (room) => { net = room; game.net = room; wireNetCallbacks(room); syncBots(); };
+  window.__injectNet = (room) => { net = room; game.net = room; wireNetCallbacks(room); wasHost = room.isHost; syncBots(); };
   // Test-only: step remote-player smoothing by an EXACT dt, bypassing real
   // requestAnimationFrame timing entirely. Real frame timing under this
   // project's headless benches swings from ~1ms to 50ms+ per frame depending

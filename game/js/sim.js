@@ -640,8 +640,12 @@
       if (q.game.roundOver) return;
       if (q.isRemote) {
         // Their own client decides what a hit against THEM actually does —
-        // this client only relays what it believes landed.
-        if (this.net) this.net.relayDamage(q.netId, dmg, kind, dir, knock);
+        // this client only relays what it believes landed. A bot has no
+        // client of its own, so that goes to whoever hosts it instead.
+        if (this.net) {
+          if (q.isOnlineBot) this.net.relayBotDamage(q.netId, dmg, kind, dir, knock);
+          else this.net.relayDamage(q.netId, dmg, kind, dir, knock);
+        }
         return;
       }
       const absorb = Math.min(q.armor, dmg * q.def.armorType);

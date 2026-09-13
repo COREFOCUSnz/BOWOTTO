@@ -55,7 +55,13 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   await page.evaluate(() => {
     const g = window.__game, h = window.__human;
     g.roundLength = 1e9;
-    window.__brains.forEach((br) => { br.update = () => {}; });
+    // Neutralize every BotBrain that exists now AND every one that will ever
+    // be constructed for the rest of this run (patching the prototype, not
+    // just today's instances) — the bots section below creates fresh bots
+    // more than once, including through game.js's own automatic re-sync when
+    // host status changes, with no single point in this test where a new
+    // instance could otherwise be caught and neutralized individually.
+    window.BotBrain.prototype.update = () => {};
     g.players.filter((x) => x.isBot).forEach((x) => { x.alive = false; x.pos = [0, -60, 0]; });
     h.alive = true; h.hp = 100; h.armor = 0; h.pos = [0, 0.05, -34]; h.vel = [0, 0, 0]; h.yaw = 0; h.pitch = 0;
 
@@ -64,11 +70,13 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
     // js/game.js), nothing more.
     window.__fakeRoom = {
       isHost: true, connected: true, hits: [], code: 'TEST',
-      calls: { publishSelf: 0, relayShot: [], relayDamage: [], publishState: [], leave: 0 },
+      calls: { publishSelf: 0, relayShot: [], relayDamage: [], publishState: [], publishBots: [], relayBotDamage: [], leave: 0 },
       publishSelf() { this.calls.publishSelf++; },
       relayShot(shot) { this.calls.relayShot.push(shot); },
       relayDamage(uid, amount, kind, dir, knock) { this.calls.relayDamage.push({ uid, amount, kind, dir, knock }); },
       publishState(st) { this.calls.publishState.push(st); },
+      publishBots(bots) { this.calls.publishBots.push(bots); },
+      relayBotDamage(botId, amount, kind, dir, knock) { this.calls.relayBotDamage.push({ botId, amount, kind, dir, knock }); },
       leave() { this.calls.leave++; },
     };
     window.__injectNet(window.__fakeRoom);
@@ -79,11 +87,101 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   }));
   check(!!afterInject.net, 'injecting a room makes it the active net connection');
 
-  // ---- bots turn off the instant you connect --------------------------------
-  await page.evaluate(() => { window.__settings.fill = true; window.__settings.teamSize = 4; });
+  // ---- a non-host never creates its own competing local bots -----------------
+  await page.evaluate(() => { window.__fakeRoom.isHost = false; window.__settings.fill = true; window.__settings.teamSize = 4; });
   await frames(2);
-  const botsWhileOnline = await page.evaluate(() => window.__game.players.filter((p) => p.isBot).length);
-  check(botsWhileOnline === 0, `bot fill stays off while connected, even with it enabled in settings (found ${botsWhileOnline} bots)`);
+  const botsAsNonHost = await page.evaluate(() => window.__game.players.filter((p) => p.isBot).length);
+  check(botsAsNonHost === 0, `bot fill stays off for a non-host, even with it enabled in settings (found ${botsAsNonHost} bots)`);
+
+  // ---- the host CAN fill with bots, and publishes them ------------------------
+  await page.evaluate(() => { window.__fakeRoom.isHost = true; window.__fakeRoom.calls.publishBots.length = 0; window.__syncBots(); });
+  await frames(2);
+  const hostBots = await page.evaluate(() => window.__game.players.filter((p) => p.isBot && !p.isRemote));
+  check(hostBots.length > 0, `the host can fill with bots (found ${hostBots.length})`);
+  await frames(20); // netUpdate publishes on its own throttled interval, not every frame
+  const publishedBots = await page.evaluate(() => window.__fakeRoom.calls.publishBots.slice(-1)[0]);
+  check(Array.isArray(publishedBots) && publishedBots.length === hostBots.length,
+    `the host periodically publishes its own bots for everyone else to render (got ${publishedBots && publishedBots.length})`);
+
+  // ---- the host ignores its own bots echoed back over the network ------------
+  // A real Firebase onValue() listener hears its own writes come back, the
+  // same way it already does for players/{myUid} (see NetRoom._applyRemote's
+  // self-uid skip) — without an equivalent guard here, the host would double
+  // up every one of its own bots into a second, pose-driven ghost of itself.
+  await page.evaluate((bots) => {
+    const snapshot = {}; bots.forEach((b) => { snapshot[b.id] = { name: b.name, team: b.team, cls: b.cls, wi: b.wi, hp: b.hp, armor: b.armor, alive: b.alive, pos: [0, 0, 0], yaw: 0, pitch: 0, vel: [0, 0, 0], fireAnim: 0, walkPhase: 0 }; });
+    window.__fakeRoom.onBotsUpdate(snapshot);
+  }, hostBots);
+  const afterSelfEcho = await page.evaluate(() => ({
+    onlineBotPlayerCount: window.__onlineBotPlayers.size,
+    totalBotCount: window.__game.players.filter((p) => p.isBot).length,
+  }));
+  check(afterSelfEcho.onlineBotPlayerCount === 0 && afterSelfEcho.totalBotCount === hostBots.length,
+    `the host does not duplicate its own bots when it hears its own publishBots() echoed back (got ${JSON.stringify(afterSelfEcho)}, want ${hostBots.length} total, 0 duplicated)`);
+
+  // ---- a non-host renders the host's bots as remote, pose-driven players -----
+  const botSnapshotFor = (bot) => ({
+    name: bot.name, team: bot.team, cls: bot.cls, wi: bot.wi, hp: bot.hp, armor: bot.armor, alive: bot.alive,
+    disguise: -1, disguiseCls: null, hasFlag: false, onGround: true, inWater: false, spinup: 0, charge: -1,
+    pos: [5, 0.05, -30], yaw: 0, pitch: 0, vel: [0, 0, 0], fireAnim: 0, walkPhase: 0,
+  });
+  await page.evaluate((snap) => {
+    window.__fakeRoom.isHost = false; // this client is not host; it must only ever pose these, never simulate them
+    window.__game.players.filter((p) => p.isBot && !p.isRemote).forEach((b) => window.__game.removePlayer(b));
+    window.__fakeRoom.onBotsUpdate({ b1: snap });
+  }, botSnapshotFor({ name: 'Bot One', team: 1, cls: 'demoman', wi: 0, hp: 90, armor: 10, alive: true }));
+  const renderedBot = await page.evaluate(() => {
+    const p = window.__onlineBotPlayers.get('b1');
+    return p ? { isRemote: p.isRemote, isOnlineBot: p.isOnlineBot, name: p.name, cls: p.cls, inPlayers: window.__game.players.includes(p) } : null;
+  });
+  check(!!renderedBot && renderedBot.isRemote && renderedBot.isOnlineBot && renderedBot.name === 'Bot One' && renderedBot.cls === 'demoman' && renderedBot.inPlayers,
+    "a host's bot appears as a real, remote-marked Player on everyone else's screen, the same list everyone renders from");
+
+  // ---- hitting an online bot relays to whoever hosts it, never applies locally
+  const botHpBefore = await page.evaluate(() => window.__onlineBotPlayers.get('b1').hp);
+  await page.evaluate(() => {
+    const g = window.__game, bot = window.__onlineBotPlayers.get('b1');
+    g.damage(bot, 40, window.__human, 'hitscan', [0, 0, 1], 0);
+  });
+  const botHpAfter = await page.evaluate(() => window.__onlineBotPlayers.get('b1').hp);
+  const botRelayed = await page.evaluate(() => window.__fakeRoom.calls.relayBotDamage.slice());
+  check(botHpBefore === botHpAfter, "hitting a host's bot does not change its health on MY screen — I am not the one simulating it");
+  check(botRelayed.length === 1 && botRelayed[0].botId === 'b1' && botRelayed[0].amount === 40,
+    `...instead it is relayed to whoever hosts it, tagged with which bot, for the right amount (got ${JSON.stringify(botRelayed)})`);
+
+  // ---- as host, a relayed bot-hit applies to the right LOCAL bot --------------
+  await page.evaluate(() => {
+    window.__fakeRoom.isHost = true;
+    // Clean up the pose-driven "Bot One" from the non-host test above — a real
+    // client would never see this transition mid-room (isHost only flips when
+    // presence changes), this is purely tidying the test's own fixture.
+    const oldBot = window.__onlineBotPlayers.get('b1');
+    if (oldBot) { window.__game.removePlayer(oldBot); window.__onlineBotPlayers.delete('b1'); }
+  });
+  await page.evaluate(() => { window.__syncBots(); });
+  await frames(2);
+  // Force-reviving a bot that hasn't actually gone through sim.js's own
+  // respawn yet leaves it alive with empty weapons (the class assigned to a
+  // freshly-created bot does not itself populate them, respawn does) — set
+  // both, the way a real respawn would, or p.weapon() throws on the next tick.
+  const myBot = await page.evaluate(() => {
+    const b = window.__game.players.find((p) => p.isBot && !p.isRemote);
+    b.hp = 100; b.alive = true; b.weapons = window.CLASSES[b.cls].weapons.slice(); b.wi = 0;
+    return { id: b.id, hp: b.hp };
+  });
+  await page.evaluate((id) => { window.__fakeRoom.hits.push({ amount: 33, kind: 'hitscan', dir: [0, 0, -1], knock: 0, attackerId: 'riley', targetBotId: String(id) }); }, myBot.id);
+  await frames(2);
+  const myBotHpAfter = await page.evaluate((id) => window.__game.players.find((p) => p.id === id).hp, myBot.id);
+  check(myBot.hp - myBotHpAfter === 33, `a relayed bot-hit applies to the correct local bot by id, not to me (${myBot.hp} -> ${myBotHpAfter})`);
+
+  // Tear every bot back down and turn fill back off before the rest of this
+  // file runs — otherwise settings.fill staying on (from the bots section
+  // above) keeps respawning live bots (with brains this file never
+  // neutralizes again) underneath every assertion that follows, which is
+  // exactly what broke them the first time this section was written.
+  await page.evaluate(() => { window.__settings.fill = false; window.__syncBots(); });
+  const botsLeftAfterCleanup = await page.evaluate(() => window.__game.players.filter((p) => p.isBot).length);
+  check(botsLeftAfterCleanup === 0, `bots test cleanup: no bots left running loose for the rest of this file (found ${botsLeftAfterCleanup})`);
 
   // ---- a remote player joins -------------------------------------------------
   const remoteState = (over) => Object.assign({

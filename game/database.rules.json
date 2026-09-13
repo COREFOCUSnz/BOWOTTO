@@ -32,6 +32,10 @@
 
         "state": {
           ".write": "auth != null"
+        },
+
+        "bots": {
+          ".write": "auth != null"
         }
       }
     }

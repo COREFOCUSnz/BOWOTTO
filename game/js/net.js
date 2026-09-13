@@ -80,20 +80,32 @@
       this.connected = false;
       this.remotes = new Map();      // uid -> plain state object
       this.hits = [];                // queued incoming damage, drained by the caller
+      this.bots = {};                // botId -> plain state object, host-published
       this.onRemoteJoin = null;      // (uid, state) => void
       this.onRemoteLeave = null;     // (uid) => void
       this.onRemoteUpdate = null;    // (uid, state) => void
       this.onShot = null;            // (shot) => void
       this.onState = null;           // (state) => void
+      this.onBotsUpdate = null;      // (bots) => void — the WHOLE bots object, every change
       this._unsub = [];
       this._lastPublish = 0;
       this._myShotSeq = 0;
+      this._botsOwned = false;       // this client has published bots at least once
     }
 
     get isHost() {
       if (!this.myUid) return false;
       const uids = Array.from(this.remotes.keys()).concat([this.myUid]);
       return electHost(uids) === this.myUid;
+    }
+
+    // Whoever is host right now simulates every bot in the room — there is no
+    // client of a bot's own to be authoritative over its health the way a real
+    // player is, so damage against one has to be addressed to this instead.
+    get hostUid() {
+      if (!this.myUid) return null;
+      const uids = Array.from(this.remotes.keys()).concat([this.myUid]);
+      return electHost(uids);
     }
 
     async _ensureAuth() {
@@ -142,14 +154,26 @@
       this._unsub.push(this.io.db.onValue(`rooms/${code}/state`, (state) => {
         if (state && this.onState) this.onState(state);
       }));
+      // Bots have no client of their own, so unlike players/hits/shots this is
+      // one whole-object listener (host publishes the whole room's bots each
+      // time) rather than per-child — the data is small and this is simplest.
+      this._unsub.push(this.io.db.onValue(`rooms/${code}/bots`, (bots) => {
+        this.bots = bots || {};
+        if (this.onBotsUpdate) this.onBotsUpdate(this.bots);
+      }));
     }
 
     leave() {
       if (!this.connected) return;
       if (this.code && this.myUid) this.io.db.remove(`rooms/${this.code}/players/${this.myUid}`);
+      // If I was hosting bots, take them with me — nobody else is simulating
+      // them, so leaving them behind would freeze N bots mid-room forever.
+      if (this._botsOwned && this.code) this.io.db.remove(`rooms/${this.code}/bots`);
       for (const u of this._unsub) u();
       this._unsub = [];
       this.remotes.clear();
+      this.bots = {};
+      this._botsOwned = false;
       this.connected = false;
       this.code = null;
     }
@@ -167,26 +191,50 @@
       if (this.onRemoteLeave) this.onRemoteLeave(uid);
     }
 
-    // Called ~10-15x/second with the local human player. Only sends what
-    // changed enough to matter, plus the always-changing pose, to keep the
-    // write volume trivial for a handful of friends.
-    publishSelf(p, opts) {
-      if (!this.connected) return;
-      opts = opts || {};
+    // Shared by publishSelf and publishBots — a bot is just another sim.js
+    // Player object with the exact same fields worth telling anyone else
+    // about. p.hasFlag isn't a real sim.js field (the real state is p.flag, a
+    // Flag object or null) and p.disguiseCls is only ever set once a Spy has
+    // actually disguised — both are `undefined` the rest of the time, and
+    // Firebase's set() rejects any undefined property outright.
+    _encodePose(p) {
       const rec = { pos: [round3(p.pos[0]), round3(p.pos[1]), round3(p.pos[2])], yaw: round3(p.yaw), pitch: round3(p.pitch),
         vel: [round3(p.vel[0]), round3(p.vel[1]), round3(p.vel[2])], t: this.io.now() };
-      // p.hasFlag isn't a real sim.js field (the real state is p.flag, a Flag
-      // object or null) and p.disguiseCls is only ever set once a Spy has
-      // actually disguised — both are `undefined` the rest of the time, and
-      // Firebase's set() rejects any undefined property outright.
       for (const f of POSE_FIELDS) {
         const v = f === 'hasFlag' ? !!p.flag : p[f];
         rec[f] = v === undefined ? null : v;
       }
       rec.hp = Math.max(0, Math.round(p.hp)); rec.armor = Math.max(0, Math.round(p.armor));
       rec.fireAnim = round3(p.fireAnim); rec.walkPhase = round3(p.walkPhase % (Math.PI * 4));
+      return rec;
+    }
+
+    // Called ~10-15x/second with the local human player. Only sends what
+    // changed enough to matter, plus the always-changing pose, to keep the
+    // write volume trivial for a handful of friends.
+    publishSelf(p, opts) {
+      if (!this.connected) return;
+      opts = opts || {};
+      const rec = this._encodePose(p);
       if (opts.extra) Object.assign(rec, opts.extra);
       this.io.db.set(`rooms/${this.code}/players/${this.myUid}`, rec);
+    }
+
+    // Host-only. Bots have no client of their own — whoever is host runs
+    // every bot in the room exactly like single-player (same BotBrain, same
+    // sim.js Player), and just also tells everyone else what they're doing,
+    // the same way it tells them its own pose. Everyone else only ever poses
+    // them, never simulates them, exactly like a real remote player.
+    publishBots(bots) {
+      if (!this.connected || !this.isHost) return;
+      const snapshot = {};
+      for (const b of bots) snapshot[b.id] = this._encodePose(b);
+      // Registered once, kept forever: if I stop being host later without
+      // ever disconnecting, I have already stopped calling this (game.js only
+      // calls it while isHost), so there is nothing left to clean up here —
+      // only an actual disconnect should ever remove these bots.
+      if (!this._botsOwned) { this.io.db.onDisconnect(`rooms/${this.code}/bots`).remove(); this._botsOwned = true; }
+      this.io.db.set(`rooms/${this.code}/bots`, snapshot);
     }
 
     // A hit I just dealt to a remote player. I am never authoritative over
@@ -199,6 +247,19 @@
       if (!this.connected) return;
       this.io.db.push(`rooms/${this.code}/hits/${targetUid}`, {
         amount, kind, dir: dir || null, knock: knock || 0, attackerId: this.myUid, t: this.io.now(),
+      });
+    }
+
+    // A hit I just dealt to a bot. Bots have no client of their own, so this
+    // goes to whoever currently hosts the room — the same client simulating
+    // that bot's health — tagged with which bot, alongside the ordinary
+    // per-uid hits it already has to drain for its own human.
+    relayBotDamage(botId, amount, kind, dir, knock) {
+      if (!this.connected) return;
+      const host = this.hostUid;
+      if (!host) return;
+      this.io.db.push(`rooms/${this.code}/hits/${host}`, {
+        amount, kind, dir: dir || null, knock: knock || 0, attackerId: this.myUid, targetBotId: botId, t: this.io.now(),
       });
     }
 

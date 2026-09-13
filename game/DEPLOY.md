@@ -179,11 +179,24 @@ someone sends them a damage event rather than changing their health directly,
 the same way a real multiplayer game has to avoid one player's game state
 overriding another's.
 
+**Bots in an online room** are simulated only by whoever the room currently
+considers host (same recomputed-from-presence host as above), exactly like
+single-player — same `BotBrain`, same difficulty setting — and published to
+everyone else the same way a real player's pose is; nobody else ever runs a
+second copy of them. Turn Fill teams with bots on in Settings while hosting
+to add them, and everyone in the room sees the same bots doing the same
+things. Only the host's own Fill/Team size/Difficulty settings matter for
+this — a non-host toggling Fill does nothing (the menu says so) since a bot
+must have exactly one client simulating it. If the host leaves, its bots
+leave with it; if host passes to someone else instead (the lowest-uid player
+currently present, recomputed automatically), that new host does not
+inherit the old bots automatically — it can add its own the same way.
+
 **v1 limitations, honestly:**
 
-- **Bots and sentries are disabled in an online room.** Bot AI and sentry
-  targeting were never designed to run once per room rather than once per
-  player; that's future work, not a fundamental blocker.
+- **Sentries are disabled in an online room.** Sentry targeting was never
+  designed to run once per room rather than once per player; that's future
+  work, not a fundamental blocker.
 - **Only rockets, pipes, pipebombs and incendiary shots get a "ghost"
   explosion** — a cosmetic-only replica so you can see and hear other
   players' attacks land. Hand-thrown grenades don't yet.

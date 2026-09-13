@@ -183,3 +183,48 @@ which is how the game is actually played); `test/feel.test.js` has a
 pre-existing flaky wall-clock-timing assertion on the hit-confirmation merge
 window. Both verified present on the pre-multiplayer baseline too — not
 regressions from the online-play work.
+
+## Same session, continued: Tab bug + bots in online rooms
+
+Corey, live-testing the deploy: holding Tab (scoreboard) for 2+ seconds
+"goes nuts". Root cause never reproduced directly (headless Chromium here
+doesn't replicate real browsers' pointer-lock quirks), but a real, documented
+one explains it exactly: some browsers release Pointer Lock the instant Tab
+is held, even with `preventDefault()` — an accessibility guarantee Tab can
+never be fully trapped — and `pointerlockchange` reacted to ANY lock loss by
+yanking the main menu open mid-match, with WASD still held (no keyup ever
+arrives once focus moves) and mouse-look dead. Fixed: if `keys.Tab` is still
+down when lock is lost, don't open the menu — silently re-lock on release
+instead (`js/game.js`, `relockOnTabRelease`).
+
+**Bots can now join an online room.** Whoever the room currently considers
+host simulates every bot (same `BotBrain`/difficulty as single-player) and
+publishes their poses over a new `rooms/{code}/bots` node (`net.js`
+`publishBots`/`onBotsUpdate`, `database.rules.json`), the same way it
+publishes its own pose; everyone else only ever renders them, exactly like a
+real remote player (`onlineBotPlayers` map, reusing `applyRemoteState`/
+`smoothRemotePlayers`). Damage against a bot has no client of its own to be
+authoritative, so it relays to whoever hosts it via a new `relayBotDamage`
+(pushed to `hits/{hostUid}` tagged `targetBotId`) instead of the per-uid
+`relayDamage`. Host status changing mid-room (the previous host leaves, or a
+lower-uid player joins) now re-runs the same sync a settings change would —
+previously nothing did, so a newly-promoted host would never have started
+filling/publishing bots, and a demoted one would leave its last-published
+bots stale in the room forever. Controlled entirely through the existing
+Settings panel (Fill teams with bots / Team size / Difficulty) — no new UI —
+gated so only the host's toggle does anything; a non-host sees a hint saying
+so instead of a control that silently does nothing.
+
+Found and fixed one real regression risk on the way in, not by inspection —
+by running the actual multiplayer bench and reading its failures: game.js
+had no mechanism at all for host status changing while already connected
+(`syncBots()` was only ever called from discrete UI events), so a promoted
+host would sit there never filling bots and a demoted one would leave stale
+bots behind forever. `test/multiplayer.test.js` gained a dedicated test that
+a host ignores its own `publishBots()` echoed back over `onValue` (a real
+Firebase quirk the old `onRemoteJoin`/self-uid-skip pattern already handled
+for players but bots needed its own guard for) — confirmed it fails cleanly
+(14 "bots" instead of 7, a full duplicate set) with that guard removed.
+
+All benches re-verified green after this (map/sim/difficulty/net/
+multiplayer/browser/mobile/vfx/audio/feel).
