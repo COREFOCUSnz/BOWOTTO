@@ -121,8 +121,8 @@ Corey asked for a browser Team Fortress Classic / 2Fort tribute to host on
 Firebase later. It lives entirely in `game/` (plain JS + WebGL, no deps, no
 build), with its own README, tests (`cd game && npm test`), and
 `firebase.json`. It does not touch the plugin sources, CMake, version or the
-plugin README. Branch: `claude/team-fortress-classic-game-l8qs5f` (open PR #1,
-not merged — merging is Corey's call, not something to do unprompted).
+plugin README. Branch `claude/team-fortress-classic-game-l8qs5f`, PR #1
+**merged to `main`** 2026-09-12 (Corey: "merge it").
 
 Built across sessions: bots with difficulty levels, TF2/Tron skin sets,
 mobile touch controls, a Blender/procedural asset pipeline (incl. a generated
@@ -132,22 +132,54 @@ share one match instead of separate bot games. Room codes over Firebase
 Realtime Database + anonymous auth, host elected locally (lowest uid
 present, no handoff), remote players pose-driven/smoothed rather than
 simulated, damage always stays authoritative on the target's own client.
-`publish.sh` best-effort automates the one-time Firebase project setup; two
-console clicks (enable Realtime Database, enable Anonymous auth) still need
-doing by hand once — see `game/DEPLOY.md`. Bots and sentries are off in an
-online room for now (v1 limitation, not yet a priority).
+Bots and sentries are off in an online room for now (v1 limitation, not yet
+a priority).
 
-**Never tested against real Firebase from this sandbox** — no outbound
-access to Firebase/Google here at all — so `test/net.test.js` and
-`test/multiplayer.test.js` run against a hand-built fake backend / an
-injected stub, not a live project. The first real multi-browser deploy is
-the first real test of that path; flag anything that looks wrong there as
-expected first-run territory, not a sign the approach is broken.
+## 2026-09-12/13: first real deploy — live, online play working
+
+**The game is live: https://team-fort-4925a.web.app** (Hosting deployed via
+the `Deploy game` GitHub Actions workflow, not from this sandbox — it has no
+outbound path to Firebase/Google at all, confirmed by a flat 403 on every
+attempt). The workflow needs a `FIREBASE_SERVICE_ACCOUNT_2FORT` repo secret
+(Corey created it via the Firebase console + GitHub secrets UI — neither
+step can be done from here). `game/publish.sh` remains the from-your-own-
+machine path; the workflow now also does everything `publish.sh`'s "online
+play" step does (create the web app, write `firebase-config.js`, deploy
+`database.rules.json`) non-interactively via `GOOGLE_APPLICATION_CREDENTIALS`
+instead of an interactive `firebase login` — see `.github/workflows/deploy-game.yml`.
+
+Corey did the two one-time console clicks (enable Realtime Database, enable
+Anonymous auth) by hand, as expected — no way around either from a script.
+
+**This surfaced two real bugs that no test had caught**, because this was
+genuinely the first time any of this code ran against a real Firebase
+project:
+1. `auth/admin-restricted-operation` on first connect — the Anonymous
+   toggle had been flipped but not actually saved; re-saving it fixed it.
+2. `Firebase.Database.set failed: value argument contains undefined` on the
+   very first `publishSelf()` — `p.hasFlag` isn't a real `sim.js` field
+   (the real state is `p.flag`) and `p.disguiseCls` is only set once a Spy
+   has actually disguised, so both are `undefined` on essentially every
+   ordinary player. Same bug, second shape in `relayDamage`: fall/burn/
+   infection/caltrop damage() calls never pass `dir`/`knock`. Fixed in
+   `js/net.js` (default to `null`/`!!p.flag`/`0` instead of forwarding
+   `undefined`); added a regression test using a player shaped like the
+   *real* `sim.js` Player rather than the old `fakePlayer()` fixture, which
+   had accidentally papered over exactly these two fields by setting them
+   explicitly. The fake backend's `set()` now rejects nested `undefined`
+   the way real Firebase does, so this class of bug is catchable again.
+
+**Corey confirmed room creation now works** after that fix redeployed. Two
+real-browser two-player sync (does a remote player actually appear and move
+for someone else) is still unverified — that's the next thing to check if
+online play gets used for real.
 
 All existing benches (map/sim/difficulty/vfx/audio/net/multiplayer) pass
-clean. `test/browser.test.js` and `test/mobile.test.js` fail on a
-pre-existing, unrelated `file://` fetch of `screens.json` (fine when served
-over http, which is how the game is actually played); `test/feel.test.js`
-has a pre-existing flaky wall-clock-timing assertion on the hit-confirmation
-merge window. Both verified present on the pre-multiplayer baseline too —
-not regressions from the online-play work.
+clean; `net.test.js` needs no server, `multiplayer.test.js` needs
+`python3 -m http.server 8099` running first (it does not start one itself).
+`test/browser.test.js` and `test/mobile.test.js` fail on a pre-existing,
+unrelated `file://` fetch of `screens.json` (fine when served over http,
+which is how the game is actually played); `test/feel.test.js` has a
+pre-existing flaky wall-clock-timing assertion on the hit-confirmation merge
+window. Both verified present on the pre-multiplayer baseline too — not
+regressions from the online-play work.
