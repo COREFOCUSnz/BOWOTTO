@@ -51,6 +51,8 @@ function makeFakeBackend() {
   return {
     get(path) { return structuredCloneLoose(getAt(path)); },
     set(path, val) {
+      const bad = findUndefinedPath(val);
+      if (bad !== null) throw new Error(`Firebase.Database.set failed: value argument contains undefined in property '${path.split('/').filter(Boolean).join('.')}${bad ? '.' + bad : ''}'`);
       const [parent, key] = parentAndKey(path);
       const existed = setAt(path, val);
       fire(existed ? 'changed' : 'added', parent, key, structuredCloneLoose(val));
@@ -77,6 +79,17 @@ function makeFakeBackend() {
   };
 }
 function structuredCloneLoose(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
+
+// Real Firebase rejects any object containing `undefined` anywhere in it —
+// this is exactly the class of bug that shipped in the first real deploy
+// (p.disguiseCls, the fictional p.hasFlag, and dir/knock on damage() calls
+// that never pass them). Returns the offending dotted-path suffix, or null.
+function findUndefinedPath(v, path) {
+  if (v === undefined) return path || '';
+  if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) { const r = findUndefinedPath(v[i], `${path || ''}.${i}`); if (r !== null) return r; } return null; }
+  if (v && typeof v === 'object') { for (const k of Object.keys(v)) { const r = findUndefinedPath(v[k], path ? `${path}.${k}` : k); if (r !== null) return r; } return null; }
+  return null;
+}
 
 function makeClient(backend, uid, clock) {
   return new NetRoom({ db: backend, auth: { signIn: () => Promise.resolve(uid) }, now: () => clock.t });
@@ -195,6 +208,26 @@ function makeClient(backend, uid, clock) {
   backend.disconnectClient(`rooms/${code}/players/bob`);
   check(bobLeft.seen, "when bob's connection dies without him saying goodbye, everyone else is still told he is gone");
   check(!A.remotes.has('bob'), 'and he is removed from the room, not left as a ghost standing where he disconnected');
+
+  // ---- shapes that shipped broken in the first real deploy -------------------
+  // fakePlayer() above sets disguiseCls/hasFlag explicitly, which papered over
+  // the real bug: a real sim.js Player never sets p.hasFlag at all (the real
+  // state is p.flag, a Flag object or null) and only ever sets p.disguiceCls
+  // once a Spy has actually disguised. Firebase's real set() rejects any
+  // object containing `undefined` anywhere in it, so publishing a totally
+  // ordinary non-Spy, flagless player broke online play's very first publish.
+  const realShapePlayer = {
+    pos: [1, 2, 3], vel: [0, 0, 0], yaw: 0.5, pitch: -0.1, name: 'Dave', team: 0, cls: 'soldier',
+    wi: 0, hp: 80, armor: 20, alive: true, disguise: -1, onGround: true, inWater: false, spinup: 0, charge: -1,
+    fireAnim: 0, walkPhase: 0, flag: null, // disguiseCls and hasFlag deliberately absent, like the real Player
+  };
+  let threwOnRealShape = null;
+  try { A.publishSelf(realShapePlayer); } catch (e) { threwOnRealShape = e; }
+  check(!threwOnRealShape, `publishing an ordinary player (no disguise, no flag) does not throw (${threwOnRealShape && threwOnRealShape.message})`);
+
+  let threwOnBareDamage = null;
+  try { B.relayDamage('alice', 3, 'burn', undefined, undefined); } catch (e) { threwOnBareDamage = e; }
+  check(!threwOnBareDamage, `relaying fall/burn/infection/caltrop damage (no dir or knock passed) does not throw (${threwOnBareDamage && threwOnBareDamage.message})`);
 
   A.leave(); B.leave(); C.leave();
   check(!A.connected && !B.connected, 'leaving actually disconnects, rather than only clearing local state');

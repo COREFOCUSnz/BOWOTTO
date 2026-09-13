@@ -175,7 +175,14 @@
       opts = opts || {};
       const rec = { pos: [round3(p.pos[0]), round3(p.pos[1]), round3(p.pos[2])], yaw: round3(p.yaw), pitch: round3(p.pitch),
         vel: [round3(p.vel[0]), round3(p.vel[1]), round3(p.vel[2])], t: this.io.now() };
-      for (const f of POSE_FIELDS) rec[f] = p[f];
+      // p.hasFlag isn't a real sim.js field (the real state is p.flag, a Flag
+      // object or null) and p.disguiseCls is only ever set once a Spy has
+      // actually disguised — both are `undefined` the rest of the time, and
+      // Firebase's set() rejects any undefined property outright.
+      for (const f of POSE_FIELDS) {
+        const v = f === 'hasFlag' ? !!p.flag : p[f];
+        rec[f] = v === undefined ? null : v;
+      }
       rec.hp = Math.max(0, Math.round(p.hp)); rec.armor = Math.max(0, Math.round(p.armor));
       rec.fireAnim = round3(p.fireAnim); rec.walkPhase = round3(p.walkPhase % (Math.PI * 4));
       if (opts.extra) Object.assign(rec, opts.extra);
@@ -184,10 +191,14 @@
 
     // A hit I just dealt to a remote player. I am never authoritative over
     // their health — I tell them what I think landed and they decide.
+    // Plenty of damage() calls (fall, burn, infection, caltrop) pass no
+    // dir/knock at all, and Firebase rejects undefined outright — null/0
+    // round-trip back through game.damage()'s own `if (dir && knock)` guard
+    // exactly like the missing arguments would have.
     relayDamage(targetUid, amount, kind, dir, knock) {
       if (!this.connected) return;
       this.io.db.push(`rooms/${this.code}/hits/${targetUid}`, {
-        amount, kind, dir, knock, attackerId: this.myUid, t: this.io.now(),
+        amount, kind, dir: dir || null, knock: knock || 0, attackerId: this.myUid, t: this.io.now(),
       });
     }
 
