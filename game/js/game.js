@@ -330,12 +330,19 @@
       const canConnect = netAvailable;
       if (net && net.connected) {
         const names = Array.from(onlineRemotes.values()).map((p) => escapeHtml(p.name || '?'));
+        const botCount = game.players.filter((p) => p.isBot && !p.isRemote).length + onlineBotPlayers.size;
         html = title + `<div class="list"><div class="h">Playing online</div>
           <div class="hint big">Room code<br><span class="roomcode">${net.code}</span></div>
           <p>Read that to your friends, or have them enter it under <b>Join a room</b>. Anyone with it can join
           while this stays open.</p>
           <p>${names.length ? names.length + ' other' + (names.length === 1 ? '' : 's') + ' here: ' + names.join(', ') : 'Nobody else has joined yet.'}</p>
-          <p class="small">Bots and sentries are turned off while playing online (see DEPLOY.md).</p>
+          <p class="small">${net.isHost ? "You're hosting this room." : escapeHtml(currentHostName()) + ' is hosting this room.'}
+          ${botCount ? ` ${botCount} bot${botCount === 1 ? '' : 's'} in the match.` : ''}</p>
+          ${net.isHost ? `
+          <label>Fill teams with bots <input id="net_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
+          ${settings.fill ? `<label>Players per team <input id="net_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="net_size_v">${settings.teamSize}</span></label>
+          <label>Bot difficulty <select id="net_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>` : ''}
+          ` : `<p class="small">Sentries are always off online; only ${escapeHtml(currentHostName())} can add bots.</p>`}
           <button data-k="leave">Leave room</button>
           <button data-k="0"><b>0</b> Back</button></div>`;
       } else if (!canConnect) {
@@ -360,7 +367,7 @@
       html = title + `<div class="list settings"><div class="h">Settings</div>
         <label>Your name <input id="s_name" value="${escapeHtml(settings.name)}" maxlength="16"></label>
         <label>Fill teams with bots <input id="s_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
-        ${net && net.connected && !net.isHost ? '<p class="hint small">Only whoever hosts the room can add bots — ask them to turn this on instead.</p>' : ''}
+        ${net && net.connected && !net.isHost ? `<p class="hint small">Only ${escapeHtml(currentHostName())}, who is hosting this room, can add bots — this does nothing on your screen. See the online room menu.</p>` : ''}
         <label>Players per team <input id="s_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="s_size_v">${settings.teamSize}</span></label>
         <label>Bot difficulty <select id="s_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>
         <label>Mouse sensitivity <input id="s_sens" type="range" min="0.0005" max="0.006" step="0.0001" value="${settings.sens}"></label>
@@ -513,12 +520,30 @@
   // typing must not trigger the digit-key menu shortcuts (menuKey already
   // ignores keydowns while an <input> has focus, so this only needs the two
   // things that are specific to a 4-letter code).
+  // Host is recomputed from presence (lowest uid currently in the room), not
+  // "whoever created it" or anything else visible to a player — without
+  // naming them somewhere, there is no way to tell whose Fill toggle is
+  // actually the one that does anything.
+  function currentHostName() {
+    if (!net || !net.connected) return '';
+    if (net.isHost) return human.name || 'You';
+    const h = onlineRemotes.get(net.hostUid);
+    return (h && h.name) || 'the other player';
+  }
   function bindOnline() {
-    const el = $('net_code');
-    if (!el) return;
-    el.addEventListener('input', () => { el.value = el.value.toUpperCase().slice(0, 4); });
-    el.addEventListener('keydown', (e) => { if (e.code === 'Enter') menuSelect('join'); });
-    el.focus();
+    const code = $('net_code');
+    if (code) {
+      code.addEventListener('input', () => { code.value = code.value.toUpperCase().slice(0, 4); });
+      code.addEventListener('keydown', (e) => { if (e.code === 'Enter') menuSelect('join'); });
+      code.focus();
+    }
+    // Host-only bot controls, right where you're already looking instead of
+    // buried in Settings — the exact same settings.fill/teamSize/difficulty
+    // syncBots() already reads, so a host flipping this and one flipping the
+    // equivalent Settings toggle land on identical behaviour.
+    if ($('net_fill')) $('net_fill').addEventListener('change', (e) => { settings.fill = e.target.checked; saveSettings(); syncBots(); renderMenu(); });
+    if ($('net_size')) $('net_size').addEventListener('input', (e) => { settings.teamSize = parseInt(e.target.value, 10); $('net_size_v').textContent = settings.teamSize; saveSettings(); syncBots(); });
+    if ($('net_skill')) $('net_skill').addEventListener('change', (e) => { settings.difficulty = e.target.value; saveSettings(); syncBots(); });
   }
 
   async function connectOnline(mode, code) {
@@ -583,6 +608,7 @@
     room.onBotsUpdate = (bots) => {
       if (room.isHost) return;
       const seen = new Set();
+      const prevCount = onlineBotPlayers.size;
       for (const id of Object.keys(bots || {})) {
         seen.add(id);
         const st = bots[id];
@@ -597,6 +623,9 @@
         }
       }
       for (const [id, p] of onlineBotPlayers) if (!seen.has(id)) { game.removePlayer(p); onlineBotPlayers.delete(id); }
+      // Only when the COUNT actually changes (a bot joined/left), not on
+      // every pose update — this fires ~12x/second while a host is connected.
+      if (menu === 'online' && onlineBotPlayers.size !== prevCount) renderMenu();
     };
   }
 
@@ -1434,4 +1463,11 @@
 
   // One step of sim + viewmodel with no drawing, for test/feel.test.js
   window.__stepFeel = (dt) => { game.update(dt); updateViewModel(dt); return viewModelPose(human, human.weapon()); }; window.__models = models; window.__poses = poses; window.__settings = settings; window.__modelFor = modelFor; window.__setSkin = pickSkinSet; window.__sets = allSets; window.__closeMenu = () => { menu = null; menuEl.hidden = true; }; window.__menu = () => menu;
+  // Test-only: jump straight to a menu and render it, bypassing the real
+  // Escape/click/pointer-lock dance entirely (openMenu() itself still runs,
+  // so bindSettings()/bindOnline() and everything else still wire up
+  // correctly) — real pointer lock is flaky-to-nonexistent under headless
+  // Chromium, and a keydown-simulated Escape can race a stray
+  // pointerlockchange back open to 'main' depending on exactly when it lands.
+  window.__openMenu = (which) => { openMenu(which); return menuEl.innerHTML; };
 })();

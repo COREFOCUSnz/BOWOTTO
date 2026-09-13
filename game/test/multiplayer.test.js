@@ -93,6 +93,19 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   const botsAsNonHost = await page.evaluate(() => window.__game.players.filter((p) => p.isBot).length);
   check(botsAsNonHost === 0, `bot fill stays off for a non-host, even with it enabled in settings (found ${botsAsNonHost} bots)`);
 
+  // ---- the online room panel says who is ACTUALLY hosting --------------------
+  // Host is recomputed from presence, not "whoever created the room" — with
+  // nothing naming them, a room creator who never won host has no way to
+  // know their own Fill toggle silently does nothing while a friend's would.
+  const openOnlineMenuHtml = () => page.evaluate(() => {
+    const html = window.__openMenu('online');
+    window.__closeMenu();
+    return html;
+  });
+  const onlineMenuAsNonHost = await openOnlineMenuHtml();
+  check(/is hosting this room/.test(onlineMenuAsNonHost) && !/id="net_fill"/.test(onlineMenuAsNonHost),
+    'a non-host sees who is actually hosting, and no bot control that would silently do nothing on their own screen');
+
   // ---- the host CAN fill with bots, and publishes them ------------------------
   await page.evaluate(() => { window.__fakeRoom.isHost = true; window.__fakeRoom.calls.publishBots.length = 0; window.__syncBots(); });
   await frames(2);
@@ -102,6 +115,10 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   const publishedBots = await page.evaluate(() => window.__fakeRoom.calls.publishBots.slice(-1)[0]);
   check(Array.isArray(publishedBots) && publishedBots.length === hostBots.length,
     `the host periodically publishes its own bots for everyone else to render (got ${publishedBots && publishedBots.length})`);
+
+  const onlineMenuAsHost = await openOnlineMenuHtml();
+  check(/You.re hosting this room/.test(onlineMenuAsHost) && /id="net_fill"/.test(onlineMenuAsHost),
+    'the host sees a direct bot control right in the online room panel, and confirmation that they are the one hosting');
 
   // ---- the host ignores its own bots echoed back over the network ------------
   // A real Firebase onValue() listener hears its own writes come back, the
