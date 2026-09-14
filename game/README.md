@@ -123,11 +123,16 @@ still turn on Fill teams with bots in Settings if the group's a little
 short-handed — everyone sees the same bots doing the same things, not their
 own separate copies.
 
+Engineers can build sentries online too — a sentry has one clear owner
+(whoever built it), so it needs no host: your own client simulates it and
+everyone else just renders it, the same trust model as a real player's pose.
+
 This needs Firebase Realtime Database, which is a one-time setup separate
 from Hosting above. `./publish.sh` attempts it automatically each time it
 deploys; see `DEPLOY.md` for what it does, what still needs a manual click in
-the Firebase console the first time, and the v1 limitations (sentries are
-disabled online, and a few v0.1-era rough edges around latency).
+the Firebase console the first time, and the v1 limitations (a few v0.1-era
+rough edges around latency, and only your own sentry can be repaired/
+upgraded — see `DEPLOY.md`).
 If that setup hasn't been done yet, **Play online** just says so in the menu
 and everything else about the game is unaffected — this is entirely optional.
 
@@ -373,11 +378,13 @@ handful.
 publishing, damage relay, room codes — against a hand-built in-memory fake of
 the Firebase Realtime Database calls it makes, in plain Node with no browser.
 `test/multiplayer.test.js` tests the integration between `js/game.js` and
-`js/net.js` — remote players rendering and smoothing, host-only bots
-publishing and rendering the same way, sentries turning off online, damage
-staying authoritative on the target's own client (a bot's included — it
-routes to whoever hosts it, since a bot has no client of its own), rockets
-and pipebombs showing cosmetic "ghost" explosions for other players — by
+`js/net.js` — remote players rendering and smoothing, host-only bots and
+owner-only sentries publishing and rendering the same way, damage staying
+authoritative on the target's own client (a bot's or a sentry's included —
+they route to whoever hosts or owns them, since neither has a client of its
+own), a remote sentry never independently targeting or firing (it's only
+ever posed, never simulated, by anyone but its owner), rockets and pipebombs
+showing cosmetic "ghost" explosions for other players — by
 injecting a plain-object stub in place of a real `NetRoom` via
 `window.__injectNet`, so it never touches Firebase either. Both exist because
 **this sandbox cannot reach Firebase or Google at all** (outbound network is

@@ -36,6 +36,12 @@
 
         "bots": {
           ".write": "auth != null"
+        },
+
+        "sentries": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         }
       }
     }

@@ -192,11 +192,20 @@ leave with it; if host passes to someone else instead (the lowest-uid player
 currently present, recomputed automatically), that new host does not
 inherit the old bots automatically — it can add its own the same way.
 
+**Sentries in an online room** work the same as offline — press E as an
+Engineer to build one — because a sentry has one natural, unambiguous owner
+(whoever built it), so unlike bots it needs no host at all: your own client
+simulates it (targeting, firing, everything) and publishes its position, aim
+and health the same way it publishes your own pose. Everyone else only ever
+renders it, never simulates it. Repairing and upgrading with the spanner is
+v1-limited to your own sentry — you can still damage or destroy an enemy's
+(or, if friendly fire is a thing you've enabled some other way, a teammate's)
+sentry from any client, but only its owner's client can repair or upgrade it,
+since anyone else doing so would just be guessing at health it isn't
+actually tracking.
+
 **v1 limitations, honestly:**
 
-- **Sentries are disabled in an online room.** Sentry targeting was never
-  designed to run once per room rather than once per player; that's future
-  work, not a fundamental blocker.
 - **Only rockets, pipes, pipebombs and incendiary shots get a "ghost"
   explosion** — a cosmetic-only replica so you can see and hear other
   players' attacks land. Hand-thrown grenades don't yet.

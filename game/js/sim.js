@@ -422,7 +422,10 @@
         this.damage(q, w.dmg, p, 'melee', fwd, 2);
       } else if (h.sentry) {
         const s = h.sentry;
-        if (s.team === p.team && w === WEAPONS.spanner) { if (p.ammo.cells >= 10 && s.hp < s.maxHp) { p.ammo.cells -= 10; s.hp = Math.min(s.maxHp, s.hp + 40); this.effects.sound('build', s.pos); } else if (s.owner === p && p.ammo.cells >= 130 && s.level < 3) { p.ammo.cells -= 130; s.level++; s.maxHp += 50; s.hp = s.maxHp; this.effects.sound('resupply', s.pos); this.effects.message('Sentry upgraded to level ' + s.level, p.team, 'info', p); } }
+        // Repairing/upgrading a sentry you don't simulate would just be a
+        // local guess at its health — v1 leaves that to its owner's own
+        // client, the same limit bots have on being helped by anyone else.
+        if (s.team === p.team && w === WEAPONS.spanner && !s.isRemote) { if (p.ammo.cells >= 10 && s.hp < s.maxHp) { p.ammo.cells -= 10; s.hp = Math.min(s.maxHp, s.hp + 40); this.effects.sound('build', s.pos); } else if (s.owner === p && p.ammo.cells >= 130 && s.level < 3) { p.ammo.cells -= 130; s.level++; s.maxHp += 50; s.hp = s.maxHp; this.effects.sound('resupply', s.pos); this.effects.message('Sentry upgraded to level ' + s.level, p.team, 'info', p); } }
         else if (s.team !== p.team) this.damageSentry(s, w.dmg, p);
       } else {
         this.effects.particle({ pos: h.point, vel: [fxRand(-1, 1), fxRand(1, 2), fxRand(-1, 1)], life: 0.3, size: 0.05, color: [0.8, 0.8, 0.7], gravity: 10 });
@@ -780,8 +783,15 @@
     }
     damageSentry(s, dmg, attacker) {
       if (attacker && attacker.team === s.team) return;
-      s.hp -= dmg; if (attacker) s.lastAttacker = attacker;
       this.effects.particle({ pos: V.add(s.pos, [0, 0.8, 0]), vel: [fxRand(-2, 2), fxRand(1, 3), fxRand(-2, 2)], life: 0.4, size: 0.08, color: [1, 0.8, 0.3], emissive: 1, gravity: 10 });
+      if (s.isRemote) {
+        // Its owner's own client is the one simulating it and decides what
+        // this actually does to its health, the same as damage() already
+        // does for a remote player -- see js/net.js.
+        if (this.net) this.net.relaySentryDamage(s.netId, dmg);
+        return;
+      }
+      s.hp -= dmg; if (attacker) s.lastAttacker = attacker;
       if (s.hp <= 0) { this.destroySentry(s, attacker); if (attacker) attacker.score += 1; }
     }
     destroySentry(s, attacker) {
@@ -792,6 +802,10 @@
     }
     updateSentries(dt) {
       for (const s of this.sentries) {
+        // Simulated by its owner's own client, exactly like a bot is
+        // simulated only by whoever hosts it — this client only ever poses
+        // and renders it (see js/game.js's smoothing of onlineSentries).
+        if (s.isRemote) continue;
         s.cooldown = Math.max(0, s.cooldown - dt); s.scanT -= dt;
         s.recoil = Math.max(0, s.recoil - dt * 7); s.flash = Math.max(0, s.flash - dt * 18);
         const head = V.add(s.pos, [0, 1.0, 0]);

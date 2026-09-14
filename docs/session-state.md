@@ -228,3 +228,43 @@ for players but bots needed its own guard for) — confirmed it fails cleanly
 
 All benches re-verified green after this (map/sim/difficulty/net/
 multiplayer/browser/mobile/vfx/audio/feel).
+
+## Same session, continued: sentries in online rooms
+
+Corey: pressing E to build a turret while online did nothing. Sentries were
+the deliberately-deferred v1 limitation from the original online-play build.
+
+Turned out simpler than bots to network: a sentry has exactly one natural,
+unambiguous owner (whoever built it) — no host election needed at all. Its
+owner's own client fully simulates it (same targeting/firing code as
+single-player) and publishes it over a new per-uid `rooms/{code}/sentries/
+{uid}` node, the same way it already publishes its own pose (`net.js`
+`publishSentry`/new `sentries` subscription, keyed exactly like players/
+hits/shots — `database.rules.json` reuses the same self-uid-only write
+rule). Everyone else only ever renders it: pushed into the same
+`game.sentries` array the renderer already iterates uniformly, tagged
+`isRemote`, so it draws for free with zero renderer changes. `updateSentries()`
+skips `isRemote` entries so nobody but the owner ever runs its AI. Damage
+against someone else's sentry relays to its owner (new `relaySentryDamage`,
+tagged `targetSentry` on the existing per-uid `hits` channel) instead of
+being applied locally — the exact same pattern bots needed for damage, minus
+the host indirection. v1-limits repair/upgrade (spanner) to the owner's own
+client, since anyone else doing it would just be guessing at health they
+aren't actually tracking.
+
+Removed the `!net` gate on the E key entirely — building online now just
+works.
+
+Caught a real gap the same way as the bots duplication bug: wrote a test
+asserting a *remote* sentry's own `scanT` (its internal AI clock) never
+moves locally, since a naive "does it independently damage me" check can
+pass by accident depending on unlucky line-of-sight/range in the test
+fixture — confirmed it fails cleanly (scanT drifts off 0 immediately) with
+the `isRemote` skip in `updateSentries()` removed, catching exactly the
+double-simulation bug a range/LOS-dependent assertion could have missed.
+Added full `test/net.test.js` coverage of the real `NetRoom` sentry methods
+too (publish/relay/leave/disconnect-cleanup) — `test/multiplayer.test.js`
+only exercises a hand-written stub, so the actual `net.js` code needed its
+own direct tests, same lesson as the bots channel.
+
+All benches re-verified green after this too.

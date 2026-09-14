@@ -70,13 +70,19 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
     // js/game.js), nothing more.
     window.__fakeRoom = {
       isHost: true, connected: true, hits: [], code: 'TEST',
-      calls: { publishSelf: 0, relayShot: [], relayDamage: [], publishState: [], publishBots: [], relayBotDamage: [], leave: 0 },
+      calls: { publishSelf: 0, relayShot: [], relayDamage: [], publishState: [], publishBots: [], relayBotDamage: [], publishSentry: [], relaySentryDamage: [], leave: 0 },
       publishSelf() { this.calls.publishSelf++; },
       relayShot(shot) { this.calls.relayShot.push(shot); },
       relayDamage(uid, amount, kind, dir, knock) { this.calls.relayDamage.push({ uid, amount, kind, dir, knock }); },
       publishState(st) { this.calls.publishState.push(st); },
       publishBots(bots) { this.calls.publishBots.push(bots); },
       relayBotDamage(botId, amount, kind, dir, knock) { this.calls.relayBotDamage.push({ botId, amount, kind, dir, knock }); },
+      // Snapshot only the plain fields the real net.js would actually send —
+      // not the live sentry object itself, which has a genuine circular ref
+      // (sentry.owner.sentry === sentry) that Playwright's evaluate() cannot
+      // serialize back across the page boundary.
+      publishSentry(s) { this.calls.publishSentry.push(s && { pos: s.pos.slice(), yaw: s.yaw, baseYaw: s.baseYaw, pitch: s.pitch, team: s.team, level: s.level, hp: s.hp, maxHp: s.maxHp, recoil: s.recoil, flash: s.flash, hasTarget: !!s.target }); },
+      relaySentryDamage(ownerUid, amount) { this.calls.relaySentryDamage.push({ ownerUid, amount }); },
       leave() { this.calls.leave++; },
     };
     window.__injectNet(window.__fakeRoom);
@@ -286,12 +292,10 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   const stateCalls = await page.evaluate(() => window.__fakeRoom.calls.publishState.length);
   check(stateCalls > 0, 'the host periodically publishes shared match state (score, round)');
 
-  // ---- sentries are blocked online, with a working control -------------------
-  // p.building (not game.sentries) is the signal: finishSentry only fires
-  // several simulated seconds after a successful startBuild(), so checking
-  // sentries.length on the timescale of a couple of frames would read as
-  // "blocked" whether or not the key press actually did anything — building
-  // flips the instant startBuild() succeeds, which is the thing worth proving.
+  // ---- sentries: built, simulated and owned by whoever built them -----------
+  // p.building flips the instant startBuild() succeeds — the thing worth
+  // proving happened at all, well before finishSentry() actually fires
+  // several simulated seconds later.
   await page.evaluate(() => {
     const h = window.__human;
     h.cls = 'engineer'; h.weapons = window.CLASSES.engineer.weapons.slice(); h.wi = 0;
@@ -300,10 +304,86 @@ const DEADLINE = setTimeout(() => { console.log('FAIL multiplayer bench timed ou
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' })));
   await frames(2);
   const buildingWhileOnline = await page.evaluate(() => window.__human.building);
-  check(buildingWhileOnline === 0, 'pressing the sentry build key while online does nothing (not synced yet — see DEPLOY.md)');
-  // control: the SAME key, offline, must still work — otherwise this could be
-  // "the key binding broke" rather than "online correctly blocked it".
+  check(buildingWhileOnline > 0, `pressing the sentry build key online now works (p.building is ${buildingWhileOnline}, want > 0)`);
+
+  // Let it finish building (fixed sim steps, not real frames — the same
+  // determinism reason __stepNetSmoothing exists), then confirm it publishes.
+  const built = await page.evaluate(() => {
+    const g = window.__game, h = window.__human;
+    for (let i = 0; i < 300 && !h.sentry; i++) g.update(1 / 60); // ~5 simulated seconds, well past the 4s build time
+    return !!h.sentry;
+  });
+  check(built, "the engineer's sentry actually finishes building online, same as offline");
+  await frames(20); // netUpdate's own publish throttle, not every frame
+  const publishedSentry = await page.evaluate(() => window.__fakeRoom.calls.publishSentry.slice(-1)[0]);
+  check(!!publishedSentry && publishedSentry.level === 1, `the sentry's owner periodically publishes it for everyone else to render (got ${JSON.stringify(publishedSentry)})`);
+
+  // ---- a non-host (or anyone else) renders another player's sentry ----------
+  await page.evaluate((s) => {
+    window.__fakeRoom.onRemoteSentryJoin('riley', s);
+  }, { pos: [8, 0.05, -30], yaw: 0.4, baseYaw: 0.4, pitch: 0, team: 1, level: 2, hp: 180, maxHp: 200, recoil: 0, flash: 0, hasTarget: true });
+  const remoteSentry = await page.evaluate(() => {
+    const s = window.__onlineSentries.get('riley');
+    return s ? { isRemote: s.isRemote, level: s.level, team: s.team, inSentries: window.__game.sentries.includes(s) } : null;
+  });
+  check(!!remoteSentry && remoteSentry.isRemote && remoteSentry.level === 2 && remoteSentry.inSentries,
+    "another player's sentry appears as a real, remote-marked entry in game.sentries, the same list everyone renders from");
+
+  // ---- a remote sentry never independently targets or fires locally ---------
+  // Its own owner is the only client simulating it; this client only poses
+  // and renders it (see updateSentries()'s isRemote skip). scanT is a clean,
+  // LOS/range-independent tell: real local AI unconditionally does
+  // `scanT -= dt` every tick and immediately rescans once it goes <= 0
+  // (starting at 0, that's the very first tick), regardless of whether
+  // anyone is actually nearby to shoot at.
+  const humanHpBeforeRemoteSentryTicks = await page.evaluate(() => window.__human.hp);
+  const scanTAfterTicks = await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 30; i++) g.update(1 / 60);
+    return window.__onlineSentries.get('riley').scanT;
+  });
+  const humanHpAfterRemoteSentryTicks = await page.evaluate(() => window.__human.hp);
+  check(scanTAfterTicks === 0, `a remote sentry's own AI clock never advances locally (scanT is still ${scanTAfterTicks}, want exactly 0)`);
+  check(humanHpAfterRemoteSentryTicks === humanHpBeforeRemoteSentryTicks,
+    "...and it never fires on me directly either, whether or not it happens to have line of sight");
+
+  // ---- damaging someone else's sentry relays to its owner, never applied locally
+  const remoteSentryHpBefore = await page.evaluate(() => window.__onlineSentries.get('riley').hp);
+  await page.evaluate(() => {
+    const g = window.__game, s = window.__onlineSentries.get('riley');
+    g.damageSentry(s, 60, window.__human);
+  });
+  const remoteSentryHpAfter = await page.evaluate(() => window.__onlineSentries.get('riley').hp);
+  const sentryRelayed = await page.evaluate(() => window.__fakeRoom.calls.relaySentryDamage.slice());
+  check(remoteSentryHpBefore === remoteSentryHpAfter, "hitting another player's sentry does not change its health on MY screen — I don't simulate it");
+  check(sentryRelayed.length === 1 && sentryRelayed[0].ownerUid === 'riley' && sentryRelayed[0].amount === 60,
+    `...instead it is relayed to its owner, for the right amount (got ${JSON.stringify(sentryRelayed)})`);
+
+  // ---- a relayed hit on MY sentry applies to it, not to me -------------------
+  const myHpBeforeSentryHit = await page.evaluate(() => window.__human.hp);
+  const mySentryHpBefore = await page.evaluate(() => window.__human.sentry.hp);
+  await page.evaluate(() => { window.__fakeRoom.hits.push({ amount: 45, kind: 'sentry', targetSentry: true, attackerId: 'riley' }); });
+  await frames(2);
+  const afterSentryHit = await page.evaluate(() => ({ myHp: window.__human.hp, sentryHp: window.__human.sentry.hp }));
+  check(afterSentryHit.myHp === myHpBeforeSentryHit, "a hit relayed against my sentry does not touch my own health");
+  check(mySentryHpBefore - afterSentryHit.sentryHp === 45, `...it applies to my sentry instead (${mySentryHpBefore} -> ${afterSentryHit.sentryHp})`);
+
+  // ---- leaving cleans up someone else's sentry, and stops publishing my own -
   await page.evaluate(() => { window.__leaveOnline(); });
+  const afterLeaveSentries = await page.evaluate(() => ({
+    onlineSentryCount: window.__onlineSentries.size,
+    remoteStillInSentries: window.__game.sentries.some((s) => s.isRemote),
+    myOwnSentryStillLocal: !!window.__human.sentry, // MY sentry keeps existing locally, same as offline — only the network side stops
+  }));
+  check(afterLeaveSentries.onlineSentryCount === 0 && !afterLeaveSentries.remoteStillInSentries,
+    "leaving removes everyone else's sentries — none linger as ghosts in the match");
+  check(afterLeaveSentries.myOwnSentryStillLocal, 'and leaves my own sentry alone locally, exactly like leaving never touches my own bots or player state');
+
+  // control: the SAME key must still work after re-leaving to offline, to
+  // catch "the key binding broke" rather than "online correctly handled it".
+  await page.evaluate(() => {
+    const h = window.__human; h.sentry = null; h.building = 0; h.ammo.cells = 200; // the first build spent 130
+  });
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE' })));
   await frames(2);
   const buildingOffline = await page.evaluate(() => window.__human.building);

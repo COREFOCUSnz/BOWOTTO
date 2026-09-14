@@ -61,6 +61,8 @@
   let netErr = '';                 // last connect/join failure, shown in the menu
   const onlineRemotes = new Map(); // uid -> the Player object representing them
   const onlineBotPlayers = new Map(); // botId -> the Player object representing a HOST'S bot, on everyone else
+  const onlineSentries = new Map(); // ownerUid -> the plain sentry object representing THEIR sentry, on everyone else
+  let sentryPublished = false; // avoid spamming a remove() every publish tick once there's nothing to publish
   let netAcc = 0; const NET_INTERVAL = 1 / 12;   // ~12 publishes/second is plenty for a shooter this size
   let stateAcc = 0; const STATE_INTERVAL = 1 / 5; // shared score/flag state changes slowly; no need to spam it
   let wasHost = false; // see the isHost-transition check in netUpdate() below
@@ -209,10 +211,7 @@
     if (k === 'KeyQ') { if (human.cls === 'spy') game.startDisguise(human); else switchWeapon(lastWeapon.i); }
     if (k === 'KeyG') game.primeGrenade(human, 0);
     if (k === 'KeyF') game.primeGrenade(human, 1);
-    // Sentries are not synced in online play yet (see DEPLOY.md), so building
-    // one there would be visible only on this machine and immediately wrong on
-    // everyone else's.
-    if (k === 'KeyE') { if (human.cls === 'engineer' && !net) game.startBuild(human); }
+    if (k === 'KeyE') { if (human.cls === 'engineer') game.startBuild(human); }
     if (k === 'KeyR' && human.cls === 'demoman') { game.detonatePipes(human); }
     if (k === 'Enter' && game.roundOver) restart();
   });
@@ -342,7 +341,7 @@
           <label>Fill teams with bots <input id="net_fill" type="checkbox"${settings.fill ? ' checked' : ''}></label>
           ${settings.fill ? `<label>Players per team <input id="net_size" type="range" min="1" max="12" value="${settings.teamSize}"> <span id="net_size_v">${settings.teamSize}</span></label>
           <label>Bot difficulty <select id="net_skill">${DIFF_ORDER.map((d) => `<option value="${d}"${settings.difficulty === d ? ' selected' : ''}>${cap(d)}</option>`).join('')}</select></label>` : ''}
-          ` : `<p class="small">Sentries are always off online; only ${escapeHtml(currentHostName())} can add bots.</p>`}
+          ` : `<p class="small">Only ${escapeHtml(currentHostName())} can add bots.</p>`}
           <button data-k="leave">Leave room</button>
           <button data-k="0"><b>0</b> Back</button></div>`;
       } else if (!canConnect) {
@@ -574,7 +573,9 @@
     onlineRemotes.clear();
     for (const p of onlineBotPlayers.values()) game.removePlayer(p);
     onlineBotPlayers.clear();
-    net = null; game.net = null; netErr = ''; wasHost = false;
+    for (const s of onlineSentries.values()) { const i = game.sentries.indexOf(s); if (i >= 0) game.sentries.splice(i, 1); }
+    onlineSentries.clear();
+    net = null; game.net = null; netErr = ''; wasHost = false; sentryPublished = false;
     syncBots(); // bring single-player bot fill back, if the setting is on
   }
 
@@ -627,6 +628,26 @@
       // every pose update — this fires ~12x/second while a host is connected.
       if (menu === 'online' && onlineBotPlayers.size !== prevCount) renderMenu();
     };
+    // Pos never changes after a sentry is built (only its aim does), so only
+    // yaw/pitch need the same easing a remote player's pose gets.
+    room.onRemoteSentryJoin = (uid, st) => {
+      const s = { pos: st.pos.slice(), yaw: st.yaw, baseYaw: st.baseYaw, pitch: st.pitch, team: st.team === 1 ? 1 : 0,
+        level: st.level, hp: st.hp, maxHp: st.maxHp, recoil: st.recoil, flash: st.flash, target: st.hasTarget ? {} : null,
+        cooldown: 0, scanT: 0, owner: null, builtAt: 0, isRemote: true, netId: uid };
+      game.sentries.push(s);
+      onlineSentries.set(uid, s);
+    };
+    room.onRemoteSentryUpdate = (uid, st) => {
+      const s = onlineSentries.get(uid); if (!s) return;
+      s._netTarget = { yaw: st.yaw, pitch: st.pitch };
+      s.hp = st.hp; s.maxHp = st.maxHp; s.level = st.level; s.team = st.team === 1 ? 1 : 0; s.baseYaw = st.baseYaw;
+      s.recoil = st.recoil; s.flash = st.flash; s.target = st.hasTarget ? {} : null;
+    };
+    room.onRemoteSentryLeave = (uid) => {
+      const s = onlineSentries.get(uid); if (!s) return;
+      const i = game.sentries.indexOf(s); if (i >= 0) game.sentries.splice(i, 1);
+      onlineSentries.delete(uid);
+    };
   }
 
   // Copies a remote player's networked pose/state onto their local Player
@@ -670,6 +691,14 @@
     for (const p of onlineRemotes.values()) smoothOnePose(p, dt);
     for (const p of onlineBotPlayers.values()) smoothOnePose(p, dt);
   }
+  // A sentry's pos is fixed the moment it's built — only its aim moves.
+  function smoothRemoteSentries(dt) {
+    for (const s of onlineSentries.values()) {
+      const t = s._netTarget; if (!t) continue;
+      s.yaw = smoothAngle(s.yaw, t.yaw, dt, 14);
+      s.pitch = smooth(s.pitch, t.pitch, dt, 14);
+    }
+  }
   function smoothOnePose(p, dt) {
     const t = p._netTarget; if (!t) return;
     p.pos[0] = smooth(p.pos[0], t.pos[0], dt, 14);
@@ -705,6 +734,7 @@
       if (!promoted) net.publishBots([]);
     }
     smoothRemotePlayers(dt);
+    smoothRemoteSentries(dt);
     netAcc += dt;
     if (netAcc >= NET_INTERVAL) {
       netAcc = 0;
@@ -713,6 +743,11 @@
       // single-player (see syncBots) — this just also tells everyone else
       // what they're doing. A no-op call while not host (see publishBots).
       if (net.isHost) net.publishBots(game.players.filter((p) => p.isBot && !p.isRemote));
+      // A sentry is simulated only by whoever built it — same idea, one
+      // publish call for whichever of the two states applies. Only actually
+      // sends a remove() once, right when it disappears, not every tick.
+      if (human.sentry) { net.publishSentry(human.sentry); sentryPublished = true; }
+      else if (sentryPublished) { net.publishSentry(null); sentryPublished = false; }
     }
     for (const q of game.projectiles) {
       if (q.owner !== human || q.isGhost || _sentShots.has(q)) continue;
@@ -721,14 +756,16 @@
     }
     stateAcc += dt;
     if (stateAcc >= STATE_INTERVAL && net.isHost) { stateAcc = 0; net.publishState({ score: game.score, roundOver: game.roundOver }); }
-    // Damage other people's clients told me landed on ME, or on a bot I host.
-    // I am always the one who decides what a hit does to my own health or my
-    // own bots' — see sim.js damage().
+    // Damage other people's clients told me landed on ME, on a bot I host, or
+    // on my own sentry. I am always the one who decides what a hit does to
+    // any of those — see sim.js damage()/damageSentry().
     for (const hit of net.hits.splice(0, net.hits.length)) {
       const attacker = onlineRemotes.get(hit.attackerId) || null;
       if (hit.targetBotId) {
         const bot = game.players.find((p) => p.isBot && !p.isRemote && String(p.id) === hit.targetBotId);
         if (bot) game.damage(bot, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
+      } else if (hit.targetSentry) {
+        if (human.sentry) game.damageSentry(human.sentry, Math.round(hit.amount), attacker);
       } else {
         game.damage(human, Math.round(hit.amount), attacker, hit.kind, hit.dir, hit.knock);
       }
@@ -1440,7 +1477,7 @@
   requestAnimationFrame(frame);
   loadScreens();
   window.__game = game; window.__human = human; window.__brains = brains; window.__menuSelect = menuSelect; window.__modelsReady = () => modelsReady; window.__touch = touch; window.__renderer = renderer; window.__vm = vm; window.__screens = screens;
-  window.__net = () => net; window.__onlineRemotes = onlineRemotes; window.__onlineBotPlayers = onlineBotPlayers;
+  window.__net = () => net; window.__onlineRemotes = onlineRemotes; window.__onlineBotPlayers = onlineBotPlayers; window.__onlineSentries = onlineSentries;
   window.__connectOnline = connectOnline; window.__leaveOnline = leaveOnline; window.__syncBots = syncBots;
   // Test-only: hand the game a NetRoom-shaped object directly (see
   // test/net.test.js's FakeBackend / test/multiplayer.test.js), bypassing

@@ -81,12 +81,16 @@
       this.remotes = new Map();      // uid -> plain state object
       this.hits = [];                // queued incoming damage, drained by the caller
       this.bots = {};                // botId -> plain state object, host-published
+      this.remoteSentries = new Map(); // uid -> plain sentry state, one per uid (you can only ever have one)
       this.onRemoteJoin = null;      // (uid, state) => void
       this.onRemoteLeave = null;     // (uid) => void
       this.onRemoteUpdate = null;    // (uid, state) => void
       this.onShot = null;            // (shot) => void
       this.onState = null;           // (state) => void
       this.onBotsUpdate = null;      // (bots) => void — the WHOLE bots object, every change
+      this.onRemoteSentryJoin = null;   // (uid, state) => void
+      this.onRemoteSentryUpdate = null; // (uid, state) => void
+      this.onRemoteSentryLeave = null;  // (uid) => void
       this._unsub = [];
       this._lastPublish = 0;
       this._myShotSeq = 0;
@@ -140,6 +144,10 @@
       // network gone, laptop shut — Firebase itself (not this client) removes
       // the player. Nobody has to notice a friend vanished to clean them up.
       this.io.db.onDisconnect(myRef).remove();
+      // A sentry has exactly one owner (whoever built it), so — unlike
+      // bots — this can be keyed by uid exactly like players/hits/shots
+      // instead of needing a host at all.
+      this.io.db.onDisconnect(`rooms/${code}/sentries/${this.myUid}`).remove();
       this._unsub.push(this.io.db.onChildAdded(`rooms/${code}/players`, (uid, val) => this._applyRemote(uid, val)));
       this._unsub.push(this.io.db.onChildChanged(`rooms/${code}/players`, (uid, val) => this._applyRemote(uid, val)));
       this._unsub.push(this.io.db.onChildRemoved(`rooms/${code}/players`, (uid) => this._removeRemote(uid)));
@@ -161,6 +169,9 @@
         this.bots = bots || {};
         if (this.onBotsUpdate) this.onBotsUpdate(this.bots);
       }));
+      this._unsub.push(this.io.db.onChildAdded(`rooms/${code}/sentries`, (uid, val) => this._applyRemoteSentry(uid, val)));
+      this._unsub.push(this.io.db.onChildChanged(`rooms/${code}/sentries`, (uid, val) => this._applyRemoteSentry(uid, val)));
+      this._unsub.push(this.io.db.onChildRemoved(`rooms/${code}/sentries`, (uid) => this._removeRemoteSentry(uid)));
     }
 
     leave() {
@@ -169,11 +180,13 @@
       // If I was hosting bots, take them with me — nobody else is simulating
       // them, so leaving them behind would freeze N bots mid-room forever.
       if (this._botsOwned && this.code) this.io.db.remove(`rooms/${this.code}/bots`);
+      if (this.code && this.myUid) this.io.db.remove(`rooms/${this.code}/sentries/${this.myUid}`);
       for (const u of this._unsub) u();
       this._unsub = [];
       this.remotes.clear();
       this.bots = {};
       this._botsOwned = false;
+      this.remoteSentries.clear();
       this.connected = false;
       this.code = null;
     }
@@ -189,6 +202,19 @@
       if (!this.remotes.has(uid)) return;
       this.remotes.delete(uid);
       if (this.onRemoteLeave) this.onRemoteLeave(uid);
+    }
+
+    _applyRemoteSentry(uid, val) {
+      if (!val || uid === this.myUid) return;
+      const prev = this.remoteSentries.get(uid);
+      this.remoteSentries.set(uid, val);
+      if (!prev) { if (this.onRemoteSentryJoin) this.onRemoteSentryJoin(uid, val); }
+      else if (this.onRemoteSentryUpdate) this.onRemoteSentryUpdate(uid, val, prev);
+    }
+    _removeRemoteSentry(uid) {
+      if (!this.remoteSentries.has(uid)) return;
+      this.remoteSentries.delete(uid);
+      if (this.onRemoteSentryLeave) this.onRemoteSentryLeave(uid);
     }
 
     // Shared by publishSelf and publishBots — a bot is just another sim.js
@@ -260,6 +286,33 @@
       if (!host) return;
       this.io.db.push(`rooms/${this.code}/hits/${host}`, {
         amount, kind, dir: dir || null, knock: knock || 0, attackerId: this.myUid, targetBotId: botId, t: this.io.now(),
+      });
+    }
+
+    // Called ~10-15x/second, same as publishSelf, with whichever sentry (if
+    // any) belongs to my own human right now. A sentry has exactly one real
+    // owner, so — unlike bots — this needs no host: everyone else only ever
+    // poses it, never simulates it, same trust model as a remote player.
+    // Pass null once it's destroyed to remove it for everyone.
+    publishSentry(s) {
+      if (!this.connected) return;
+      const path = `rooms/${this.code}/sentries/${this.myUid}`;
+      if (!s) { this.io.db.remove(path); return; }
+      this.io.db.set(path, {
+        pos: [round3(s.pos[0]), round3(s.pos[1]), round3(s.pos[2])], yaw: round3(s.yaw), baseYaw: round3(s.baseYaw),
+        pitch: round3(s.pitch), team: s.team, level: s.level, hp: Math.max(0, Math.round(s.hp)), maxHp: s.maxHp,
+        recoil: round3(s.recoil), flash: round3(s.flash), hasTarget: !!s.target, t: this.io.now(),
+      });
+    }
+
+    // A hit I dealt to someone else's sentry. Its owner is always a real,
+    // known player (you can't have one without being connected), so this is
+    // just relayDamage's per-uid hits channel with a flag saying which of
+    // that uid's things it is for -- knock/dir don't apply, a sentry never moves.
+    relaySentryDamage(ownerUid, amount) {
+      if (!this.connected) return;
+      this.io.db.push(`rooms/${this.code}/hits/${ownerUid}`, {
+        amount, kind: 'sentry', targetSentry: true, attackerId: this.myUid, t: this.io.now(),
       });
     }
 

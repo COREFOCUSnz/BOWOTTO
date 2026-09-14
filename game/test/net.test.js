@@ -230,6 +230,35 @@ function makeClient(backend, uid, clock) {
   check(bSawBots && Object.keys(bSawBots).length === 0,
     "if the host's own connection drops, its bots disappear for everyone rather than freezing mid-room forever");
 
+  // ---- sentries: exactly one owner each, no host election needed ------------
+  // Unlike bots, a sentry has a natural, unambiguous owner (whoever built
+  // it) — so this is just another per-uid channel like players/hits/shots,
+  // not host-gated at all.
+  const fakeSentry = (over) => Object.assign(
+    { pos: [1, 0, 2], yaw: 0.2, baseYaw: 0.2, pitch: 0, team: 0, level: 1, hp: 150, maxHp: 150, recoil: 0, flash: 0, target: null }, over);
+  let bSawSentry = null;
+  B.onRemoteSentryJoin = (uid, st) => { bSawSentry = { uid, st }; };
+  B.onRemoteSentryUpdate = (uid, st) => { bSawSentry = { uid, st }; };
+  A.publishSentry(fakeSentry());
+  check(bSawSentry && bSawSentry.uid === 'alice' && bSawSentry.st.level === 1 && bSawSentry.st.hp === 150,
+    "a published sentry reaches everyone else, addressed from its owner, with no host involved");
+
+  A.hits.length = 0; // isolate from the hit-relay assertions elsewhere in this file
+  B.relaySentryDamage('alice', 45);
+  check(A.hits.length === 1 && A.hits[0].targetSentry === true && A.hits[0].amount === 45 && A.hits[0].attackerId === 'bob',
+    'damaging a sentry relays to its owner, tagged as a sentry hit, not to the sentry itself (it has no client)');
+
+  let sentryLeft = false;
+  B.onRemoteSentryLeave = (uid) => { if (uid === 'alice') sentryLeft = true; };
+  A.publishSentry(null);
+  check(sentryLeft, 'the owner removing their sentry (destroyed, or simply gone) removes it for everyone else too');
+  check(!B.remoteSentries.has('alice'), "and it's gone from the room's remote-sentry bookkeeping, not left as a ghost");
+
+  A.publishSentry(fakeSentry({ level: 2 }));
+  backend.disconnectClient(`rooms/${code}/sentries/alice`);
+  check(!B.remoteSentries.has('alice'),
+    "if the owner's own connection drops, their sentry disappears too, rather than freezing mid-room forever");
+
   // ---- disconnect cleanup ------------------------------------------------------
   const bobLeft = { seen: false };
   A.onRemoteLeave = (uid) => { if (uid === 'bob') bobLeft.seen = true; };
