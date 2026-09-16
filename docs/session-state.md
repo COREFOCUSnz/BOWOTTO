@@ -454,3 +454,67 @@ map-building arc rather than as one giant drop.
 
 This closes out Corey's original request in full: map-selection
 infrastructure, 5 TFC-inspired maps, 5 original wild-named maps.
+
+## Same session, continued: a real deploy bug, and two new game modes
+
+**First, a real mistake caught by the user, not by me.** Corey said "let's
+go play it" then "there is no map option" — every "Deploy game" trigger
+this whole session had been firing the workflow's `workflow_dispatch`
+without an explicit `inputs.channel`, so it silently used the workflow's
+own default (`preview`), not `live`. Every single deploy all session —
+the Tab/resupply fix, all 10 maps — had actually been going to a
+throwaway `preview-N` Firebase Hosting channel, never to
+`team-fort-4925a.web.app`. The live site had been running old code the
+entire time. Fixed by re-triggering with `inputs: {channel: 'live'}`
+explicitly and confirming via the job logs ("Deploying to production
+site" / "Production deploy succeeded" / `team-fort-4925a.web.app`) —
+this is now the required form for every future deploy of this workflow,
+not just `workflow_id` + `ref`.
+
+**Then, two new game modes**, added alongside the existing CTF:
+`js/modes.js` (a registry mirroring `js/maps.js`) plus a Mode menu next
+to the Map menu. Researched the architecture first (`Game`'s update
+loop, round/score/win-condition machinery, how deep the 2-team
+assumption runs) before writing anything — confirmed a true individual
+free-for-all would be a large rewrite (mirrored map geometry, team-
+indexed everything), so asked Corey directly and he confirmed
+team-based elimination ("last team standing") over FFA.
+
+- **Team Deathmatch**: no flag; `Game.kill()` now adds to `this.score`
+  as a running kill tally when `mode === 'tdm'`. Real 10-minute clock
+  (`roundLength` defaults to 600s for this mode only). The actual point
+  of "10 minutes then map change" — the game auto-advances to a
+  different random map on its own once the round ends, by reusing the
+  exact `settings.mapId` + `location.reload()` mechanism the Map menu
+  already used, rather than building in-place world-rebuild support.
+- **Elimination**: one life per class. `CLASS_ORDER` (already existed in
+  `defs.js`, 9 classes) drives a fixed rotation — `Player.spawn()`
+  auto-advances to the next unused class on every life after the first,
+  `Game.kill()` tracks used classes and sets a new `p.eliminated` flag
+  once all nine are spent (excluded from the update loop's auto-respawn
+  check, so they stay down). `Game.checkEliminationWin()` ends the round
+  once a whole team has no non-eliminated player left.
+- **bots.js**: the CTF-only goal-selection block (chase/defend/escort
+  the flag) is skipped entirely outside CTF; TDM/elimination bots roam
+  the map's own defense/sniper-spot nodes, pushing toward the enemy flag
+  room node half the time. Caught a real bug this way, the session's
+  running theme: Warpath's defense/sniper nodes are all inside its own
+  base, so both sides just patrolled in place — 0 kills in a 3-minute
+  soak. Fixed generally rather than just patched for Warpath, since
+  every map already guarantees an enemy `'flag'` node exists (bots.js's
+  CTF logic already requires it) — so it's a fix for every current and
+  future map, not a one-off.
+
+New `test/modes.test.js`: TDM's kill-tally scoring with an explicit
+sum-matches-kills assertion (not just "no crash"), elimination's full
+class-rotation → all-nine-spent → eliminated → team-win chain with
+real assertions, and a bot-soak sanity sweep across every registered map
+for both modes — this last one is what caught the Warpath bug. Added to
+`npm test`. `test/browser.test.js` got a mode-menu regression test
+mirroring the map-menu one, plus a manual in-browser smoke pass (forced
+deaths through the dead/eliminated overlay and the end screen) confirmed
+zero console errors on either new mode. Full regression suite green
+(two known-flaky tests — the vfx launcher pixel-diff, feel's same-tick
+damage-number merge — both reproduced their established flake pattern:
+failed once, passed clean on immediate re-run, unrelated to this
+change). Committed, and this time actually deployed to the live channel.
