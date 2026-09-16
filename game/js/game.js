@@ -1,14 +1,15 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, Projectile, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H, smooth, smoothAngle, createNetRoom } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, Projectile, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H, smooth, smoothAngle, createNetRoom, MAPS, MAP_ORDER, DEFAULT_MAP_ID } = window;
   const $ = (id) => document.getElementById(id);
 
   const stored = JSON.parse(localStorage.getItem('tfc2fort.settings') || 'null');
   const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches);
   // A phone gets a smaller match, a lower render scale and some aim help on first run.
   const firstRunDefaults = coarse ? { teamSize: 4, resolution: 0.75, aimAssist: 0.6, particleBudget: 220 } : {};
-  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, skinSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player' }, firstRunDefaults, stored || {});
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, skinSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player', mapId: DEFAULT_MAP_ID }, firstRunDefaults, stored || {});
+  if (!MAPS[settings.mapId]) settings.mapId = DEFAULT_MAP_ID; // a map removed since this was saved
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
   const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
   if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
@@ -47,7 +48,7 @@
     // call, so on the Low setting (phones) effects use half the cluster.
     detail() { return settings.particleBudget <= 300 ? 0.5 : 1; },
   };
-  const game = new Game({ effects });
+  const game = new Game({ effects, mapId: settings.mapId });
   renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })), sun: renderer.lightDir });
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
@@ -319,6 +320,7 @@
         <button data-k="2"><b>2</b> Change class</button>
         <button data-k="3"><b>3</b> Change team</button>
         <button data-k="4"><b>4</b> Skins: <span class="skin">${activeSet() ? activeSet().label : 'loading…'}</span></button>
+        <button data-k="maps">Map: <span class="skin">${MAPS[settings.mapId].name}</span></button>
         <button data-k="5"><b>5</b> Settings &amp; bots</button>
         <button data-k="6"><b>6</b> Controls</button>
         <button data-k="7"><b>7</b> How to play</button>
@@ -483,6 +485,18 @@
         }).join('') : '<p>Character models are still loading…</p>') +
         `<p class="note">Skins are read from the asset manifest, so a new set appears here as soon as it is
         added to <b>assets/models</b> — nothing in the game has to change.</p>
+        <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'maps') {
+      const lockedOnline = !!(net && net.connected);
+      html = title + `<div class="list skins"><div class="h">Map</div>` +
+        (lockedOnline ? `<p class="hint small">Leave your online room first — everyone in a room needs to be
+          on the same map, and picking one isn't synced between players yet.</p>` : '') +
+        MAP_ORDER.map((id, i) => {
+          const m = MAPS[id];
+          return `<button data-k="${i + 1}" class="${id === settings.mapId ? 'cur' : ''}"${lockedOnline ? ' disabled' : ''}><b>${i + 1}</b> <span class="cn">${m.name}</span>${id === settings.mapId ? '<span class="tick">IN USE</span>' : ''}<span class="cd">${m.desc}</span></button>`;
+        }).join('') +
+        `<p class="note">Changing map reloads the page — a new map means a whole new world to load, not
+        something worth hot-swapping mid-match.</p>
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'credits') {
       const sets = allSets();
@@ -793,6 +807,7 @@
       if (k === '2') { openMenu('class'); return; }
       if (k === '3') { openMenu('team'); return; }
       if (k === '4') { openMenu('skins'); return; }
+      if (k === 'maps') { openMenu('maps'); return; }
       if (k === '5') { openMenu('settings'); return; }
       if (k === '6') { openMenu('help'); return; }
       if (k === '7') { openMenu('howto'); return; }
@@ -822,6 +837,11 @@
       if (k === '0') { openMenu('main'); return; }
       const id = setIds()[parseInt(k, 10) - 1];
       if (id) { pickSkinSet(id); renderMenu(); }
+    } else if (menu === 'maps') {
+      if (k === '0') { openMenu('main'); return; }
+      if (net && net.connected) return; // see the in-menu hint: not synced between players yet
+      const id = MAP_ORDER[parseInt(k, 10) - 1];
+      if (id && id !== settings.mapId) { settings.mapId = id; saveSettings(); location.reload(); }
     } else if (menu === 'settings' || menu === 'help' || menu === 'credits' || menu === 'howto') { if (k === '0') openMenu('main'); }
     else if (menu === 'end') { if (k === '1') { restart(); closeMenu(); } }
   }

@@ -213,6 +213,17 @@ const path = require('path');
     console.log('PASS skin sets switch models, team sets differ per side');
   }
 
+  // ---- map menu: lists every registered map, current one is playable now ----
+  const mapMenu = await page.evaluate(() => {
+    const html = window.__openMenu('maps');
+    window.__closeMenu();
+    return { html, order: window.MAP_ORDER, current: window.__game.mapId, names: window.MAP_ORDER.map((id) => window.MAPS[id].name) };
+  });
+  if (mapMenu.order.length < 1) { console.log('FAIL: no maps registered'); process.exit(1); }
+  if (!mapMenu.names.every((n) => mapMenu.html.includes(n))) { console.log('FAIL: the map menu does not list every registered map: ' + JSON.stringify(mapMenu)); process.exit(1); }
+  if (mapMenu.current !== mapMenu.order[0] && !mapMenu.order.includes(mapMenu.current)) { console.log('FAIL: the map actually loaded (' + mapMenu.current + ') is not a registered map'); process.exit(1); }
+  console.log('PASS map menu lists every registered map (' + mapMenu.names.join(', ') + '), currently playing ' + mapMenu.current);
+
   // exercise every class / weapon / grenade / ability
   const exercised = await page.evaluate(async () => {
     const g = window.__game, h = window.__human; const out = [];

@@ -5,7 +5,8 @@
   const isNode = typeof module !== 'undefined';
   const { V, clamp, angleDiff, rand } = isNode ? require('./math.js') : root;
   const { WEAPONS, GRENADES, CLASSES, AMMO_MAX, BOT_NAMES } = isNode ? require('./defs.js') : root;
-  const { buildMap, BLUE, RED, TEAM_NAMES } = isNode ? require('./map2fort.js') : root;
+  const { BLUE, RED, TEAM_NAMES } = isNode ? require('./map2fort.js') : root;
+  const { MAPS, DEFAULT_MAP_ID } = isNode ? require('./maps.js') : root;
 
   const GRAVITY = 20, JUMP_V = 6.7, STEP_H = 0.45, PLAYER_HALF = 0.4, PLAYER_H = 1.8, EYE_H = 1.6;
   const TEAM_COLORS = [[0.2, 0.4, 0.95], [0.95, 0.25, 0.2]];
@@ -81,7 +82,8 @@
   class Game {
     constructor(opts) {
       opts = opts || {};
-      const { world, data } = buildMap();
+      this.mapId = opts.mapId && MAPS[opts.mapId] ? opts.mapId : DEFAULT_MAP_ID;
+      const { world, data } = MAPS[this.mapId].build();
       this.world = world; this.data = data;
       this.players = []; this.projectiles = []; this.particles = []; this.tracers = []; this.firePatches = []; this.caltrops = []; this.sentries = [];
       this.time = 0; this.score = [0, 0]; this.roundLength = opts.roundLength || 20 * 60; this.roundOver = false; this.capLimit = opts.capLimit || 10;
