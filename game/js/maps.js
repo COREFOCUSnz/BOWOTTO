@@ -21,6 +21,7 @@
   const mapghosttown = isNode ? require('./mapghosttown.js') : root.MAP_GHOSTTOWN;
   const mapfrostbite = isNode ? require('./mapfrostbite.js') : root.MAP_FROSTBITE;
   const mapneonsprawl = isNode ? require('./mapneonsprawl.js') : root.MAP_NEONSPRAWL;
+  const mapscrapyard = isNode ? require('./mapscrapyard.js') : root.MAP_SCRAPYARD;
 
   const MAPS = {
     '2fort': {
@@ -59,8 +60,12 @@
       id: 'neonsprawl', name: 'Neon Sprawl', build: mapneonsprawl.buildMap,
       desc: 'A cyberpunk back-alley sprawl. Metal and grating under glaring light, three alleys into a neon-lit plaza.',
     },
+    scrapyard: {
+      id: 'scrapyard', name: 'Scrapyard Siege', build: mapscrapyard.buildMap,
+      desc: 'A rusted junkyard under siege. Dark brick and scrap metal, three lanes into a car-crusher compactor yard.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite', 'neonsprawl'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite', 'neonsprawl', 'scrapyard'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
