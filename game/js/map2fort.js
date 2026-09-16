@@ -4,13 +4,11 @@
 (function (root) {
   'use strict';
   const { World, MAT } = typeof module !== 'undefined' ? require('./world.js') : root;
+  const { mirrorBox, mirrorPt, finalizeGraph, newMapData } = typeof module !== 'undefined' ? require('./mapkit.js') : root;
 
   const BLUE = 0, RED = 1;
   const TEAM_NAMES = ['Blue', 'Red'];
   const TEAM_MAT = [MAT.BLUE, MAT.RED];
-
-  function mirrorBox(b) { return [[-b[1][0], b[0][1], -b[1][2]], [-b[0][0], b[1][1], -b[0][2]]]; }
-  function mirrorPt(p) { return [-p[0], p[1], -p[2]]; }
 
   function buildMap() {
     const world = new World([-26, -8, -52], [26, 16, 52], 0.5);
@@ -41,7 +39,7 @@
       W.fill([[3.5, 0, z], [4, 3.5, z + 0.5]], MAT.WOOD);
     }
 
-    const data = { spawns: [[], []], flags: [], caps: [], items: [], resupply: [], nodes: [], links: [], sniperSpots: [[], []], defense: [[], []], lights: [], screens: [] };
+    const data = newMapData();
 
     function fort(team) {
       const T = team === BLUE ? (b) => b : mirrorBox;
@@ -243,16 +241,7 @@
       data.lights.push([0, 3.1, z]);
     }
 
-    // graph: build adjacency
-    const byName = {}; data.nodes.forEach((n, i) => { n.id = i; n.adj = []; byName[n.name] = n; });
-    for (const l of data.links) {
-      const a = byName[l.a], b = byName[l.b];
-      if (!a || !b) throw new Error('bad link ' + l.a + ' ' + l.b);
-      const d = Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]) + (l.cost || 0);
-      a.adj.push({ to: b.id, cost: d });
-      if (!l.oneWay) b.adj.push({ to: a.id, cost: d });
-    }
-    data.byName = byName;
+    finalizeGraph(data);
     return { world, data };
   }
 

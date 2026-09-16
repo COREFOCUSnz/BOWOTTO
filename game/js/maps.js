@@ -7,15 +7,25 @@
 (function (root) {
   'use strict';
   const isNode = typeof module !== 'undefined';
+  // map2fort.js is the one exception that still exports onto the bare window
+  // (BLUE/RED/TEAM_NAMES are consumed that way from several other files) —
+  // every OTHER map exports under its own MAP_<ID> global instead, so two
+  // map files' same-named buildMap() don't clobber each other the way a
+  // plain <script> otherwise would. See js/mapwarpath.js.
   const map2fort = isNode ? require('./map2fort.js') : root;
+  const mapwarpath = isNode ? require('./mapwarpath.js') : root.MAP_WARPATH;
 
   const MAPS = {
     '2fort': {
       id: '2fort', name: '2Fort', build: map2fort.buildMap,
       desc: 'Two mirrored forts face off across a moat and a covered bridge. The original — water route, spiral basement, battlements sniper deck.',
     },
+    warpath: {
+      id: 'warpath', name: 'Warpath', build: mapwarpath.buildMap,
+      desc: 'Two bunkers dug in on either side of an open no-man\'s-land. No water, no basement — just cover, sightlines, and a straight run at the flag.',
+    },
   };
-  const MAP_ORDER = ['2fort'];
+  const MAP_ORDER = ['2fort', 'warpath'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };

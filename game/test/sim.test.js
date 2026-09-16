@@ -8,6 +8,7 @@
 const { Game, BLUE, RED } = require('../js/sim.js');
 const { BotBrain, botClassFor } = require('../js/bots.js');
 const { V } = require('../js/math.js');
+const { MAP_ORDER, DEFAULT_MAP_ID } = require('../js/maps.js');
 
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? 'PASS ' : 'FAIL ') + msg); if (!ok) fails++; };
@@ -20,10 +21,10 @@ function seedRandom(seed) {
 }
 
 // Runs one match and returns what happened in it.
-function match(seed, mins, watch) {
+function match(seed, mins, watch, mapId) {
   seedRandom(seed);
   const events = { taken: 0, caps: 0, drops: 0 };
-  const game = new Game({ effects: { particle() {}, tracer() {}, sound() {}, say() {}, message() {}, flash() {}, shake() {} } });
+  const game = new Game({ mapId, effects: { particle() {}, tracer() {}, sound() {}, say() {}, message() {}, flash() {}, shake() {} } });
   const announce = game.announce.bind(game);
   game.announce = (text, team, kind) => {
     if (kind === 'flag' && /taken/.test(text)) events.taken++;
@@ -81,6 +82,19 @@ const scoring = caps.filter((c) => c > 0).length;
 const total = caps.reduce((a, b) => a + b, 0);
 console.log(`${scoring}/${seeds.length} seeds scored, ${total} captures in total`);
 check(scoring >= Math.ceil(seeds.length / 3), `the map is capturable (${scoring} of ${seeds.length} seeds scored)`);
+
+// ---- capturability on every OTHER registered map too. Map-selection means a
+// map is only ever one line in js/maps.js away from being loaded in a real
+// match, so a map that bots can't actually capture on has to fail a test,
+// same bar as above (a third of seeds scoring) but fewer seeds to keep the
+// whole sweep fast — this exists to catch a bad map, not to characterize it.
+for (const mapId of MAP_ORDER.filter((id) => id !== DEFAULT_MAP_ID)) {
+  const mseeds = [BASE_SEED, 7, 99, 12345, 31337, 2024];
+  const mcaps = mseeds.map((s) => match(s, minutes, false, mapId).events.caps);
+  const mscoring = mcaps.filter((c) => c > 0).length;
+  console.log(`[${mapId}] captures per seed: ` + mseeds.map((s, i) => s + '=' + mcaps[i]).join(', '));
+  check(mscoring >= Math.ceil(mseeds.length / 3), `[${mapId}] is capturable (${mscoring} of ${mseeds.length} seeds scored)`);
+}
 
 // ---- the resupply bag cannot make camping spawn a free, near-permanent heal
 // It refills health/armor/ammo/grenades to full — with too short a cooldown,
