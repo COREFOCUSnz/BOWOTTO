@@ -42,6 +42,14 @@
       F([[-13, 0, -22], [13, 5, -21.5]], MAT.STONE);   // flag room's own south wall
       for (const [gx0, gx1] of GAPS) C([[gx0, 0, -22], [gx1, 4, -21.5]]);   // the three doors
       for (const [gx0, gx1] of GAPS) C([[gx0, 0, -21.5], [gx1, 4, -4]]);    // the three corridors
+      // walls BETWEEN the three corridors — without these the "corridors" are
+      // just painted lanes in one continuous open field (the doors and hub
+      // gaps line up either way), which is exactly what produced ~200
+      // kills/5 min and 0 captures before the pillar fix: the field never
+      // actually stopped being one open room end to end.
+      for (const [wx0, wx1] of [[-13, -11], [-7, -2], [2, 7], [11, 13]]) {
+        F([[wx0, 0, -21.5], [wx1, 5, -4]], MAT.STONE);
+      }
 
       // Materials
       PAINT([[-6, 0, -38], [6, 4, -31]], MAT.CONCRETE);
@@ -51,6 +59,16 @@
       F([[-12, -0.45, -28], [12, -0.05, -27.5]], teamMat);   // flag room floor accent
       for (const [gx0, gx1] of GAPS) PAINT([[gx0, 0, -21.5], [gx1, 4, -4]], MAT.CONCRETE);
       F([[-13, 5.5, -40], [13, 6, -22]], MAT.METAL);         // bunker roof band
+      // a cover block partway down each corridor — real walls turned each
+      // lane into a clean 17 m shooting gallery (captures got WORSE than the
+      // open-field-with-pillars version this replaced), so each lane needs
+      // the same sightline break the rampart gave Warpath's open field.
+      F([[-10.5, 0, -14.5], [-9.5, 2.2, -13.5]], MAT.STONE);
+      F([[-1.5, 0, -14.5], [-0.5, 2.2, -13.5]], MAT.STONE);
+      F([[8, 0, -14.5], [9, 2.2, -13.5]], MAT.STONE);
+      F([[-8.5, 0, -7.5], [-7.5, 2.2, -6.5]], MAT.STONE);
+      F([[0.5, 0, -7.5], [1.5, 2.2, -6.5]], MAT.STONE);
+      F([[9.5, 0, -7.5], [10.5, 2.2, -6.5]], MAT.STONE);
 
       // Lights
       const lights = [[0, 3.5, -35], [0, 3.5, -30], [-8, 4, -25], [0, 4, -25], [8, 4, -25],
