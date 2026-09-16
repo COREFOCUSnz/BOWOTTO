@@ -17,6 +17,7 @@
   const mapwell = isNode ? require('./mapwell.js') : root.MAP_WELL;
   const maprock2 = isNode ? require('./maprock2.js') : root.MAP_ROCK2;
   const mapcasbah = isNode ? require('./mapcasbah.js') : root.MAP_CASBAH;
+  const mapthunderdome = isNode ? require('./mapthunderdome.js') : root.MAP_THUNDERDOME;
 
   const MAPS = {
     '2fort': {
@@ -39,8 +40,12 @@
       id: 'casbah', name: 'Casbah', build: mapcasbah.buildMap,
       desc: 'A walled bazaar: brick and timber, three market lanes into a crate-stalled central square.',
     },
+    thunderdome: {
+      id: 'thunderdome', name: 'Thunderdome', build: mapthunderdome.buildMap,
+      desc: 'A floodlit gladiatorial arena. Concrete, steel and glare — three tunnels open onto a caged fighting pit.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
