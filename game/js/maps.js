@@ -19,6 +19,7 @@
   const mapcasbah = isNode ? require('./mapcasbah.js') : root.MAP_CASBAH;
   const mapthunderdome = isNode ? require('./mapthunderdome.js') : root.MAP_THUNDERDOME;
   const mapghosttown = isNode ? require('./mapghosttown.js') : root.MAP_GHOSTTOWN;
+  const mapfrostbite = isNode ? require('./mapfrostbite.js') : root.MAP_FROSTBITE;
 
   const MAPS = {
     '2fort': {
@@ -49,8 +50,12 @@
       id: 'ghosttown', name: 'Ghost Town', build: mapghosttown.buildMap,
       desc: 'An abandoned frontier town. Weathered wood and dust, three back streets into an empty town square.',
     },
+    frostbite: {
+      id: 'frostbite', name: 'Frostbite Keep', build: mapfrostbite.buildMap,
+      desc: 'A frozen keep, pale stone under ice. Three frost-locked passages into a courtyard that never thaws.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
