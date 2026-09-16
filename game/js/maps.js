@@ -16,6 +16,7 @@
   const mapwarpath = isNode ? require('./mapwarpath.js') : root.MAP_WARPATH;
   const mapwell = isNode ? require('./mapwell.js') : root.MAP_WELL;
   const maprock2 = isNode ? require('./maprock2.js') : root.MAP_ROCK2;
+  const mapcasbah = isNode ? require('./mapcasbah.js') : root.MAP_CASBAH;
 
   const MAPS = {
     '2fort': {
@@ -34,8 +35,12 @@
       id: 'rock2', name: 'Rock2', build: maprock2.buildMap,
       desc: 'A rock canyon cut with three parallel passages into a shared centre. Well\'s layout, a harsher palette, tighter cover.',
     },
+    casbah: {
+      id: 'casbah', name: 'Casbah', build: mapcasbah.buildMap,
+      desc: 'A walled bazaar: brick and timber, three market lanes into a crate-stalled central square.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
