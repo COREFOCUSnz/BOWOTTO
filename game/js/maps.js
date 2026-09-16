@@ -22,6 +22,7 @@
   const mapfrostbite = isNode ? require('./mapfrostbite.js') : root.MAP_FROSTBITE;
   const mapneonsprawl = isNode ? require('./mapneonsprawl.js') : root.MAP_NEONSPRAWL;
   const mapscrapyard = isNode ? require('./mapscrapyard.js') : root.MAP_SCRAPYARD;
+  const mapbadlands = isNode ? require('./mapbadlands.js') : root.MAP_BADLANDS;
 
   const MAPS = {
     '2fort': {
@@ -44,6 +45,10 @@
       id: 'casbah', name: 'Casbah', build: mapcasbah.buildMap,
       desc: 'A walled bazaar: brick and timber, three market lanes into a crate-stalled central square.',
     },
+    badlands: {
+      id: 'badlands', name: 'Badlands', build: mapbadlands.buildMap,
+      desc: 'A sun-scorched desert wasteland. Sandstone and dirt, three cuts through the rock into a dust-blown crossing.',
+    },
     thunderdome: {
       id: 'thunderdome', name: 'Thunderdome', build: mapthunderdome.buildMap,
       desc: 'A floodlit gladiatorial arena. Concrete, steel and glare — three tunnels open onto a caged fighting pit.',
@@ -65,7 +70,7 @@
       desc: 'A rusted junkyard under siege. Dark brick and scrap metal, three lanes into a car-crusher compactor yard.',
     },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite', 'neonsprawl', 'scrapyard'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'badlands', 'thunderdome', 'ghosttown', 'frostbite', 'neonsprawl', 'scrapyard'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
