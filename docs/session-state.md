@@ -338,3 +338,59 @@ not a regression). Committed and deployed via the "Deploy game" Actions
 workflow. Only one map (2fort) is registered so far — this was the
 infrastructure pass; the 10 new maps (5 TFC-inspired, 5 original "wild"
 names) come next, landed incrementally.
+
+## Same session, continued: Warpath (map 1 of 10) — and a real browser-only bug
+
+First new map: Warpath, an open no-man's-land trench-war bunker map (no
+water, no basement, unlike 2Fort). Extracted `js/mapkit.js`
+(`mirrorBox`/`mirrorPt`/`finalizeGraph`/`newMapData`) out of `map2fort.js`
+first, once a second map made the duplication real; re-verified `map2fort.js`
+behavior-identical against it before building on top.
+
+Caught a real, serious bug this way: **in the browser, a plain `<script>`
+tag has no per-file module scope** (unlike Node's `require()`, which
+`test/map.test.js` runs under and so never saw this). Every map file's
+browser-path export was doing `Object.assign(window, {buildMap, ...})` —
+so with two map files loaded, whichever `<script>` tag ran LAST silently
+won `window.buildMap`, and `js/maps.js`'s registry (which reads
+`map2fort.buildMap` / `mapwarpath.buildMap` — both literally `window` in
+the browser) ended up with **both** `'2fort'` and `'warpath'` pointing at
+Warpath's build function. `test/browser.test.js`'s screens-in-spawn-room
+check caught it immediately (2Fort has screens, "Warpath-pretending-to-be-
+2Fort" doesn't). Fixed by giving every map after `map2fort.js` its own
+`MAP_<ID>` global (`root.MAP_WARPATH = {buildMap}`) instead of the bare
+name — **this is now the required pattern for every future map file**,
+documented in `js/maps.js`'s header comment. `map2fort.js` itself keeps its
+original bare-global export unchanged, since `sim.js`/`bots.js`/`game.js`
+already depend on reading `BLUE`/`RED`/`TEAM_NAMES` that way.
+
+The other real lesson was gameplay, not code: Warpath's first open-field
+layout produced **~0 captures in 10 five-minute bot soaks** (2Fort gets
+9/10). Root cause — both teams' front doors/halls/flag rooms sit on the
+map's x=0 centreline, and the first version's single midfield gap was ALSO
+at x=0, so the two lined up into one dead-straight, uninterrupted sniping
+lane door-to-door across the whole map. No amount of "add more cover
+blocks" fixed it; what worked was moving the crossing gaps off-centre (so
+crossing always costs a few metres of lateral exposure) and giving the flag
+room a second entrance (a flag room with only one way in is effectively
+unattackable by 5 bots at once, same lesson 2Fort's 3 flag-room entrances
+already encode). Ended at 4/10 five-minute soaks scoring locally, 2/6 on
+`test/sim.test.js`'s lighter regression sweep — same bar 2Fort itself
+has to clear (`Math.ceil(seeds/3)`), just thinner margin. Generalized
+`test/sim.test.js`'s bot-soak capturability check to run against every
+OTHER registered map too (fewer seeds, to keep the suite fast) specifically
+so this class of bug — a map that LOOKS fine (mesh builds, nodes are
+standable, a scripted walk succeeds) but that real bot play essentially
+never captures on — gets caught automatically for every future map, not
+just re-discovered by hand each time.
+
+Template for the remaining 9 maps, learned the hard way here: prefer
+indoor/corridor-heavy layouts (like 2Fort) over big open fields — sightline
+control is what makes a map capturable against bots, and enclosed
+buildings give you that for free where open ground needs deliberate,
+iterated work to earn it. Every flag room needs 2+ entrances. Any
+map-spanning chokepoint must NOT sit on the same axis as both team's front
+doors. Run the bot-soak check early during authoring, not just at the end.
+
+Full regression suite (`npm test`, `test:browser`, `test:net`,
+`test:multiplayer`, `test:mobile`) green. Committed and deployed.
