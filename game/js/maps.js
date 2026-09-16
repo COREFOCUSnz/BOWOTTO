@@ -15,6 +15,7 @@
   const map2fort = isNode ? require('./map2fort.js') : root;
   const mapwarpath = isNode ? require('./mapwarpath.js') : root.MAP_WARPATH;
   const mapwell = isNode ? require('./mapwell.js') : root.MAP_WELL;
+  const maprock2 = isNode ? require('./maprock2.js') : root.MAP_ROCK2;
 
   const MAPS = {
     '2fort': {
@@ -29,8 +30,12 @@
       id: 'well', name: 'Well', build: mapwell.buildMap,
       desc: 'Three parallel corridors run from each flag room into a shared central hub. Desert stone, no water despite the name, three ways in.',
     },
+    rock2: {
+      id: 'rock2', name: 'Rock2', build: maprock2.buildMap,
+      desc: 'A rock canyon cut with three parallel passages into a shared centre. Well\'s layout, a harsher palette, tighter cover.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
