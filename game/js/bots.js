@@ -70,38 +70,60 @@
     think() {
       const g = this.game, p = this.p, data = g.data;
       const enemyTeam = 1 - p.team;
-      const myFlag = g.flags[p.team], enemyFlag = g.flags[enemyTeam];
       const pre = p.team === BLUE ? 'b_' : 'r_';
       // ---- choose a goal
-      if (p.flag) {
-        this.setGoal(data.byName[pre + 'flag'], 'cap');
-      } else if (this.role === 'offense') {
-        if (enemyFlag.state === 'carried' && enemyFlag.carrier.team === p.team) {
-          // escort: follow the carrier loosely, or go bother their flag room
-          const n = this.nearestNode(enemyFlag.carrier.pos); this.setGoal(n || data.byName[pre + 'flag'], 'escort' + (n && n.name));
-        } else {
-          const n = enemyFlag.state === 'home' ? data.byName[(enemyTeam === BLUE ? 'b_' : 'r_') + 'flag'] : this.nearestNode(enemyFlag.pos);
-          this.setGoal(n, 'getflag' + (n && n.name));
+      if (g.mode !== 'ctf') {
+        // Deathmatch / elimination: no flag to chase or defend. Roam between
+        // the map's own defense and sniper-spot nodes — everywhere a real
+        // fight already happens on this map — and let target acquisition
+        // below do the actual fighting; the combat half of the brain doesn't
+        // know or care what the goal-selection half was for. Half the time,
+        // push toward the enemy flag room instead: a map whose own
+        // defense/sniper nodes stay entirely inside its own base (Warpath's
+        // do) otherwise leaves both teams patrolling in place and never
+        // meeting — 0 kills in a 3-minute soak caught this. The enemy 'flag'
+        // node exists on every map (bots.js's own CTF logic already
+        // requires it), so this works regardless of what a given map
+        // curated its defense/sniper lists to be.
+        if (!this.patrolNode || (g.time > this.waitUntil && V.distXZ(p.pos, this.patrolNode.pos) < 1.5)) {
+          const pool = data.defense[p.team].concat(data.sniperSpots[p.team]);
+          const push = data.byName[(enemyTeam === BLUE ? 'b_' : 'r_') + 'flag'];
+          this.patrolNode = (push && Math.random() < 0.5) ? push : data.byName[pool[Math.floor(Math.random() * pool.length)]];
+          this.waitUntil = g.time + rand(3, 8);
         }
-      } else if (this.role === 'sniper') {
-        const spots = data.sniperSpots[p.team];
-        if (!this.patrolNode) this.patrolNode = data.byName[spots[Math.floor(Math.random() * spots.length)]];
-        this.setGoal(this.patrolNode, 'snipe');
-      } else { // defense
-        if (myFlag.state === 'carried') {
-          const n = this.nearestNode(myFlag.carrier.pos); this.setGoal(n, 'chase' + (n && n.name));
-        } else if (myFlag.state === 'dropped') {
-          const n = this.nearestNode(myFlag.pos); this.setGoal(n, 'guarddrop' + (n && n.name));
-        } else {
-          if (p.cls === 'engineer' && !p.sentry && p.building <= 0 && p.ammo.cells >= 130) {
-            const n = data.byName[pre + (Math.random() < 0.5 ? 'flagroom_a' : 'flagroom_c')];
-            this.setGoal(n, 'build');
-            if (V.distXZ(p.pos, n.pos) < 1.5) { p.yaw = V.yawTo(p.pos, data.byName[pre + 'flag'].pos); g.startBuild(p); }
+        this.setGoal(this.patrolNode, 'roam' + (this.patrolNode && this.patrolNode.name));
+      } else {
+        const myFlag = g.flags[p.team], enemyFlag = g.flags[enemyTeam];
+        if (p.flag) {
+          this.setGoal(data.byName[pre + 'flag'], 'cap');
+        } else if (this.role === 'offense') {
+          if (enemyFlag.state === 'carried' && enemyFlag.carrier.team === p.team) {
+            // escort: follow the carrier loosely, or go bother their flag room
+            const n = this.nearestNode(enemyFlag.carrier.pos); this.setGoal(n || data.byName[pre + 'flag'], 'escort' + (n && n.name));
           } else {
-            if (!this.patrolNode || (g.time > this.waitUntil && V.distXZ(p.pos, this.patrolNode.pos) < 1.5)) {
-              const d = data.defense[p.team]; this.patrolNode = data.byName[d[Math.floor(Math.random() * d.length)]]; this.waitUntil = g.time + rand(3, 8);
+            const n = enemyFlag.state === 'home' ? data.byName[(enemyTeam === BLUE ? 'b_' : 'r_') + 'flag'] : this.nearestNode(enemyFlag.pos);
+            this.setGoal(n, 'getflag' + (n && n.name));
+          }
+        } else if (this.role === 'sniper') {
+          const spots = data.sniperSpots[p.team];
+          if (!this.patrolNode) this.patrolNode = data.byName[spots[Math.floor(Math.random() * spots.length)]];
+          this.setGoal(this.patrolNode, 'snipe');
+        } else { // defense
+          if (myFlag.state === 'carried') {
+            const n = this.nearestNode(myFlag.carrier.pos); this.setGoal(n, 'chase' + (n && n.name));
+          } else if (myFlag.state === 'dropped') {
+            const n = this.nearestNode(myFlag.pos); this.setGoal(n, 'guarddrop' + (n && n.name));
+          } else {
+            if (p.cls === 'engineer' && !p.sentry && p.building <= 0 && p.ammo.cells >= 130) {
+              const n = data.byName[pre + (Math.random() < 0.5 ? 'flagroom_a' : 'flagroom_c')];
+              this.setGoal(n, 'build');
+              if (V.distXZ(p.pos, n.pos) < 1.5) { p.yaw = V.yawTo(p.pos, data.byName[pre + 'flag'].pos); g.startBuild(p); }
+            } else {
+              if (!this.patrolNode || (g.time > this.waitUntil && V.distXZ(p.pos, this.patrolNode.pos) < 1.5)) {
+                const d = data.defense[p.team]; this.patrolNode = data.byName[d[Math.floor(Math.random() * d.length)]]; this.waitUntil = g.time + rand(3, 8);
+              }
+              this.setGoal(this.patrolNode, 'patrol' + this.patrolNode.name);
             }
-            this.setGoal(this.patrolNode, 'patrol' + this.patrolNode.name);
           }
         }
       }

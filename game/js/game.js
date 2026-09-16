@@ -1,15 +1,16 @@
 // Browser glue: input, HUD, menus, entity drawing, main loop.
 (function () {
   'use strict';
-  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, Projectile, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H, smooth, smoothAngle, createNetRoom, MAPS, MAP_ORDER, DEFAULT_MAP_ID } = window;
+  const { V, M, clamp, rand, angleDiff, drawWeapon, drawMuzzleFlash, drawSentry, drawToolbox, drawPipe, drawPipebomb, SENTRY_HEIGHT, ModelSet, Pose, animate, GRIP, BONE, Renderer, GameAudio, Game, Projectile, BotBrain, botClassFor, DIFFICULTIES, WEAPONS, GRENADES, CLASSES, CLASS_ORDER, BOT_NAMES, BLUE, RED, TEAM_NAMES, TEAM_COLORS, PLAYER_H, EYE_H, smooth, smoothAngle, createNetRoom, MAPS, MAP_ORDER, DEFAULT_MAP_ID, MODES, MODE_ORDER, DEFAULT_MODE_ID } = window;
   const $ = (id) => document.getElementById(id);
 
   const stored = JSON.parse(localStorage.getItem('tfc2fort.settings') || 'null');
   const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.matchMedia('(hover: none)').matches);
   // A phone gets a smaller match, a lower render scale and some aim help on first run.
   const firstRunDefaults = coarse ? { teamSize: 4, resolution: 0.75, aimAssist: 0.6, particleBudget: 220 } : {};
-  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, skinSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player', mapId: DEFAULT_MAP_ID }, firstRunDefaults, stored || {});
+  const settings = Object.assign({ teamSize: 5, fill: true, difficulty: 'medium', sens: 0.0022, touchSens: 0.0042, aimAssist: 0, resolution: 1.25, particleBudget: 900, skinSet: 'tron', fov: 80, volume: 0.5, announcer: true, name: 'Player', mapId: DEFAULT_MAP_ID, modeId: DEFAULT_MODE_ID }, firstRunDefaults, stored || {});
   if (!MAPS[settings.mapId]) settings.mapId = DEFAULT_MAP_ID; // a map removed since this was saved
+  if (!MODES[settings.modeId]) settings.modeId = DEFAULT_MODE_ID; // a mode removed since this was saved
   const saveSettings = () => localStorage.setItem('tfc2fort.settings', JSON.stringify(settings));
   const DIFF_ORDER = ['easy', 'medium', 'hard', 'difficult', 'godly'];
   if (!DIFFICULTIES[settings.difficulty]) settings.difficulty = 'medium';
@@ -48,7 +49,7 @@
     // call, so on the Low setting (phones) effects use half the cluster.
     detail() { return settings.particleBudget <= 300 ? 0.5 : 1; },
   };
-  const game = new Game({ effects, mapId: settings.mapId });
+  const game = new Game({ effects, mapId: settings.mapId, mode: settings.modeId });
   renderer.setWorld(game.world, { lights: game.data.lights.map((p) => ({ pos: p, radius: 13 })), sun: renderer.lightDir });
   const human = game.addPlayer(settings.name || 'Player', BLUE, false);
   human.cls = 'soldier'; game.human = human; human.wantsRespawn = false;
@@ -155,6 +156,7 @@
   }
   document.addEventListener('pointerlockerror', () => enableFallback());
   let menu = 'main'; // 'main' | 'class' | 'team' | 'settings' | 'help' | null | 'end'
+  let tdmRotating = false; // one-shot latch so the auto map-rotation below only fires once
   let showScores = false;
   let relockOnTabRelease = false; // see pointerlockchange below
   const lastWeapon = { i: 0 };
@@ -321,6 +323,7 @@
         <button data-k="3"><b>3</b> Change team</button>
         <button data-k="4"><b>4</b> Skins: <span class="skin">${activeSet() ? activeSet().label : 'loading…'}</span></button>
         <button data-k="maps">Map: <span class="skin">${MAPS[settings.mapId].name}</span></button>
+        <button data-k="modes">Mode: <span class="skin">${MODES[settings.modeId].name}</span></button>
         <button data-k="5"><b>5</b> Settings &amp; bots</button>
         <button data-k="6"><b>6</b> Controls</button>
         <button data-k="7"><b>7</b> How to play</button>
@@ -369,8 +372,12 @@
           <button data-k="0"><b>0</b> Back</button></div>`;
       }
     } else if (menu === 'class') {
-      html = title + '<div class="list classes"><div class="h">Choose a class</div>';
-      CLASS_ORDER.forEach((c, i) => { const d = CLASSES[c]; html += `<button data-k="${i + 1}"><b>${i + 1}</b> <span class="cn">${d.name}</span><span class="cd">${d.desc}</span></button>`; });
+      html = title + '<div class="list classes"><div class="h">Choose a class</div>' +
+        (game.mode === 'elimination' ? '<p class="hint small">One life per class — a class already spent this round can\'t come back.</p>' : '');
+      CLASS_ORDER.forEach((c, i) => {
+        const d = CLASSES[c]; const used = game.mode === 'elimination' && human.usedClasses.has(c);
+        html += `<button data-k="${i + 1}"${used ? ' disabled' : ''}><b>${i + 1}</b> <span class="cn">${d.name}</span>${used ? '<span class="tick">SPENT</span>' : ''}<span class="cd">${d.desc}</span></button>`;
+      });
       html += '<button data-k="0"><b>0</b> Back</button></div>';
     } else if (menu === 'settings') {
       html = title + `<div class="list settings"><div class="h">Settings</div>
@@ -498,6 +505,17 @@
         `<p class="note">Changing map reloads the page — a new map means a whole new world to load, not
         something worth hot-swapping mid-match.</p>
         <button data-k="0"><b>0</b> Back</button></div>`;
+    } else if (menu === 'modes') {
+      const lockedOnline = !!(net && net.connected);
+      html = title + `<div class="list skins"><div class="h">Mode</div>` +
+        (lockedOnline ? `<p class="hint small">Leave your online room first — everyone in a room needs to be
+          on the same mode, and picking one isn't synced between players yet.</p>` : '') +
+        MODE_ORDER.map((id, i) => {
+          const m = MODES[id];
+          return `<button data-k="${i + 1}" class="${id === settings.modeId ? 'cur' : ''}"${lockedOnline ? ' disabled' : ''}><b>${i + 1}</b> <span class="cn">${m.name}</span>${id === settings.modeId ? '<span class="tick">IN USE</span>' : ''}<span class="cd">${m.desc}</span></button>`;
+        }).join('') +
+        `<p class="note">Changing mode reloads the page and restarts the round.</p>
+        <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'credits') {
       const sets = allSets();
       const lines = Object.values(sets).map((st) => `<p><b>${st.label}</b><br>${st.credit || 'No credit recorded for this set.'}</p>`).join('');
@@ -514,7 +532,11 @@
         <button data-k="0"><b>0</b> Back</button></div>`;
     } else if (menu === 'end') {
       const w = game.score[0] > game.score[1] ? 'Blue wins!' : game.score[1] > game.score[0] ? 'Red wins!' : 'Draw!';
-      html = title + `<div class="list"><div class="h">${w}</div><div class="hint big"><span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span></div>
+      const scoreLine = game.mode === 'elimination'
+        ? `<span class="blue">Blue ${game.players.filter((q) => q.team === BLUE && !q.eliminated).length} left</span> — <span class="red">Red ${game.players.filter((q) => q.team === RED && !q.eliminated).length} left</span>`
+        : `<span class="blue">Blue ${game.score[0]}</span> — <span class="red">Red ${game.score[1]}</span>`;
+      html = title + `<div class="list"><div class="h">${w}</div><div class="hint big">${scoreLine}</div>
+        ${game.mode === 'tdm' ? '<p class="hint small">Moving on to a different map…</p>' : ''}
         <button data-k="1"><b>1</b> Play again</button></div>`;
     }
     menuEl.innerHTML = html;
@@ -808,6 +830,7 @@
       if (k === '3') { openMenu('team'); return; }
       if (k === '4') { openMenu('skins'); return; }
       if (k === 'maps') { openMenu('maps'); return; }
+      if (k === 'modes') { openMenu('modes'); return; }
       if (k === '5') { openMenu('settings'); return; }
       if (k === '6') { openMenu('help'); return; }
       if (k === '7') { openMenu('howto'); return; }
@@ -829,6 +852,7 @@
       if (k === '0') { openMenu('main'); return; }
       const i = parseInt(k, 10) - 1; if (i < 0 || i >= CLASS_ORDER.length) return;
       const cls = CLASS_ORDER[i];
+      if (game.mode === 'elimination' && human.usedClasses.has(cls)) return; // spent this round — see the SPENT tag
       if (human.alive) { human.pendingClass = cls; effects.message('You will spawn as ' + CLASSES[cls].name, human.team, 'info', human); }
       else { human.cls = cls; human.wantsRespawn = true; human.respawnAt = Math.min(human.respawnAt, game.time); }
       if (human.spawnT === undefined) { human.cls = cls; human.spawn(); }
@@ -842,10 +866,15 @@
       if (net && net.connected) return; // see the in-menu hint: not synced between players yet
       const id = MAP_ORDER[parseInt(k, 10) - 1];
       if (id && id !== settings.mapId) { settings.mapId = id; saveSettings(); location.reload(); }
+    } else if (menu === 'modes') {
+      if (k === '0') { openMenu('main'); return; }
+      if (net && net.connected) return; // see the in-menu hint: not synced between players yet
+      const id = MODE_ORDER[parseInt(k, 10) - 1];
+      if (id && id !== settings.modeId) { settings.modeId = id; saveSettings(); location.reload(); }
     } else if (menu === 'settings' || menu === 'help' || menu === 'credits' || menu === 'howto') { if (k === '0') openMenu('main'); }
     else if (menu === 'end') { if (k === '1') { restart(); closeMenu(); } }
   }
-  function restart() { game.restartRound(); messages.length = 0; game.killFeed.length = 0; human.wantsRespawn = true; human.respawnAt = 0; }
+  function restart() { game.restartRound(); messages.length = 0; game.killFeed.length = 0; human.wantsRespawn = true; human.respawnAt = 0; tdmRotating = false; }
 
   // --------------------------------------------------------------- HUD
   const hud = { hp: $('hp'), armor: $('armor'), ammo: $('ammo'), ammoLabel: $('ammolabel'), gren: $('gren'), weapon: $('weapon'), msgs: $('msgs'), feed: $('feed'), score: $('score'), timer: $('timer'), flags: $('flags'), dead: $('dead'), scores: $('scores'), charge: $('charge'), flash: $('flash'), xhair: $('xhair'), status: $('status'), build: $('build'), zoom: $('zoomov'), tags: $('tags') };
@@ -856,17 +885,26 @@
     hud.armor.textContent = p.alive ? p.armor : 0;
     if (w) { hud.weapon.textContent = w.name; hud.ammo.textContent = w.ammo ? p.ammo[w.ammo] : '—'; hud.ammoLabel.textContent = w.ammo || ''; }
     const gd = p.def.gren; hud.gren.innerHTML = gd.map((g, i) => g ? `<span class="${p.grenPrime && p.grenPrime.slot === i ? 'primed' : ''}">${GRENADES[g].name} <b>${p.gren[i]}</b></span>` : '').join(' ');
-    hud.score.innerHTML = `<span class="blue">BLUE ${game.score[0]}</span><span class="red">RED ${game.score[1]}</span>`;
+    if (game.mode === 'elimination') {
+      const left = (t) => game.players.filter((q) => q.team === t && !q.eliminated).length;
+      hud.score.innerHTML = `<span class="blue">BLUE ${left(BLUE)} left</span><span class="red">RED ${left(RED)} left</span>`;
+    } else {
+      hud.score.innerHTML = `<span class="blue">BLUE ${game.score[0]}</span><span class="red">RED ${game.score[1]}</span>`;
+    }
     hud.timer.textContent = fmtTime(game.roundLength - game.time);
-    hud.flags.innerHTML = game.flags.map((f) => { const own = f.team === p.team; const st = f.state === 'home' ? 'at base' : f.state === 'carried' ? 'taken by ' + f.carrier.name : 'dropped (' + Math.ceil(f.returnAt - game.time) + 's)'; return `<div class="${f.team ? 'red' : 'blue'}">${TEAM_NAMES[f.team]} flag: ${st}${own && f.state !== 'home' ? ' !' : ''}</div>`; }).join('') + (p.flag ? '<div class="carry">YOU HAVE THE FLAG — get to your flag room!</div>' : '');
+    hud.flags.innerHTML = game.mode !== 'ctf' ? '' : game.flags.map((f) => { const own = f.team === p.team; const st = f.state === 'home' ? 'at base' : f.state === 'carried' ? 'taken by ' + f.carrier.name : 'dropped (' + Math.ceil(f.returnAt - game.time) + 's)'; return `<div class="${f.team ? 'red' : 'blue'}">${TEAM_NAMES[f.team]} flag: ${st}${own && f.state !== 'home' ? ' !' : ''}</div>`; }).join('') + (p.flag ? '<div class="carry">YOU HAVE THE FLAG — get to your flag room!</div>' : '');
     // messages
     hud.msgs.innerHTML = messages.filter((m) => game.time - m.time < 4).map((m) => `<div class="${m.kind} ${m.team === 0 ? 'blue' : m.team === 1 ? 'red' : ''}">${escapeHtml(m.text)}</div>`).join('');
     hud.feed.innerHTML = game.killFeed.filter((k) => game.time - k.time < 8).map((k) => `<div>${k.attacker ? `<span class="${k.attacker.team ? 'red' : 'blue'}">${escapeHtml(k.attacker.name)}</span> ${k.verb} ` : ''}<span class="${k.victim.team ? 'red' : 'blue'}">${escapeHtml(k.victim.name)}</span>${k.attacker ? '' : ' ' + k.verb}</div>`).join('');
     // dead overlay
-    if (!p.alive && p.spawnT !== undefined && !game.roundOver) {
+    if (!p.alive && p.spawnT !== undefined && !game.roundOver && p.eliminated) {
+      hud.dead.hidden = false;
+      hud.dead.innerHTML = `<div>ELIMINATED</div><div class="small">You died as every class — spectating until the round ends.</div>`;
+    } else if (!p.alive && p.spawnT !== undefined && !game.roundOver) {
       const kb = game.killFeed.filter((k) => k.victim === p).pop();
       const left = Math.max(0, p.respawnAt - game.time);
-      hud.dead.hidden = false; hud.dead.innerHTML = `<div>${kb && kb.attacker ? 'Killed by ' + escapeHtml(kb.attacker.name) + ' (' + CLASSES[kb.attacker.cls].name + ')' : 'You died'}</div><div class="small">${left > 0 ? 'Respawning in ' + Math.ceil(left) + 's' : 'Respawning...'} — press M to change class</div>`;
+      const suffix = game.mode === 'elimination' ? ` — next up: ${CLASSES[p.pendingClass || CLASS_ORDER.find((c) => !p.usedClasses.has(c))].name}` : ' — press M to change class';
+      hud.dead.hidden = false; hud.dead.innerHTML = `<div>${kb && kb.attacker ? 'Killed by ' + escapeHtml(kb.attacker.name) + ' (' + CLASSES[kb.attacker.cls].name + ')' : 'You died'}</div><div class="small">${left > 0 ? 'Respawning in ' + Math.ceil(left) + 's' : 'Respawning...'}${suffix}</div>`;
     } else hud.dead.hidden = true;
     // charge bar
     if (p.alive && p.charge >= 0) { hud.charge.hidden = false; hud.charge.firstElementChild.style.width = Math.min(100, p.charge / WEAPONS.sniper.chargeTime * 100) + '%'; } else hud.charge.hidden = true;
@@ -884,8 +922,9 @@
       let html = '';
       for (const t of [BLUE, RED]) {
         const ps = game.players.filter((q) => q.team === t).sort((a, b) => b.score - a.score);
-        html += `<table class="${t ? 'red' : 'blue'}"><tr><th colspan="6">${TEAM_NAMES[t]} — ${game.score[t]}</th></tr><tr><th>Name</th><th>Class</th><th>Score</th><th>Kills</th><th>Deaths</th><th>Caps</th></tr>`;
-        for (const q of ps) html += `<tr class="${q === p ? 'me' : ''}"><td>${escapeHtml(q.name)}</td><td>${CLASSES[q.cls].name}</td><td>${q.score}</td><td>${q.kills}</td><td>${q.deaths}</td><td>${q.caps}</td></tr>`;
+        const header = game.mode === 'elimination' ? TEAM_NAMES[t] + ' — ' + ps.filter((q) => !q.eliminated).length + ' left' : TEAM_NAMES[t] + ' — ' + game.score[t];
+        html += `<table class="${t ? 'red' : 'blue'}"><tr><th colspan="6">${header}</th></tr><tr><th>Name</th><th>Class</th><th>Score</th><th>Kills</th><th>Deaths</th><th>Caps</th></tr>`;
+        for (const q of ps) html += `<tr class="${q === p ? 'me' : ''}${q.eliminated ? ' out' : ''}"><td>${escapeHtml(q.name)}${q.eliminated ? ' (OUT)' : ''}</td><td>${CLASSES[q.cls].name}</td><td>${q.score}</td><td>${q.kills}</td><td>${q.deaths}</td><td>${q.caps}</td></tr>`;
         html += '</table>';
       }
       hud.scores.innerHTML = html;
@@ -1462,6 +1501,20 @@
       for (const [, br] of brains) br.update(DT);
       game.update(DT);
       if (game.roundOver && menu !== 'end') openMenu('end');
+      // TDM moves on to a different map on its own once the clock runs out —
+      // "10 minutes then map change" was the whole point, not a manual
+      // "play again" click. A few seconds' delay so the end screen actually
+      // shows before the reload; !net.connected because an online room's
+      // map choice isn't something this client can unilaterally change out
+      // from under everyone else.
+      if (game.roundOver && game.mode === 'tdm' && !tdmRotating && !(net && net.connected)) {
+        tdmRotating = true;
+        setTimeout(() => {
+          const others = MAP_ORDER.filter((id) => id !== settings.mapId);
+          settings.mapId = others.length ? others[Math.floor(Math.random() * others.length)] : settings.mapId;
+          saveSettings(); location.reload();
+        }, 6000);
+      }
       acc -= DT; steps++;
     }
     flashAmt = Math.max(0, flashAmt - dt * 2); shakeAmt = Math.max(0, shakeAmt - dt * 2.5);

@@ -224,6 +224,17 @@ const path = require('path');
   if (mapMenu.current !== mapMenu.order[0] && !mapMenu.order.includes(mapMenu.current)) { console.log('FAIL: the map actually loaded (' + mapMenu.current + ') is not a registered map'); process.exit(1); }
   console.log('PASS map menu lists every registered map (' + mapMenu.names.join(', ') + '), currently playing ' + mapMenu.current);
 
+  // ---- mode menu: lists every registered mode, current one is active now ----
+  const modeMenu = await page.evaluate(() => {
+    const html = window.__openMenu('modes');
+    window.__closeMenu();
+    return { html, order: window.MODE_ORDER, current: window.__game.mode, names: window.MODE_ORDER.map((id) => window.MODES[id].name) };
+  });
+  if (modeMenu.order.length < 1) { console.log('FAIL: no modes registered'); process.exit(1); }
+  if (!modeMenu.names.every((n) => modeMenu.html.includes(n))) { console.log('FAIL: the mode menu does not list every registered mode: ' + JSON.stringify(modeMenu)); process.exit(1); }
+  if (!modeMenu.order.includes(modeMenu.current)) { console.log('FAIL: the mode actually loaded (' + modeMenu.current + ') is not a registered mode'); process.exit(1); }
+  console.log('PASS mode menu lists every registered mode (' + modeMenu.names.join(', ') + '), currently playing ' + modeMenu.current);
+
   // exercise every class / weapon / grenade / ability
   const exercised = await page.evaluate(async () => {
     const g = window.__game, h = window.__human; const out = [];

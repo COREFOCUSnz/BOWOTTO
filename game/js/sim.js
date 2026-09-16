@@ -4,9 +4,10 @@
   'use strict';
   const isNode = typeof module !== 'undefined';
   const { V, clamp, angleDiff, rand } = isNode ? require('./math.js') : root;
-  const { WEAPONS, GRENADES, CLASSES, AMMO_MAX, BOT_NAMES } = isNode ? require('./defs.js') : root;
+  const { WEAPONS, GRENADES, CLASSES, CLASS_ORDER, AMMO_MAX, BOT_NAMES } = isNode ? require('./defs.js') : root;
   const { BLUE, RED, TEAM_NAMES } = isNode ? require('./map2fort.js') : root;
   const { MAPS, DEFAULT_MAP_ID } = isNode ? require('./maps.js') : root;
+  const { MODES, DEFAULT_MODE_ID } = isNode ? require('./modes.js') : root;
 
   const GRAVITY = 20, JUMP_V = 6.7, STEP_H = 0.45, PLAYER_HALF = 0.4, PLAYER_H = 1.8, EYE_H = 1.6;
   const TEAM_COLORS = [[0.2, 0.4, 0.95], [0.95, 0.25, 0.2]];
@@ -42,6 +43,10 @@
       this.grenPrime = null; this.disguise = -1; this.disguiseT = 0; this.sentry = null; this.building = 0; this.lastAttacker = null; this.lastHurt = -99;
       this.walkPhase = 0; this.fireAnim = 0; this.pendingClass = null; this.lastFire = -99; this.landT = 0;
       this.stats = { dmg: 0 };
+      // Elimination mode only: classes already died as (one life each), and
+      // whether every class has been burned through (permanently out for
+      // the round, not just between respawns).
+      this.usedClasses = new Set(); this.eliminated = false;
     }
     get def() { return CLASSES[this.cls]; }
     eye() { return [this.pos[0], this.pos[1] + EYE_H, this.pos[2]]; }
@@ -57,6 +62,19 @@
     }
     spawn() {
       const g = this.game, d = this.def;
+      if (g.mode === 'elimination') {
+        // Auto-advance to an unused class on every life after the first —
+        // the first life keeps whatever class was picked (menu, bot setup,
+        // or the 'soldier' default) untouched. A manually-picked class that
+        // has already been spent (e.g. from the class menu) is rejected
+        // back to the auto-pick rather than letting a class come back from
+        // the dead.
+        if (this.pendingClass && this.usedClasses.has(this.pendingClass)) this.pendingClass = null;
+        if (this.deaths > 0 && !this.pendingClass) {
+          const next = CLASS_ORDER.find((c) => c !== this.cls && !this.usedClasses.has(c));
+          if (next) this.pendingClass = next;
+        }
+      }
       if (this.pendingClass) { this.cls = this.pendingClass; this.pendingClass = null; }
       const def = this.def;
       const spawns = g.data.spawns[this.team];
@@ -83,10 +101,18 @@
     constructor(opts) {
       opts = opts || {};
       this.mapId = opts.mapId && MAPS[opts.mapId] ? opts.mapId : DEFAULT_MAP_ID;
+      this.mode = opts.mode && MODES[opts.mode] ? opts.mode : DEFAULT_MODE_ID;
       const { world, data } = MAPS[this.mapId].build();
       this.world = world; this.data = data;
       this.players = []; this.projectiles = []; this.particles = []; this.tracers = []; this.firePatches = []; this.caltrops = []; this.sentries = [];
-      this.time = 0; this.score = [0, 0]; this.roundLength = opts.roundLength || 20 * 60; this.roundOver = false; this.capLimit = opts.capLimit || 10;
+      this.time = 0; this.score = [0, 0];
+      // Elimination has no natural time pressure of its own (it ends when a
+      // team runs out of players, not on a clock) — a 5v5 with everyone on
+      // 9 lives runs ~30 simulated minutes end to end, so its "roundLength"
+      // is really just a stalemate backstop, not a target duration like
+      // TDM's real 10-minute clock.
+      this.roundLength = opts.roundLength || (this.mode === 'tdm' ? 10 * 60 : this.mode === 'elimination' ? 45 * 60 : 20 * 60);
+      this.roundOver = false; this.capLimit = opts.capLimit || 10;
       this.flags = [0, 1].map((t) => ({ team: t, state: 'home', pos: V.copy(data.flags[t].home), home: data.flags[t].home, carrier: null, returnAt: 0 }));
       this.items = data.items.map((it) => ({ pos: it.pos, type: it.type, respawnAt: 0 }));
       this.resupply = data.resupply;
@@ -112,7 +138,7 @@
       this.time += dt;
       if (!this.roundOver) {
         for (const p of this.players) {
-          if (!p.alive) { if (this.time >= p.respawnAt && (p.isBot || p.wantsRespawn)) { p.wantsRespawn = false; p.spawn(); this.effects.sound('resupply', p.pos); } continue; }
+          if (!p.alive) { if (!p.eliminated && this.time >= p.respawnAt && (p.isBot || p.wantsRespawn)) { p.wantsRespawn = false; p.spawn(); this.effects.sound('resupply', p.pos); } continue; }
           this.updatePlayer(p, dt);
         }
         this.updateProjectiles(dt);
@@ -124,7 +150,7 @@
         // every other client already trusts), and everyone else mirrors the
         // result instead of computing their own, possibly different, answer.
         const authoritative = !this.net || this.net.isHost;
-        if (authoritative) this.updateFlags(dt);
+        if (authoritative && this.mode === 'ctf') this.updateFlags(dt);
         this.updateItems(dt);
         this.updateFire(dt);
         if (authoritative && this.time >= this.roundLength) this.endRound();
@@ -145,11 +171,26 @@
       this.announce(w < 0 ? 'Round over — it\'s a draw!' : TEAM_NAMES[w] + ' team wins the round!', w, 'round');
       this.effects.say(w < 0 ? 'Round over. Draw.' : TEAM_NAMES[w] + ' team wins');
     }
+    // Elimination only: a team is out once every one of its players has
+    // burned through all nine classes. Called after every elimination —
+    // score is set to a plain 1/0 (not a running tally, unlike CTF/TDM) so
+    // endRound()'s own score-comparison winner text reads correctly without
+    // needing its own copy of the winner logic.
+    checkEliminationWin() {
+      if (this.mode !== 'elimination' || this.roundOver) return;
+      if (this.teamCount(BLUE) === 0 || this.teamCount(RED) === 0) return;
+      const left = (t) => this.players.some((p) => p.team === t && !p.eliminated);
+      const blueLeft = left(BLUE), redLeft = left(RED);
+      if (!blueLeft || !redLeft) { this.score = [blueLeft ? 1 : 0, redLeft ? 1 : 0]; this.endRound(); }
+    }
     restartRound() {
       this.roundOver = false; this.time = 0; this.score = [0, 0]; this.projectiles = []; this.firePatches = []; this.caltrops = [];
       for (const s of this.sentries.slice()) this.destroySentry(s, null);
       for (const f of this.flags) { f.state = 'home'; f.pos = V.copy(f.home); f.carrier = null; }
-      for (const p of this.players) { p.kills = 0; p.deaths = 0; p.caps = 0; p.score = 0; p.flag = null; p.alive = false; p.respawnAt = 0; p.wantsRespawn = true; }
+      for (const p of this.players) {
+        p.kills = 0; p.deaths = 0; p.caps = 0; p.score = 0; p.flag = null; p.alive = false; p.respawnAt = 0; p.wantsRespawn = true;
+        p.usedClasses = new Set(); p.eliminated = false;
+      }
     }
 
     // ------------------------------------------------------------------ movement
@@ -682,8 +723,16 @@
     kill(q, attacker, kind) {
       q.alive = false; q.deaths++; q.deadAt = this.time; q.respawnAt = this.time + 5; q.wantsRespawn = q.isBot; q.charge = -1; q.grenPrime && (q.grenPrime = null);
       q.building = 0;
-      if (attacker && attacker !== q) { attacker.kills++; attacker.score += kind === 'backstab' ? 2 : 1; if (attacker.team === q.team) attacker.score -= 1; }
+      if (attacker && attacker !== q) {
+        attacker.kills++; attacker.score += kind === 'backstab' ? 2 : 1; if (attacker.team === q.team) attacker.score -= 1;
+        if (this.mode === 'tdm' && attacker.team !== q.team) this.score[attacker.team]++;
+      }
       else { q.score -= 1; }
+      if (this.mode === 'elimination') {
+        q.usedClasses.add(q.cls);
+        if (q.usedClasses.size >= CLASS_ORDER.length) { q.eliminated = true; q.wantsRespawn = false; }
+        this.checkEliminationWin();
+      }
       if (q.flag) this.dropFlag(q);
       this.effects.sound('die', q.pos);
       for (let i = 0; i < 10; i++) this.effects.particle({ pos: q.center(), vel: [fxRand(-4, 4), fxRand(1, 6), fxRand(-4, 4)], life: fxRand(0.5, 1.1), size: 0.07, color: [0.55, 0.04, 0.04], gravity: 14, collide: true });
