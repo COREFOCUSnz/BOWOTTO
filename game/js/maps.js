@@ -20,6 +20,7 @@
   const mapthunderdome = isNode ? require('./mapthunderdome.js') : root.MAP_THUNDERDOME;
   const mapghosttown = isNode ? require('./mapghosttown.js') : root.MAP_GHOSTTOWN;
   const mapfrostbite = isNode ? require('./mapfrostbite.js') : root.MAP_FROSTBITE;
+  const mapneonsprawl = isNode ? require('./mapneonsprawl.js') : root.MAP_NEONSPRAWL;
 
   const MAPS = {
     '2fort': {
@@ -54,8 +55,12 @@
       id: 'frostbite', name: 'Frostbite Keep', build: mapfrostbite.buildMap,
       desc: 'A frozen keep, pale stone under ice. Three frost-locked passages into a courtyard that never thaws.',
     },
+    neonsprawl: {
+      id: 'neonsprawl', name: 'Neon Sprawl', build: mapneonsprawl.buildMap,
+      desc: 'A cyberpunk back-alley sprawl. Metal and grating under glaring light, three alleys into a neon-lit plaza.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well', 'rock2', 'casbah', 'thunderdome', 'ghosttown', 'frostbite', 'neonsprawl'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
