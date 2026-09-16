@@ -61,7 +61,7 @@ draw call and that is what actually costs on a phone.
 | E | Engineer: build a sentry gun (130 cells) |
 | R | Demoman: detonate pipebombs |
 | M / N | Change class / team |
-| Tab | Scoreboard |
+| \` (backtick) | Scoreboard |
 | Esc | Menu, settings, bot count |
 | F1 / F2 | Controls / How to play |
 

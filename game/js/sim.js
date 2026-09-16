@@ -754,7 +754,11 @@
           for (const k in d.ammoMax) if (p.ammo[k] < d.ammoMax[k]) { p.ammo[k] = d.ammoMax[k]; took = true; }
           for (let i = 0; i < 2; i++) if (p.gren[i] < d.grenN[i]) { p.gren[i] = d.grenN[i]; took = true; }
           p.infected = null; p.burn = 0;
-          if (took) { p.resupT = this.time + 2; this.effects.sound('resupply', p.pos); if (p === this.human) this.effects.message('Resupplied', p.team, 'pickup', p); }
+          // 20s, matching real TFC's resupply cabinets: long enough that
+          // camping the spawn bag isn't a free, near-permanent full heal and
+          // armor refill against anyone actually trying to kill you (2s let
+          // a player top off between almost every shot taken).
+          if (took) { p.resupT = this.time + 20; this.effects.sound('resupply', p.pos); if (p === this.human) this.effects.message('Resupplied', p.team, 'pickup', p); }
         }
       }
     }

@@ -161,13 +161,15 @@
   document.addEventListener('pointerlockchange', () => {
     locked = document.pointerLockElement === canvas;
     if (locked) { fallbackLook = false; canvas.style.cursor = 'crosshair'; return; }
-    // Some browsers release pointer lock the instant Tab is held down, even
-    // with preventDefault() on it — an accessibility guarantee that Tab can
-    // never be fully trapped by a page. Without this check that read as the
-    // menu suddenly yanking open mid-match while WASD was still held (no
-    // keyup ever arrives for keys held when focus moves), mouse-look dead,
-    // and the player sliding around uncontrolled underneath the menu.
-    // Silently re-lock once Tab comes back up instead of opening the menu.
+    // Backstop, not the primary fix (see the scoreboard binding below, which
+    // deliberately avoids Tab entirely): some browsers release pointer lock
+    // the instant Tab is held down, even with preventDefault() on it — an
+    // accessibility guarantee that Tab can never be fully trapped by a page,
+    // and in the worst case can go on to hand focus to the browser's own
+    // chrome. If that still happens from an old habit, don't compound it by
+    // also yanking the menu open mid-match while WASD is still held (no
+    // keyup ever arrives for keys held when focus moves) — silently re-lock
+    // once Tab comes back up instead.
     if (keys.Tab) { relockOnTabRelease = true; return; }
     if (!menu && !fallbackLook) openMenu('main');
   });
@@ -201,7 +203,12 @@
     if (menu) { menuKey(e); return; }
     keys[k] = true;
     if (k === 'Escape') { openMenu('main'); return; }
-    if (k === 'Tab') { showScores = true; e.preventDefault(); return; }
+    // Deliberately NOT Tab: some browsers release Pointer Lock (and can go on
+    // to hand focus to the browser's own chrome, cycling tabs/windows) the
+    // instant Tab is held, no matter what preventDefault() does — a real,
+    // unblockable accessibility rule, not a bug in this code. Backquote has
+    // no such special handling.
+    if (k === 'Backquote') { showScores = true; e.preventDefault(); return; }
     if (k === 'KeyM') { openMenu('class'); return; }
     if (k === 'KeyN') { openMenu('team'); return; }
     if (k === 'F1') { openMenu('help'); e.preventDefault(); return; }
@@ -217,10 +224,11 @@
   });
   document.addEventListener('keyup', (e) => {
     keys[e.code] = false;
-    if (e.code === 'Tab') {
-      showScores = false;
-      if (relockOnTabRelease) { relockOnTabRelease = false; if (!menu && !touch.enabled) requestLock(); }
-    }
+    if (e.code === 'Backquote') showScores = false;
+    // Defensive net regardless of the rebind above: if the browser dropped
+    // pointer lock because Tab got pressed anyway (old habit, another key
+    // combo), still recover quietly instead of leaving the game unlocked.
+    if (e.code === 'Tab' && relockOnTabRelease) { relockOnTabRelease = false; if (!menu && !touch.enabled) requestLock(); }
   });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseDown = [false, false, false]; showScores = false; relockOnTabRelease = false; });
 
@@ -393,7 +401,7 @@
         <tr><td>E</td><td>Engineer: build a sentry gun</td></tr>
         <tr><td>R</td><td>Demoman: detonate all your pipebombs</td></tr>
         <tr><td>M / N</td><td>Change class / change team</td></tr>
-        <tr><td>Tab</td><td>Hold for the scoreboard</td></tr>
+        <tr><td>\` (backtick)</td><td>Hold for the scoreboard</td></tr>
         <tr><td>Esc</td><td>This menu</td></tr>
         <tr><td>F1 / F2</td><td>Controls / How to play</td></tr>
         </table>

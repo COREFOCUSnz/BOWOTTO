@@ -82,5 +82,26 @@ const total = caps.reduce((a, b) => a + b, 0);
 console.log(`${scoring}/${seeds.length} seeds scored, ${total} captures in total`);
 check(scoring >= Math.ceil(seeds.length / 3), `the map is capturable (${scoring} of ${seeds.length} seeds scored)`);
 
+// ---- the resupply bag cannot make camping spawn a free, near-permanent heal
+// It refills health/armor/ammo/grenades to full — with too short a cooldown,
+// standing on it outheals nearly anything thrown at you. 20s, not the 2s a
+// real player found and flagged as "kind of cheating".
+{
+  seedRandom(1);
+  const game = new Game({ effects: { particle() {}, tracer() {}, sound() {}, say() {}, message() {}, flash() {}, shake() {} } });
+  const p = game.addPlayer('tester', BLUE, false);
+  p.cls = 'soldier'; p.spawn();
+  const bag = game.resupply.find((r) => r.team === BLUE);
+  p.pos = V.copy(bag.pos);
+  game.update(1 / 60);
+  check(p.hp === p.def.hp && p.armor === p.def.armorMax, 'standing on the resupply bag fully refills health and armor');
+  p.hp = 1; p.armor = 0; // simulate having just taken real damage
+  for (let i = 0; i < 5 * 60; i++) game.update(1 / 60); // 5 more simulated seconds, still standing on it
+  check(p.hp === 1 && p.armor === 0,
+    'it does not refill again within its cooldown — otherwise camping it makes you nearly unkillable, exactly the bug reported');
+  for (let i = 0; i < 20 * 60; i++) game.update(1 / 60); // fast-forward past the 20s cooldown
+  check(p.hp === p.def.hp && p.armor === p.def.armorMax, 'but it does refill again once the cooldown has genuinely elapsed');
+}
+
 console.log(fails ? `\n${fails} FAILURE(S)` : '\nALL PASS');
 process.exit(fails ? 1 : 0);
