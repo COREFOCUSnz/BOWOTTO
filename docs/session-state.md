@@ -268,3 +268,73 @@ only exercises a hand-written stub, so the actual `net.js` code needed its
 own direct tests, same lesson as the bots channel.
 
 All benches re-verified green after this too.
+
+## Same session, continued: real bugs from actual play (Tab, resupply camping)
+
+Corey and his girlfriend played live on separate devices and found two real
+bugs.
+
+**Tab kicked you out of the game after ~2 seconds.** Root cause: Tab is a
+browser accessibility guarantee (cycles focus) that `preventDefault()` cannot
+reliably suppress while pointer lock is active — some browsers intentionally
+let it win and drop pointer lock, which reads as "the game exits." Not
+fixable by trying harder to trap Tab; rebound the scoreboard key off Tab
+entirely, onto Backquote.
+
+**Spawn-room resupply armor could be camped.** Standing on the spawn
+resupply bag refilled health/armor every 2 seconds — short enough that
+camping it made a player nearly unkillable ("that's kind of cheating").
+Bumped `p.resupT = this.time + 2` to `+ 20` in `sim.js`'s `updateItems()`,
+matching real TFC's cabinet cooldown. `test/sim.test.js` got a regression
+test — and the test itself had a bug worth noting: it first waited only 1
+simulated second before checking the cooldown held, which is *less* than
+both the old (2s) and new (20s) values, so it would have passed either way.
+Fixed to wait 5s (comfortably past the old bug, still short of the real
+cooldown), confirmed it now actually fails against the old `+ 2` before
+restoring the fix — the lesson from T12 applied to game code: a test that
+can't fail isn't testing anything.
+
+All benches re-verified green (one pre-existing `vfx.test.js` launcher
+pixel-diff flake reproduced identically on the unmodified baseline via
+`git stash` — not a regression, left alone).
+
+## Same session, continued: map-selection infrastructure
+
+Corey asked for 10 new maps (5 based on real TFC maps, 5 original with
+"wild names"). The game had zero map-selection infrastructure — it was
+hardwired to exactly one map (2fort) — so that had to be built first.
+Flagged the scope to Corey up front: this is closer to 10 level-design
+passes than a content add, building infra first and landing maps
+incrementally rather than disappearing for one giant drop.
+
+Added `js/maps.js`: a registry (`MAPS` id -> `{id, name, desc, build}`,
+`MAP_ORDER`, `DEFAULT_MAP_ID`). `Game()` (`sim.js`) now takes an optional
+`mapId` and resolves it through the registry instead of calling
+`map2fort.js`'s `buildMap()` directly. A new "Map" main-menu entry lists
+every registered map and switches by reloading the page (a map change is a
+whole new `World`/waypoint graph — not something worth hot-swapping into a
+running match) — locked out while connected online, since map choice isn't
+synced between players yet (v1 limitation, surfaced as an in-menu hint).
+
+The interesting part is `test/map.test.js`: kept the original 2fort-specific
+hardcoded route checks (exact node names, specific sightlines) but added a
+map-agnostic pass that loops every id in `MAP_ORDER`, builds it, and checks
+mesh sanity, full waypoint-graph connectivity, and — using a new
+`nearestNode()`/Dijkstra `pathById()` plus the existing physics-based
+`walk()` simulator — that each team can actually walk spawn -> enemy flag ->
+home capture zone. It's driven only by `data.spawns[team]` /
+`data.flags[team].home` / `data.caps[team].pos`, never a hardcoded node
+name, so **every future map added to `MAP_ORDER` gets full
+walkability/reachability testing for free**, zero test-file changes needed.
+This was built deliberately before any new map content, so each of the 10
+upcoming maps gets verified the same way.
+
+Verified: full `npm test` + `test:browser` (new map-menu regression test:
+lists every registered map, currently-loaded map is a real registered id)
++ `test:net` + `test:multiplayer` + `test:vfx` + `test:feel` + `test:audio`
+all green; `test:mobile` had one flaky "left stick" distance assertion that
+passed clean on immediate re-run (same flake shape as the vfx one above,
+not a regression). Committed and deployed via the "Deploy game" Actions
+workflow. Only one map (2fort) is registered so far — this was the
+infrastructure pass; the 10 new maps (5 TFC-inspired, 5 original "wild"
+names) come next, landed incrementally.
