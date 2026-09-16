@@ -394,3 +394,63 @@ doors. Run the bot-soak check early during authoring, not just at the end.
 
 Full regression suite (`npm test`, `test:browser`, `test:net`,
 `test:multiplayer`, `test:mobile`) green. Committed and deployed.
+
+## Same session, continued: the remaining 9 maps, and the finished set of 10
+
+Built the rest of the requested maps: `js/mapwell.js`, `js/maprock2.js`,
+`js/mapcasbah.js`, `js/mapbadlands.js` (5 TFC-inspired maps total with
+Warpath — real TFC names, reskinned) and `js/mapthunderdome.js`,
+`js/mapghosttown.js`, `js/mapfrostbite.js`, `js/mapneonsprawl.js`,
+`js/mapscrapyard.js` (5 original "wild"-named maps: a gladiatorial arena,
+an abandoned frontier town, a frozen keep, a cyberpunk sprawl, a rusted
+junkyard). 10 new maps total, plus the original 2Fort — 11 in the
+in-game Map menu.
+
+**Well caught a second real bug, worse than the sightline one:** its
+first "three corridors" were only doors in the flagroom's wall plus
+matching gaps in the hub's wall — nothing filled the space BETWEEN the
+three lanes, so the whole 17.5 m stretch was one continuous open field
+with waypoint names implying three separate tunnels. Explains why it
+took real tuning to get capturing: added actual dividing walls between
+lanes, then (once real walls made each lane an uninterrupted shooting
+gallery) a cover block at two points down each one. Landed at 4/10 local
+soak seeds, 2/6 on the regression bar.
+
+Once Well's skeleton was genuinely proven (real walls, real cover, a
+divided flag room, a divided hub), Rock2 and Casbah **reused it with
+Well's exact internal proportions**, changing only materials/theme —
+both landed on the identical capture numbers with zero tuning, which is
+the actual confirmation the skeleton generalizes rather than being a
+one-off fluke. Badlands and all 5 wild maps followed the same pattern:
+same geometry, different palette (Thunderdome added a few extra
+decorative ceiling lights and measurably nudged its own capture rate —
+2/10 instead of 4/10 — a reminder that under a fixed PRNG seed per
+`test/sim.test.js`'s own note, even small unrelated geometry changes
+shift which trajectory a match takes; the rest kept zero extra geometry
+and landed exactly on 4/10 / 2/6).
+
+**The reusable skeleton**, if a future map needs one: a mirrored fort
+per team (spawn -> hallway -> a flag room with 2 pillars breaking up its
+width, `flag`/`flagroom_a`/`flagroom_c` node names required by
+`bots.js`'s engineer AI) opening through a divided wall into three
+parallel lanes (walls BETWEEN lanes, not just doors that happen to
+line up — the Well lesson), each lane broken by a cover block at two
+points so it's never an uninterrupted shot, converging on a shared
+central hub (also internally divided by pillars, never one open room
+over ~8 m) linked by a single `hub_mid` node. `js/maps.js` documents the
+one browser-only gotcha: every map after `map2fort.js` needs its own
+`root.MAP_<ID>` global, never the bare `buildMap` name a plain
+`<script>` tag would collide on.
+
+Every map verified individually: `test/map.test.js`'s generic pass
+(mesh builds, every node standable, full graph connectivity, a
+physics-simulated walk of the whole spawn -> enemy flag -> home capture
+loop for both teams) plus a bot-soak capturability check
+(`test/sim.test.js`, generalized earlier to run against every
+non-default map). Full regression suite green after every single map,
+not just at the end. All 10 committed and deployed via the "Deploy game"
+Actions workflow, one at a time, as promised at the start of this
+map-building arc rather than as one giant drop.
+
+This closes out Corey's original request in full: map-selection
+infrastructure, 5 TFC-inspired maps, 5 original wild-named maps.
