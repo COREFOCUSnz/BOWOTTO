@@ -1,0 +1,141 @@
+// Well: a TFC-inspired desert base map. Three parallel indoor corridors (not
+// one open field) connect each team's flag room to a shared central hub —
+// route diversity and sightline control come from the architecture itself,
+// the same lesson Warpath needed several iterations to learn. Flat
+// throughout: no ramps, no water, no elevation changes at all.
+(function (root) {
+  'use strict';
+  const isNode = typeof module !== 'undefined';
+  const { World, MAT } = isNode ? require('./world.js') : root;
+  const { mirrorBox, mirrorPt, finalizeGraph, newMapData } = isNode ? require('./mapkit.js') : root;
+  const { BLUE, RED } = isNode ? require('./map2fort.js') : root;
+
+  const TEAM_MAT = [MAT.BLUE, MAT.RED];
+  const GAPS = [[-11, -7], [-2, 2], [7, 11]];
+
+  function buildMap() {
+    const world = new World([-20, -6, -44], [20, 10, 44], 0.5);
+    const W = world;
+    W.fill([[-20, -6, -44], [20, 0, 44]], MAT.DIRT);
+    W.fill([[-20, 0, -44], [-18, 8, 44]], MAT.STONE);
+    W.fill([[18, 0, -44], [20, 8, 44]], MAT.STONE);
+    W.fill([[-20, 0, -44], [20, 8, -40]], MAT.STONE);
+    W.fill([[-20, 0, 40], [20, 8, 44]], MAT.STONE);
+
+    const data = newMapData();
+
+    function fort(team) {
+      const T = team === BLUE ? (b) => b : mirrorBox;
+      const P = team === BLUE ? (p) => p : mirrorPt;
+      const F = (box, mat) => W.fill(T(box), mat);
+      const C = (box) => W.carve(T(box));
+      const PAINT = (box, mat) => W.paint(T(box), mat);
+      const teamMat = TEAM_MAT[team];
+
+      // Bunker block: spawn + hall + flag room + the start of all three corridors.
+      F([[-13, 0, -40], [13, 6, -22]], MAT.STONE);
+      C([[-6, 0, -38], [6, 4, -31]]);          // spawn
+      C([[-2, 0, -31], [2, 4, -28]]);          // hallway
+      C([[-12, 0, -28], [12, 5, -22]]);        // flag room, one wide room with three exits
+      F([[-5, 0, -27], [-4, 4, -25]], MAT.DARKBRICK);   // a pair of dividing pillars — a 24 m
+      F([[4, 0, -25], [5, 4, -23]], MAT.DARKBRICK);     // wide open room is its own kill-box
+      F([[-13, 0, -22], [13, 5, -21.5]], MAT.STONE);   // flag room's own south wall
+      for (const [gx0, gx1] of GAPS) C([[gx0, 0, -22], [gx1, 4, -21.5]]);   // the three doors
+      for (const [gx0, gx1] of GAPS) C([[gx0, 0, -21.5], [gx1, 4, -4]]);    // the three corridors
+
+      // Materials
+      PAINT([[-6, 0, -38], [6, 4, -31]], MAT.CONCRETE);
+      PAINT([[-6, 2.0, -38], [6, 2.9, -31]], teamMat);
+      PAINT([[-2, 0, -31], [2, 4, -28]], MAT.CONCRETE);
+      PAINT([[-12, 0, -28], [12, 5, -22]], MAT.DARKBRICK);
+      F([[-12, -0.45, -28], [12, -0.05, -27.5]], teamMat);   // flag room floor accent
+      for (const [gx0, gx1] of GAPS) PAINT([[gx0, 0, -21.5], [gx1, 4, -4]], MAT.CONCRETE);
+      F([[-13, 5.5, -40], [13, 6, -22]], MAT.METAL);         // bunker roof band
+
+      // Lights
+      const lights = [[0, 3.5, -35], [0, 3.5, -30], [-8, 4, -25], [0, 4, -25], [8, 4, -25],
+        [-9, 3, -13], [0, 3, -13], [9, 3, -13]];
+      for (const l of lights) {
+        const b = [[l[0] - 1, l[1], l[2] - 1], [l[0] + 1, l[1] + 0.5, l[2] + 1]];
+        F(b, MAT.LIGHT);
+        data.lights.push(P([l[0], l[1] - 0.1, l[2]]));
+      }
+      // team door blocker at spawn entrance
+      const bl = T([[-2, 0, -31.5], [2, 4, -30.5]]);
+      W.blockers.push({ min: bl[0], max: bl[1], team });
+
+      // --- gameplay data
+      data.spawns[team] = [[0, 0, -34], [-2, 0, -35], [2, 0, -35], [-2, 0, -33], [2, 0, -33], [0, 0, -36]].map(P);
+      data.flags[team] = { home: P([0, 0, -25]) };
+      data.caps[team] = { pos: P([0, 0, -25]), r: 2.5 };
+      data.resupply.push({ pos: P([0, 0, -36]), team });
+      data.items.push({ pos: P([-3, 0, -34]), type: 'health' });
+      data.items.push({ pos: P([3, 0, -34]), type: 'ammo' });
+      data.items.push({ pos: P([-9, 0, -25]), type: 'ammo' });
+      data.items.push({ pos: P([9, 0, -25]), type: 'health' });
+      data.items.push({ pos: P([-9, 0, -13]), type: 'health' });
+      data.items.push({ pos: P([9, 0, -13]), type: 'ammo' });
+      data.items.push({ pos: P([0, 0, -13]), type: 'ammo' });
+
+      // --- waypoints (blue-local)
+      const pre = team === BLUE ? 'b_' : 'r_';
+      const N = (name, p, opts) => data.nodes.push(Object.assign({ name: pre + name, pos: P(p), team }, opts || {}));
+      N('spawn', [0, 0, -34]);
+      N('hall', [0, 0, -29.5]);
+      N('flagroom_a', [-8, 0, -25]); N('flag', [0, 0, -25]); N('flagroom_c', [8, 0, -25]);
+      N('corr_L1', [-9, 0, -18]); N('corr_L2', [-9, 0, -10]); N('hub_L', [-9, 0, -4]);
+      N('corr_C1', [0, 0, -18]); N('corr_C2', [0, 0, -10]); N('hub_C', [0, 0, -4]);
+      N('corr_R1', [9, 0, -18]); N('corr_R2', [9, 0, -10]); N('hub_R', [9, 0, -4]);
+
+      const L = (a, b, opts) => data.links.push(Object.assign({ a: pre + a, b: pre + b }, opts || {}));
+      L('spawn', 'hall'); L('hall', 'flagroom_a'); L('hall', 'flag'); L('hall', 'flagroom_c');
+      L('flagroom_a', 'flag'); L('flag', 'flagroom_c');
+      L('flagroom_a', 'corr_L1'); L('corr_L1', 'corr_L2'); L('corr_L2', 'hub_L');
+      L('flag', 'corr_C1'); L('corr_C1', 'corr_C2'); L('corr_C2', 'hub_C');
+      L('flagroom_c', 'corr_R1'); L('corr_R1', 'corr_R2'); L('corr_R2', 'hub_R');
+
+      data.sniperSpots[team] = [pre + 'hub_C'];
+      data.defense[team] = ['flag', 'flagroom_a', 'flagroom_c', 'hub_L', 'hub_C', 'hub_R'].map((n) => pre + n);
+    }
+    fort(BLUE); fort(RED);
+
+    // Central hub: shared, built once — its north/south walls (facing each
+    // team) carry the same three gaps the corridors already line up with.
+    for (const z of [-4.5, 4]) W.fill([[-13, 0, z], [13, 7, z + 0.5]], MAT.STONE);
+    for (const [gx0, gx1] of GAPS) {
+      W.carve([[gx0, 0, -4.5], [gx1, 4, -4]]);
+      W.carve([[gx0, 0, 4], [gx1, 4, 4.5]]);
+    }
+    W.fill([[-13.5, 0, -4], [-13, 7, 4]], MAT.STONE);
+    W.fill([[13, 0, -4], [13.5, 7, 4]], MAT.STONE);
+    W.fill([[-13.5, 6, -4.5], [13.5, 6.5, 4.5]], MAT.METAL);
+    W.carve([[-13, 0, -4], [13, 6, 4]]);
+    W.paint([[-13, 0, -4], [13, 6, 4]], MAT.CONCRETE);
+    // pillars for cover inside the hub — plain open floor here turned it into
+    // a single shared kill-box both teams' entire offense piled into at
+    // once (200+ kills per 5-minute match, 0 captures in 10): breaking the
+    // interior into a mild pillar maze, not just one open box, is the same
+    // lesson as Warpath's rampart, applied to a room instead of a field.
+    W.fill([[-5, 0, -2], [-3.5, 5, -0.5]], MAT.STONE);
+    W.fill([[3.5, 0, 0.5], [5, 5, 2]], MAT.STONE);
+    W.fill([[-10, 0, -2], [-8.5, 5, -0.5]], MAT.STONE);
+    W.fill([[-10, 0, 0.5], [-8.5, 5, 2]], MAT.STONE);
+    W.fill([[8.5, 0, -2], [10, 5, -0.5]], MAT.STONE);
+    W.fill([[8.5, 0, 0.5], [10, 5, 2]], MAT.STONE);
+    for (const p of [[0, 3.5, -3.5], [0, 3.5, 3.5]]) {
+      W.fill([[p[0] - 1, p[1], p[2] - 1], [p[0] + 1, p[1] + 0.5, p[2] + 1]], MAT.LIGHT);
+      data.lights.push([p[0], p[1] - 0.1, p[2]]);
+    }
+
+    data.nodes.push({ name: 'hub_mid', pos: [0, 0, 0], team: -1 });
+    for (const g of ['hub_L', 'hub_C', 'hub_R']) {
+      data.links.push({ a: 'b_' + g, b: 'hub_mid' }, { a: 'r_' + g, b: 'hub_mid' });
+    }
+
+    finalizeGraph(data);
+    return { world, data };
+  }
+
+  const out = { buildMap };
+  if (isNode) module.exports = out; else root.MAP_WELL = out;
+})(typeof window !== 'undefined' ? window : globalThis);

@@ -14,6 +14,7 @@
   // plain <script> otherwise would. See js/mapwarpath.js.
   const map2fort = isNode ? require('./map2fort.js') : root;
   const mapwarpath = isNode ? require('./mapwarpath.js') : root.MAP_WARPATH;
+  const mapwell = isNode ? require('./mapwell.js') : root.MAP_WELL;
 
   const MAPS = {
     '2fort': {
@@ -24,8 +25,12 @@
       id: 'warpath', name: 'Warpath', build: mapwarpath.buildMap,
       desc: 'Two bunkers dug in on either side of an open no-man\'s-land. No water, no basement — just cover, sightlines, and a straight run at the flag.',
     },
+    well: {
+      id: 'well', name: 'Well', build: mapwell.buildMap,
+      desc: 'Three parallel corridors run from each flag room into a shared central hub. Desert stone, no water despite the name, three ways in.',
+    },
   };
-  const MAP_ORDER = ['2fort', 'warpath'];
+  const MAP_ORDER = ['2fort', 'warpath', 'well'];
   const DEFAULT_MAP_ID = '2fort';
 
   const out = { MAPS, MAP_ORDER, DEFAULT_MAP_ID };
