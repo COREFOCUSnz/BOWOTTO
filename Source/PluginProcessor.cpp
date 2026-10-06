@@ -4,40 +4,6 @@
 //==============================================================================
 namespace
 {
-    // Simple autocorrelation-based pitch detector for tuner display.
-    // Returns the detected fundamental frequency in Hz, or 0 if uncertain.
-    float detectFundamental (const float* audio, int numSamples, double sampleRate)
-    {
-        if (numSamples < 256)
-            return 0.0f;
-
-        const int minPeriod = (int) (sampleRate / 1000.0);  // 1 kHz max
-        const int maxPeriod = (int) (sampleRate / 40.0);    // 40 Hz min (low E on guitar)
-
-        float bestCorr = 0.0f;
-        int bestLag = 0;
-
-        for (int lag = minPeriod; lag <= maxPeriod && lag < numSamples / 2; ++lag)
-        {
-            float corr = 0.0f, energy = 0.0f;
-            for (int i = 0; i < numSamples - lag; ++i)
-            {
-                corr += audio[i] * audio[i + lag];
-                energy += audio[i] * audio[i];
-            }
-            if (energy > 1.0e-6f && corr / energy > bestCorr)
-            {
-                bestCorr = corr / energy;
-                bestLag = lag;
-            }
-        }
-
-        if (bestCorr < 0.3f || bestLag == 0)
-            return 0.0f;
-
-        return (float) (sampleRate / bestLag);
-    }
-
     // Convert frequency to MIDI note number (A4 = 69, middle C = 60).
     float freqToMidi (float hz)
     {
@@ -243,7 +209,9 @@ void TheBowottoAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     oversampler.reset();
     const double osRate = sampleRate * 4.0;
     muff.prepare (osRate);
+    clean.prepare (osRate);
     amp.prepare (osRate);
+    tuner.prepare (sampleRate);
 
     cab.prepare ({ sampleRate, (juce::uint32) samplesPerBlock, 1 });
     cab.loadImpulseResponse (bowotto::CabIR::build (sampleRate), sampleRate,
@@ -392,8 +360,9 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     uiGateDb.store (gate.lastGainDb, std::memory_order_relaxed);
     uiMorph.store (smMorph.getCurrentValue(), std::memory_order_relaxed);
 
-    // --- tuner: detect fundamental frequency of gated signal ----------------
-    const float detectedHz = detectFundamental (mono, numSamples, currentSampleRate);
+    // --- tuner: tracks the gated guitar in its own window, any block size --
+    tuner.push (mono, numSamples);
+    const float detectedHz = tuner.frequencyHz();
     if (detectedHz > 0.0f)
     {
         const float midi = freqToMidi (detectedHz);
@@ -481,8 +450,22 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
             float s = d[i];
             if (muffOn)
+            {
                 s = muff.process (s, sus, tone, scp);
-            s = amp.process (s, drv);
+                s = amp.process (s, drv);
+            }
+            else
+            {
+                // CLEAN channel. The stack still sits behind it (so the cab
+                // speaks the same way) but parked at unity drive; the knobs
+                // change job: GAIN = clean level + warmth, SUSTAIN = the
+                // compressor, TONE = dark/bright tilt. Otto's first PC report
+                // was "no clean tone" — before this the Muff-off path went
+                // straight into the stack at breakup drive.
+                const float gain01 = juce::jlimit (0.0f, 1.0f, (drv - 1.0f) * (1.0f / 9.0f));
+                s = clean.process (s, sus, tone, 1.0f + gain01 * 1.5f);
+                s = amp.process (s, 1.0f);
+            }
             d[i] = s;
         }
 

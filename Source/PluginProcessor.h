@@ -125,7 +125,9 @@ private:
     //==========================================================================
     bowotto::NoiseGate    gate;
     bowotto::BigMuff      muff;
+    bowotto::CleanPreamp  clean;
     bowotto::VintageAmp   amp;
+    bowotto::PitchTracker tuner;
     bowotto::ViolinEngine violin;
     bowotto::TapeEcho     echoL, echoR;
     bowotto::Tremolo      tremolo;

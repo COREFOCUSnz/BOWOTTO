@@ -3,6 +3,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include <cmath>
 #include <array>
+#include <vector>
+#include <algorithm>
 
 namespace bowotto
 {
@@ -409,11 +411,19 @@ private:
 */
 struct CleanPreamp
 {
+    /** Prepare at the rate it will actually run at (the oversampled rate,
+        alongside the Muff and the stack) — the compressor's time constants
+        are derived from it. */
     void prepare (double sr) noexcept
     {
         hp.prepare (sr, 70.0f);
         tiltLP.prepare (sr, 700.0f);
         dc.prepare (sr);
+        // 1 ms attack: the pick transient rises in ~5 ms (T6), and a 3 ms
+        // attack let it through and then clamped the body — T25 measured
+        // the crest factor going UP, the opposite of a sustainer.
+        attackCoef  = 1.0f - std::exp (-1.0f / (float) (0.001 * sr));
+        releaseCoef = 1.0f - std::exp (-1.0f / (float) (0.120 * sr));   // 120 ms
         reset();
     }
 
@@ -426,18 +436,23 @@ struct CleanPreamp
     }
 
     /** sustain: 0..1 compression amount. tone: 0..1 dark->bright tilt.
-        drive: >=1 from the GAIN knob, used gently (never a hard clip). */
+        drive: 1..~2.5 from the GAIN knob — warmth and a little level, never
+        a clip. The caller owns the knob law; this stage only promises that
+        drive == 1 is transparent. */
     inline float process (float x, float sustain, float tone, float drive) noexcept
     {
         x = hp.process (x);
 
-        // Fast-attack / slow-release envelope follower -> gain reduction.
+        // Fast-attack / slow-release envelope -> gain reduction. Threshold
+        // sits at -26 dBFS so a real DI actually reaches it: the first draft's
+        // 0.22 never engaged at playing level, and 0.12 only brushed the note
+        // onsets of a -15 dBFS-peak riff (T25 read a -59 dB "difference").
         const float rectified = std::abs (x);
-        const float coeff = rectified > envelope ? 0.4f : 0.004f;
-        envelope += coeff * (rectified - envelope);
-        const float excess = juce::jmax (0.0f, envelope - 0.22f);
-        const float gr = 1.0f / (1.0f + excess * sustain * 7.0f);
-        x *= gr;
+        envelope += (rectified > envelope ? attackCoef : releaseCoef) * (rectified - envelope);
+        const float excess = juce::jmax (0.0f, envelope - 0.05f);
+        // Makeup rides with the knob: a sustainer lifts the tail, it doesn't
+        // just turn the loud part down. Up to +6 dB at full SUSTAIN.
+        x *= (1.0f + sustain) / (1.0f + excess * sustain * 7.0f);
 
         // Tilt EQ: symmetric around the 700 Hz split, neutral at tone = 0.5.
         const float low  = tiltLP.process (x);
@@ -445,8 +460,8 @@ struct CleanPreamp
         const float t    = (tone - 0.5f) * 2.0f;
         x = low * (1.0f - 0.5f * t) + high * (1.0f + 0.5f * t);
 
-        // Gentle edge-of-breakup warmth — unity gain at drive == 1, and even
-        // at the top of the GAIN knob this never approaches the Muff's clip.
+        // Edge-of-breakup warmth with d/tanh(d) small-signal makeup, so GAIN
+        // adds a few dB of level as it warms, like turning up a clean amp.
         const float dSafe = juce::jmax (0.05f, drive);
         x = std::tanh (dSafe * x) / std::tanh (dSafe);
         x = dc.process (x);
@@ -459,6 +474,176 @@ private:
     OnePoleLP  tiltLP;
     DcBlocker  dc;
     float envelope { 0.0f };
+    float attackCoef { 0.1f }, releaseCoef { 0.001f };
+};
+
+//==============================================================================
+/**
+    TUNER pitch tracker — normalised autocorrelation (McLeod's NSDF) over its
+    own 100 ms window, decimated to ~12 kHz, with the lag sweep budgeted
+    across host blocks.
+
+    Why it owns a window: v0.3.x ran a plain autocorrelation over ONE host
+    block and bailed under 256 samples — at Live's 64/128-sample buffers it
+    never reported at all, and at 512 it could only resolve notes above
+    ~170 Hz, so the low strings were invisible. The host's block size is not
+    a musical quantity; a tuner has to buffer for itself. The sweep is spread
+    over one hop interval so a ~300-lag analysis never lands as a single
+    burst inside a 64-sample callback.
+*/
+struct PitchTracker
+{
+    void prepare (double sr)
+    {
+        decim   = juce::jmax (1, (int) std::lround (sr / 12000.0));
+        decRate = sr / (double) decim;
+        window  = juce::jlimit (256, 4096, (int) (decRate * 0.10));
+        hopBase = (window / 2) * decim;                       // base-rate samples between analyses
+        minLag  = juce::jmax (2, (int) (decRate / 1100.0));   // ceiling ~1.1 kHz
+        maxLag  = juce::jmin (window / 2, (int) (decRate / 38.0));   // floor just under low E
+        ring.assign ((size_t) window, 0.0f);
+        snap.assign ((size_t) window, 0.0f);
+        nsdf.assign ((size_t) maxLag + 2, 0.0f);
+        aa1.prepare (sr, (float) (decRate * 0.35));
+        aa2.prepare (sr, (float) (decRate * 0.35));
+        reset();
+    }
+
+    void reset()
+    {
+        aa1.reset();
+        aa2.reset();
+        std::fill (ring.begin(), ring.end(), 0.0f);
+        write = filled = sinceHop = decimCount = lagCursor = 0;
+        running = false;
+        hz = 0.0f;
+    }
+
+    /** Feed base-rate samples. frequencyHz() stays 0 until an analysis is confident. */
+    void push (const float* x, int n)
+    {
+        for (int i = 0; i < n; ++i)
+        {
+            const float v = aa2.process (aa1.process (x[i]));
+            if (++decimCount < decim)
+                continue;
+            decimCount = 0;
+            ring[(size_t) write] = v;
+            write  = (write + 1) % window;
+            filled = juce::jmin (window, filled + 1);
+        }
+        sinceHop += n;
+
+        if (! running && filled == window && sinceHop >= hopBase)
+        {
+            sinceHop = 0;
+            double sumSq = 0.0;
+            for (int i = 0; i < window; ++i)                   // oldest first
+            {
+                const float s = ring[(size_t) ((write + i) % window)];
+                snap[(size_t) i] = s;
+                sumSq += (double) s * s;
+            }
+            if (std::sqrt (sumSq / window) < 1.0e-3)           // -60 dBFS: nothing to tune
+            {
+                hz = 0.0f;
+                return;
+            }
+            running   = true;
+            lagCursor = minLag;
+        }
+
+        if (running)
+        {
+            const int budget = (maxLag - minLag + 1) * n / juce::jmax (1, hopBase) + 2;
+            for (int k = 0; k < budget && lagCursor <= maxLag; ++k, ++lagCursor)
+            {
+                const int tau = lagCursor;
+                double r = 0.0, m = 0.0;
+                for (int i = 0; i + tau < window; ++i)
+                {
+                    const float a = snap[(size_t) i], b = snap[(size_t) (i + tau)];
+                    r += (double) a * b;
+                    m += (double) a * a + (double) b * b;
+                }
+                nsdf[(size_t) tau] = m > 1.0e-12 ? (float) (2.0 * r / m) : 0.0f;
+            }
+            if (lagCursor > maxLag)
+            {
+                running = false;
+                hz = pickPeak();
+            }
+        }
+    }
+
+    float frequencyHz() const noexcept { return hz; }
+
+private:
+    float pickPeak() const
+    {
+        // Key maxima: the top of each positive lobe after the first negative
+        // crossing. Taking the FIRST lobe within 85 % of the global maximum is
+        // what stops the sub-octave from winning on a harmonically rich tone.
+        struct Peak { int lag; float val; };
+        Peak peaks[32];
+        int  nPeaks = 0;
+        bool seenNegative = nsdf[(size_t) minLag] <= 0.0f;
+        bool inLobe = false;
+        int  lobeLag = 0;
+        float lobeMax = 0.0f;
+
+        for (int tau = minLag; tau <= maxLag; ++tau)
+        {
+            const float v = nsdf[(size_t) tau];
+            if (! seenNegative)
+            {
+                if (v <= 0.0f) seenNegative = true;
+                continue;
+            }
+            if (v > 0.0f)
+            {
+                if (! inLobe)          { inLobe = true; lobeLag = tau; lobeMax = v; }
+                else if (v > lobeMax)  { lobeLag = tau; lobeMax = v; }
+            }
+            else if (inLobe)
+            {
+                inLobe = false;
+                if (nPeaks < 32) peaks[nPeaks++] = { lobeLag, lobeMax };
+            }
+        }
+        if (inLobe && nPeaks < 32)
+            peaks[nPeaks++] = { lobeLag, lobeMax };
+
+        float globalMax = 0.0f;
+        for (int i = 0; i < nPeaks; ++i)
+            globalMax = juce::jmax (globalMax, peaks[i].val);
+        if (globalMax < 0.6f)
+            return 0.0f;
+
+        int chosen = -1;
+        for (int i = 0; i < nPeaks; ++i)
+            if (peaks[i].val >= 0.85f * globalMax) { chosen = peaks[i].lag; break; }
+        if (chosen <= minLag || chosen >= maxLag)
+            return 0.0f;
+
+        // Parabolic interpolation around the lobe top -> sub-sample lag, so
+        // the low strings resolve to ~1 cent even at the decimated rate.
+        const float y0 = nsdf[(size_t) (chosen - 1)];
+        const float y1 = nsdf[(size_t) chosen];
+        const float y2 = nsdf[(size_t) (chosen + 1)];
+        const float denom = y0 - 2.0f * y1 + y2;
+        const float delta = std::abs (denom) > 1.0e-9f ? 0.5f * (y0 - y2) / denom : 0.0f;
+        const float lag   = (float) chosen + juce::jlimit (-0.5f, 0.5f, delta);
+        return (float) (decRate / lag);
+    }
+
+    OnePoleLP aa1, aa2;
+    std::vector<float> ring, snap, nsdf;
+    double decRate { 12000.0 };
+    int decim { 4 }, window { 1200 }, hopBase { 2400 }, minLag { 10 }, maxLag { 315 };
+    int write { 0 }, filled { 0 }, sinceHop { 0 }, decimCount { 0 }, lagCursor { 0 };
+    bool running { false };
+    float hz { 0.0f };
 };
 
 //==============================================================================

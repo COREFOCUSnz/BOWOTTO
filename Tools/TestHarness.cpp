@@ -986,6 +986,110 @@ static void runBench()
                 d < -30.0f, juce::String ("difference ") + juce::String (d, 1) + " dB vs off");
     }
 
+    // T24 — MUFF off must be a real CLEAN channel. Otto's first report from
+    // the PC (6 Oct 2026): "no clean tone". The CleanPreamp voicing existed in
+    // BowottoDSP.h but was never wired in — MUFF off went straight into the
+    // vintage stack at drive 2.8 with asymmetric bias, i.e. edge of breakup.
+    // THD of a -18 dBFS sine (a realistic DI level, not a hot one) at GAIN 50:
+    // the clean channel must stay under -28 dB (~4 %) while the same meter
+    // reads the Muff as filthy, so the pass means the meter can see distortion.
+    {
+        const float f0 = 220.0f;
+        auto sine = makeSine (kSampleRate, 1.0, f0, 0.126f);
+        auto cleanOut = render (p, sine, [] (auto& q) { baseline (q); setParam (q, "muffon", 0.0f);
+                                                        setParam (q, "gain",   50.0f); });
+        auto muffOut  = render (p, sine, [] (auto& q) { baseline (q); setParam (q, "gain", 50.0f); });
+
+        auto thdDb = [&] (const juce::AudioBuffer<float>& b)
+        {
+            const int len = (int) (kSampleRate * 0.5);
+            const float h1 = goertzel (b, f0, skip, len);
+            double harm = 0.0;
+            for (int h = 2; h <= 5; ++h)
+            {
+                const float m = goertzel (b, f0 * (float) h, skip, len);
+                harm += (double) m * m;
+            }
+            return 20.0f * (float) std::log10 (std::sqrt (harm) / juce::jmax (1.0e-9f, h1));
+        };
+
+        const float cleanThd = thdDb (cleanOut);
+        const float muffThd  = thdDb (muffOut);
+        const float cleanRms = juce::Decibels::gainToDecibels (analyse (cleanOut, skip).rms, -120.0f);
+        report ("T24 CLEAN channel (MUFF off) is actually clean at a real DI level",
+                cleanThd < -28.0f && muffThd > -15.0f && cleanRms > -36.0f && cleanRms < -6.0f,
+                juce::String ("THD clean ") + juce::String (cleanThd, 1) + " dB, muff "
+                    + juce::String (muffThd, 1) + " dB; clean rms " + juce::String (cleanRms, 1) + " dBFS");
+    }
+
+    // T25 — on the clean channel SUSTAIN is a sustainer, not a fuzz knob:
+    // audible, and the note must DECAY LESS with it up. Measured as the drop
+    // from 50 ms to 400 ms after a note onset. (A first draft checked crest
+    // factor instead and caught a real flaw: a 3 ms attack let the pick
+    // through and clamped the body, so crest went UP — fixed to 1 ms + makeup.)
+    {
+        auto sus0   = render (p, riff, [] (auto& q) { baseline (q); setParam (q, "muffon", 0.0f);
+                                                       setParam (q, "sustain", 0.0f); });
+        auto sus100 = render (p, riff, [] (auto& q) { baseline (q); setParam (q, "muffon", 0.0f);
+                                                       setParam (q, "sustain", 100.0f); });
+        auto decayDb = [] (const juce::AudioBuffer<float>& b)
+        {
+            const int noteStart = (int) (kSampleRate * 1.0);            // third note of the riff
+            auto peakIn = [&] (double fromMs)
+            {
+                const int from = noteStart + (int) (kSampleRate * fromMs * 0.001);
+                float m = 0.0f;
+                for (int i = from; i < from + (int) (kSampleRate * 0.02); ++i)
+                    m = juce::jmax (m, std::abs (b.getSample (0, i)));
+                return m;
+            };
+            return juce::Decibels::gainToDecibels (peakIn (50.0) / juce::jmax (1.0e-9f, peakIn (400.0)));
+        };
+        const float drop0   = decayDb (sus0);
+        const float drop100 = decayDb (sus100);
+        const float d = diffDb (sus100, sus0, skip);
+        report ("T25 CLEAN SUSTAIN holds the note: audible, decay slows",
+                d > -25.0f && drop100 < drop0 - 2.0f,
+                juce::String ("difference ") + juce::String (d, 1) + " dB; 50->400 ms decay "
+                    + juce::String (drop0, 1) + " dB -> " + juce::String (drop100, 1) + " dB");
+    }
+
+    // T26 — the TUNER works at a real host buffer size. Otto's second report:
+    // "tuner isn't working". The detector analysed ONE host block and bailed
+    // under 256 samples — at Live's 128/64-sample buffers it never reported,
+    // and at 512 it could only see notes above ~170 Hz. Every open string at
+    // 64-sample blocks, plus a deliberately sharp A, plus silence -> no note.
+    {
+        struct Case { const char* name; float hz; int note; float cents; };
+        const Case cases[] = {
+            { "E2", 82.41f, 40, 0.0f }, { "A2", 110.0f, 45, 0.0f }, { "D3", 146.83f, 50, 0.0f },
+            { "G3", 196.0f, 55, 0.0f }, { "B3", 246.94f, 59, 0.0f }, { "E4", 329.63f, 64, 0.0f },
+            { "A2+20ct", 111.28f, 45, 20.0f }
+        };
+        bool ok = true;
+        juce::String detail;
+        for (const auto& c : cases)
+        {
+            auto sine = makeSine (kSampleRate, 0.6, c.hz, 0.2f);
+            render (p, sine, baseline, 64);
+            const int   note  = p.uiTunerNote.load();
+            const float cents = p.uiTunerCents.load();
+            const bool pass = note == c.note && std::abs (cents - c.cents) < 3.0f;
+            ok = ok && pass;
+            detail += juce::String (c.name) + (pass ? " ok " : " FAIL(note " + juce::String (note)
+                      + ", " + juce::String (cents, 1) + "ct) ");
+        }
+        {
+            juce::AudioBuffer<float> silence (2, (int) (kSampleRate * 0.4));
+            silence.clear();
+            render (p, silence, baseline, 64);
+            const bool quiet = p.uiTunerNote.load() == -1;
+            ok = ok && quiet;
+            detail += quiet ? "silence ok" : "silence FAIL(reports a note)";
+        }
+        report ("T26 TUNER tracks every open string at 64-sample blocks, silent on silence", ok, detail);
+    }
+
     std::cout << "\n" << (gFailures == 0 ? "ALL PASS" : juce::String (gFailures) + " FAILURE(S)")
               << "\n";
 }
