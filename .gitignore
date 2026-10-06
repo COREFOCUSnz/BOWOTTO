@@ -77,3 +77,6 @@ Testing/
 *serviceAccount*.json
 *service-account*.json
 *-firebase-adminsdk-*.json
+
+# release.sh source snapshots — git history already holds every version
+Archive/

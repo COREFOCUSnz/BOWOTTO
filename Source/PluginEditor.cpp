@@ -749,7 +749,7 @@ void TheBowottoAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (gold.withAlpha (0.8f));
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
-    g.drawText ("v0.3.1", (int) w - 100, 20, 64, 16, juce::Justification::right);
+    g.drawText ("v0.4.0", (int) w - 100, 20, 64, 16, juce::Justification::right);
 
     // --- the two top view tabs: MAIN / PEDALS --------------------------------
     {

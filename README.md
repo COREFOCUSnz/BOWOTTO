@@ -16,6 +16,44 @@ signature modes, the 2.3 kHz bridge hill) driven by the guitar itself:
 swell removes the pick, sustain holds the note like a stroke, rosin adds the
 friction layer, and SECTION fans the soloist out into desks.
 
+## v0.4.0 — a real CLEAN channel, a tuner that works
+
+Otto's first report from the PC build (6 Oct 2026): "no clean tone" and
+"the tuner isn't working". Both were real, both are fixed, both now have a
+bench test that was proven to FAIL on the old code before the fix went in.
+
+- **CLEAN channel.** With MUFF off, the guitar used to go straight into the
+  vintage stack at breakup drive — 21 % THD from a -18 dBFS DI, i.e. a
+  dirty amp with the pedal unplugged, never a clean one. A clean voicing
+  (`CleanPreamp`) had been written for exactly this and never wired in. MUFF
+  off now routes through it: bright, articulate, the stack parked at unity
+  behind it so the cab speaks the same way. The three Muff knobs change job
+  on the clean channel — **GAIN** is clean level and warmth, **SUSTAIN** is a
+  1 ms / 120 ms sustainer with makeup (a note's 50→400 ms decay goes from
+  8.5 dB to 4.5 dB at full), **TONE** is a dark/bright tilt around 700 Hz.
+  Measured: 2 % THD at -16.5 dBFS from the same DI (T24).
+- **TUNER rebuilt.** The old detector analysed one host block and gave up
+  under 256 samples — at Live's 64/128-sample buffers it never reported at
+  all, and at 512 it could only see notes above ~170 Hz, so the low strings
+  were invisible. It now keeps its own 100 ms window (decimated to ~12 kHz),
+  runs a normalised autocorrelation with first-lobe picking so the
+  sub-octave can't win on a rich tone, interpolates the peak for ~1 cent
+  resolution, and spreads the analysis across host blocks so a 64-sample
+  callback never takes the whole hit. Every open string within 3 cents at
+  64-sample blocks, silent on silence (T26).
+- **Measured against Otto's real rig.** His Spider + SM58 was recorded the
+  same day (`otto.als`, Driving Force project folder) and the same DI pushed
+  through the plugin: the clean channel is 18–25 dB too dark above 3 kHz
+  against the real amp, and the real Sovtek MIG MUFF carries a +20 dB
+  low-mid hump the NYC-voiced Muff model is 10 dB short of. Both are
+  scoped for v0.5.0 with the measured cab IRs (capture 7 Oct) — see
+  `tools/ir-capture/`.
+- Harness: `--render in out [gainDb] [id=value ...]` takes parameter
+  overrides, so any channel/setting can be rendered from a real DI.
+
+**Bench 23 → 26** (T24 clean THD, T25 sustainer decay, T26 tuner), soak
+clean, CI green on Windows and macOS.
+
 ## v0.3.1 — UI polish & conservative defaults
 
 Minor fixes for a better first-load experience:

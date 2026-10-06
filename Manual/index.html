@@ -83,6 +83,15 @@
     <p>The vintage stack behind the pedal: two warm triode stages on the edge
     of breakup. It thickens what the Muff sends it instead of re-distorting
     everything into one flavour.</p>
+    <h3>MUFF off = the CLEAN channel</h3>
+    <p>Switch the Muff off and you get a real clean channel, not the dirty amp
+    with the pedal unplugged — bright and articulate, black-face school, the
+    sound under the verse before the Muff comes back for the chorus. The
+    three knobs change job: <span class="knob">GAIN</span> is clean level and
+    warmth (it never clips), <span class="knob">SUSTAIN</span> is a
+    fast sustainer that holds a note's body instead of letting it fall away,
+    and <span class="knob">TONE</span> tilts dark to bright around 700&nbsp;Hz
+    (noon is flat). SCOOP does nothing on the clean channel.</p>
   </div>
 
   <h2>THE BOW</h2>
@@ -169,11 +178,21 @@
     <p>A slim strip at the bottom of the <b>MAIN</b> page — non-destructive, always running.
     Shows the detected note, octave, frequency (Hz), and a cents needle against a ±50 cent
     scale. Doesn't affect your tone; just there to check you're in tune while dialing in
-    the morph.</p>
+    the morph. Play one open string at a time and let it ring — it reads every string
+    down to low E, at any buffer size, and goes blank on silence.</p>
   </div>
 
   <h2>Version history</h2>
   <div class="panel">
+    <h3>v0.4.0 — a real CLEAN channel, a tuner that works (6 Oct 2026)</h3>
+    <p>Otto's first report from the Windows build: no clean tone, and the tuner didn't work.
+    <b>MUFF off is now a genuine clean channel</b> (GAIN = level and warmth, SUSTAIN = a
+    sustainer, TONE = tilt) instead of the stack at breakup with no pedal in front of it.
+    <b>The tuner was rebuilt</b> to keep its own analysis window — the old one only looked
+    at one host buffer, so at small buffer sizes it never reported at all and the low
+    strings were invisible at any size. Both fixes are held by bench tests that failed on
+    the old code. Otto's real Spider + SM58 rig was also recorded and measured against the
+    plugin the same day; the cab voicing and the Muff's low end are next (v0.5.0).</p>
     <h3>v0.3.0 — pedalboard redesign, tempo sync, tuner (27 Aug 2026)</h3>
     <p>Full UI rework after the v0.2.1 pedal layout piled knobs on top of the MUFF/BOW controls.
     <b>PEDALS</b> is now a dedicated view (top tab) that fully takes over the panel — same
