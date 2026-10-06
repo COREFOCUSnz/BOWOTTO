@@ -1155,7 +1155,10 @@ static int runSoak (int seconds)
 }
 
 //==============================================================================
-static int runRender (const char* inPath, const char* outPath, float gainDb)
+/** --render in out [gainDb] [id=value ...] — overrides apply on top of baseline(),
+    e.g. `muffon=0 gain=20` renders the clean channel at the shipped default. */
+static int runRender (const char* inPath, const char* outPath, float gainDb,
+                      int numOverrides = 0, char** overrides = nullptr)
 {
     juce::AudioFormatManager fm;
     fm.registerBasicFormats();
@@ -1177,6 +1180,13 @@ static int runRender (const char* inPath, const char* outPath, float gainDb)
 
     TheBowottoAudioProcessor p;
     baseline (p);
+    for (int i = 0; i < numOverrides; ++i)
+    {
+        const juce::String kv (overrides[i]);
+        const int eq = kv.indexOfChar ('=');
+        if (eq <= 0) { std::cerr << "bad override (want id=value): " << overrides[i] << "\n"; return 1; }
+        setParam (p, kv.substring (0, eq).toRawUTF8(), kv.substring (eq + 1).getFloatValue());
+    }
     const double sr = reader->sampleRate;
     p.setRateAndBufferSizeDetails (sr, kBlockSize);
     p.prepareToPlay (sr, kBlockSize);
@@ -1454,7 +1464,8 @@ int main (int argc, char* argv[])
         return runDemo (argv[2]);
 
     if (argc >= 4 && juce::String (argv[1]) == "--render")
-        return runRender (argv[2], argv[3], argc > 4 ? (float) atof (argv[4]) : 0.0f);
+        return runRender (argv[2], argv[3], argc > 4 ? (float) atof (argv[4]) : 0.0f,
+                          argc > 5 ? argc - 5 : 0, argv + 5);
 
     if (argc >= 3 && juce::String (argv[1]) == "--soak")
         return runSoak (atoi (argv[2]));
