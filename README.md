@@ -47,7 +47,7 @@ bench test that was proven to FAIL on the old code before the fix went in.
   against the real amp, and the real Sovtek MIG MUFF carries a +20 dB
   low-mid hump the NYC-voiced Muff model is 10 dB short of. Both are
   scoped for v0.5.0 with the measured cab IRs (capture 7 Oct) — see
-  `tools/ir-capture/`.
+  `Tools/ir-capture/`.
 - Harness: `--render in out [gainDb] [id=value ...]` takes parameter
   overrides, so any channel/setting can be rendered from a real DI.
 

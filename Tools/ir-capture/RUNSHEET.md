@@ -11,7 +11,7 @@ are nonlinear and the plugin models them itself. So the amp goes on its
 
 ## Before Otto arrives (10 min)
 
-1. `cd the-bowotto/tools/ir-capture && python3 make_sweep.py` -> `sweep.wav`.
+1. `cd the-bowotto/Tools/ir-capture && python3 make_sweep.py` -> `sweep.wav`.
 2. In Live (48 kHz session), one audio track playing `sweep.wav`, routed to
    the interface output that feeds the amp. A **reamp box or DI-in-reverse**
    between the interface and the Spider's input keeps impedance sane; failing

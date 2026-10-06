@@ -1,4 +1,62 @@
-# Session state — 2026-08-31 (GitHub CI cracked; v0.3.1 released for Otto)
+# Session state — 2026-10-06 (Otto's first PC report → v0.4.0)
+
+**v0.4.0 tagged: real CLEAN channel + rebuilt tuner.** 26/26 bench, soak,
+auval PASS, CI green both platforms. AU deployed locally (CMake copy step);
+**VST3 deploy to Live's folder was refused because Live was open** — re-run
+`../tools/deploy-plugin.sh build/TheBowotto_artefacts/Release/VST3/The\ Bowotto.vst3`
+and `../tools/deploy-au.sh ...component` with Live quit. v0.3.1 backed up to
+`~/Documents/Core Focus Plugins/Backups/`, source in `Archive/` (gitignored).
+
+## What Otto found (6 Oct 2026) and what it was
+- **"No clean tone."** `CleanPreamp` existed in BowottoDSP.h, never
+  instantiated — MUFF off fed the vintage stack at breakup drive (21 % THD
+  from a -18 dBFS DI). Now MUFF off → CleanPreamp → stack at unity. Knobs
+  change job on clean: GAIN level+warmth, SUSTAIN 1 ms/120 ms sustainer with
+  makeup (threshold -26 dBFS so it engages at playing level; the first two
+  drafts never reached threshold / clamped the pick — T25 caught both),
+  TONE tilt. T24: 2 % THD at -16.5 dBFS.
+- **"Tuner isn't working."** Detector ran over one host block, bailed <256
+  samples → dead at Live's 64/128 buffers, low strings invisible at 512.
+  `PitchTracker`: 100 ms ring at ~12 kHz, McLeod NSDF, first-lobe pick
+  (anti sub-octave), parabolic interpolation, lag sweep budgeted across
+  blocks. T26: every open string within 3 cents at 64-sample blocks.
+- Harness `--render in out [gainDb] [id=value ...]` for rendering a real DI
+  through any setting.
+
+## Otto's rig, measured (the v0.5.0 brief)
+Session: `~/Documents/Abelton Sessions/CORE FOCUS 2026/LEON ROUGE/Driving
+FORCE/Driving Force Drum Session Project/otto.als` — tracks 1-Audio and
+MIG MUFF are the real rig (Spider combo + SM58; Line 6 + Boss GT in the
+chain), 3-Audio is DI→Voon, 4-Audio is DI→Bowotto. **MIG MUFF is a Sovtek
+(Russian) Big Muff** — Corey confirmed. Same DI through the plugin vs the
+mic'd amp (1/3-oct, rel 1 kHz):
+- Real amp: +10–15 dB hump 150–400 Hz, dip at ~800, presence 1.2–1.6 k,
+  cliff above 4 kHz (-13 at 4 k, -20 at 5 k).
+- **Plugin clean channel is 18–25 dB too dark above 3 kHz** (synthetic cab's
+  double 5.2 k lowpass + 1.9 k lift are greenback-4x12 voicing, not an SM58
+  on a Spider); 2–6 dB light in the 150–500 hump; +5 dB at 800 where the
+  real amp dips.
+- **Real Sovtek Muff: +20 dB low-mid hump 150–400 Hz; our NYC-voiced model
+  (90/120 Hz coupling HPs) is 10 dB short.** Re-voice for the Russian
+  circuit: lower coupling corners, fatter stack.
+- Which of the three 1-Audio takes is which preset/Line 6/Boss GT: Corey
+  hasn't said yet (0002b is flatter/quieter than 0001/0002a).
+
+## v0.5.0 plan (Corey's ask: "shape it like my amp for Oliver, the Toa —
+EQ, cab options like a Laney and a Marshall, mic placement")
+- **IR capture 2026-10-07 09:00** with `Tools/ir-capture/` (make_sweep.py,
+  deconvolve.py, RUNSHEET.md) in THE TOA's four-corner layout (centre/edge ×
+  grille/far). Kit validated synthetically: 1 dB accuracy, 65 dB pre-echo
+  rejection with 2 % clipping present.
+- Port from THE TOA (`the-toa/Source/DSP/ToaDSP.h` `CabIR::buildCorner`,
+  `PluginProcessor.h` 20-band EQ `kEqBandHz`/Q 3.5, mic X/Y pad): four-corner
+  convolution matrix bilinearly mixed by MIC POSITION/DISTANCE, cab choice
+  {SPIDER (measured), MARSHALL (= Toa brit4x12), LANEY (new voicing)}, mic
+  type, graphic EQ. UI needs a home (MAIN is full) — probably a CAB tab.
+- Muff re-voice to the Sovtek curve, held by a test against the MIG MUFF
+  measurement.
+
+# Previous session state — 2026-08-31 (GitHub CI cracked; v0.3.1 released for Otto)
 
 **v0.3.1 tagged and RELEASED on GitHub with working Windows + macOS CI.**
 Repo: https://github.com/COREFOCUSnz/BOWOTTO (SSH auth from this Mac).
