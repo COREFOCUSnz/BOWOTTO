@@ -720,6 +720,66 @@ regression (17/19, same two known-bad tests), all 19 worlds clean, and a
 complete derby (spawn, ram, wreck all 4, $35k payout, results sheet, player-
 wrecked path) all still pass.
 
+**Static bug scan 2026-10-07 (Corey: "scan for bugs").** A different angle
+from the September sweep: six parallel readers over sim.js regions plus the
+HTML/CSS/build/deploy files, briefed to report only findings they could show
+the triggering input for, then every credible one verified live before a fix.
+Twenty-odd real bugs, the big four:
+
+1. AUTO gearbox could not upshift in ANY shop car: hard 9250 rpm vs redlines
+   of 7000-8700. Stuck in 1st on the limiter; manual worked, which hid it. All
+   rpm thresholds are fractions of CAR.redline now. Probe: every car reaches
+   4th+ and 180 km/h in 10 s (Countach 4th/228, the rest 5th-6th/280+).
+2. Re-selecting an already-driven car re-fitted a root that was already
+   scaled (SC18 -> 5 cm) and whose wheels had been re-hung into a discarded
+   wrapper (Aventador -> no wheels: Corey's "missing tyres"). carWraps caches
+   the fitted wrapper per car; the preview clones it. Plus request tokens on
+   both async downloads (last click wins), preview cleared before the room
+   switches (it lived in the old room's scene), drop-file cfg, fallback
+   customModel reset.
+3. Cloud sign-in: "newest timestamp wins" let a one-lap local save overwrite
+   a real account and pushed player A's career into B's account on a shared
+   browser. career.uid now tags ownership: same account newest wins; never-
+   signed-in browser -> more lifetime earnings wins; another account's career
+   never touches this one (fresh career if the account is empty). Pending
+   push re-checks user; CLOUD ERROR clears on success. Verified with a mocked
+   Firestore doc across five scenarios.
+4. Derby: hits on dead zones vanished (spill loop broke on weighted total 0)
+   -> player immune nose-on once front+mid died; and damage every physics
+   frame of a lean -> 0.3 s per-pair cooldown. Full derby run still wrecks
+   all four with ~25 hp per clean hit (impulses are 1-2 frames, unchanged).
+
+Also: lap owed on R-reset keeps halfSeen (but not on a first-lap reset, which
+would have invented a lap); backward line crossing takes its crossing back;
+wreck never latches reverse; countdown zeroes the pivot; gamepad latch lives
+in padLatch[gp.index] (Chromium returns a new Gamepad object per poll);
+keys don't drive behind the menu and toMenu clears them; pauseClock shifts
+lapStart/startT/resultsAt/wreckT (+ rivals) by the pause and audio.hush
+ramps master to 0 (settings AND visibilitychange); derby lost with 0 wrecks
+counts as a race. Worlds: tunnel shell seam closed at N-1 -> 0 on tube /
+allTunnel worlds (seamed/tEnd/isMouth; no doubled portal); ARENA const gates
+gantry, SIGNS, the tunnel picker, addPads(30) and beacons out of the arena;
+Math.floor(i/step) for the three one-sided prop loops. Page: #g-paint.hidden
+rule; #app touch-action:none; phone tap targets 40 px; phone HUD: tach hidden
+in both steer modes, cluster bottom-left, #mode bottom-centre, race box
+left-aligned and body.racing hides #top-left while a race is on, landscape
+damage card at right:200px (all overlaps confirmed by getBoundingClientRect
+before and after). build.py exits non-zero over the 16 MiB cap; workflow
+rebuilds dist/hosting before deploying; firebase.json cache rule for "/".
+
+Test-side: sweepA's two "known-bad" tests were fixed (TUNE not CAR; SHOP via
+the #g-room button, not garageRoom) so the baseline is an honest 19/19.
+New probe test/bugscan.js covers the fixes above through __sim (exports
+added: damageZones, playerDamage, careerReset, ARENA getter). Lesson from
+writing it: swiftshader frames take seconds, so a pause test has to wait for
+two rAF callbacks on each side of the toggle or frame() never observes the
+paused state; and measuring "the car" via car.traverse picks up the glow
+disc / trail -- filter on castShadow (installModel sets it on model meshes).
+
+Still open: Corey has NOT confirmed deleting the exposed Firebase key
+(f14d1dbf...). The firebase.json "/" rule and the `curl -I` check could not
+be verified from here (the sandbox proxy 403s lambo-sim.web.app).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

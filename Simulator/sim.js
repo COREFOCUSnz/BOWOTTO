@@ -45,7 +45,7 @@ const CARS = {
     note: 'HOSTED SITE ONLY · MODEL BY DDIAZ DESIGN · CC BY-NC-SA 4.0',
     spec: { mass: 1490, wheelbase: 2.7, length: 4.97, width: 2.15, height: 1.15, powerW: 566000, drivelineEff: 0.85, tractionG: 1.30, brakeG: 1.35, dragK: 0.70, rolling: 260, redline: 8700, idle: 1000, gearTopKmh: [79, 115, 154, 192, 235, 278, 326, 338], wheelR: [0.34, 0.36], track: 0.87, axle: 1.35 } },
 };
-let carId = 'revuelto'; const carRoots = {};
+let carId = 'revuelto'; const carRoots = {}, carWraps = {}; let carReq = 0;   // carWraps: the FITTED car per id (scaled, seated, wheels on pivots) -- re-fitting a root that has already been through installModel shrinks it to native size and leaves its wheels behind
 const MODES = [
   { name: 'CITTÀ',  sub: 'EV · 180 CV',        power: 0.18, grip: 1.55, stab: 1.0, ev: true,  color: '#4cc9f0' },
   { name: 'STRADA', sub: 'HYBRID · 886 CV',    power: 0.85, grip: 1.60, stab: 1.0, ev: false, color: '#f4f1ea' },
@@ -494,7 +494,9 @@ const CAREER_START = 5000;
 // one-time driver gifts: a name gets a bonus exactly once, recorded in career.gifts so it never repeats, on this
 // device or, once cloud sync brings the record back, on any device signed into that account
 const GIFTS = { INDIE: 900000 };
-const career = { name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0 };
+const careerFresh = () => ({ name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0, uid: null });
+const career = careerFresh();   // uid: the signed-in account this record belongs to, null while it has only ever lived in this browser
+function careerReset() { Object.assign(career, careerFresh()); }
 const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
 var sceneReady = false;   // retune() runs once at module load, before the scene (bodyGroup etc.) exists: gate the wing fit on this, var so it's hoisted (no TDZ)
 let hudLineOK = false;   // the HUD car line needs the track, which is built later; retune() paints it only once that exists
@@ -521,6 +523,7 @@ function careerAdopt(j) {   // take a saved record (local or cloud), defensively
   if (typeof j.car === 'string' && CARS[j.car] && career.cars.includes(j.car)) career.car = j.car;
   if (j.stats) for (const k in career.stats) if (typeof j.stats[k] === 'number') career.stats[k] = j.stats[k];
   career.updated = typeof j.updated === 'number' ? j.updated : 0;
+  career.uid = typeof j.uid === 'string' ? j.uid : null;
 }
 function careerSave() {
   career.updated = Date.now();
@@ -558,7 +561,7 @@ const cloud = {
     try {
       if (!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth && firebase.firestore)) return;
       this.ok = true; this.status = 'NOT SIGNED IN';
-      firebase.auth().onAuthStateChanged(u => { this.user = u; this.status = u ? 'SIGNED IN · ' + (u.displayName || u.email || 'PLAYER').toUpperCase() : 'NOT SIGNED IN'; if (u) this.pull(); else if (typeof garageRefresh === 'function') garageRefresh(); });
+      firebase.auth().onAuthStateChanged(u => { this.user = u; this.status = this.label(); if (u) this.pull(); else if (typeof garageRefresh === 'function') garageRefresh(); });
     } catch (e) { this.ok = false; }
   },
   signIn() {
@@ -566,14 +569,29 @@ const cloud = {
     if (this.user) { firebase.auth().signOut(); flash('SIGNED OUT · SAVING IN THIS BROWSER', 1400); return; }
     firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(() => flash('SIGN-IN FAILED', 1400));
   },
+  label() { const u = this.user; return u ? 'SIGNED IN · ' + (u.displayName || u.email || 'PLAYER').toUpperCase() : 'NOT SIGNED IN'; },
   doc() { return firebase.firestore().collection('players').doc(this.user.uid); },
   async pull() {
+    // Which record wins at sign-in depends on whose the local one is. Same account: newest wins (ordinary sync). A browser
+    // that has never signed in: the career with more lifetime earnings wins, so one lap on a new laptop cannot wipe a real
+    // account, and a long local career still follows you up. Another account's career: never let it near this one.
     try {
-      const snap = await this.doc().get(), remote = snap.exists ? snap.data() : null;
-      if (remote && (remote.updated || 0) > (career.updated || 0)) {
-        careerAdopt(remote); retune(); try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
-        if (!ownsPaint(paintIdx)) setPaint(1); paintBarLocks(); flash('CAREER LOADED FROM THE CLOUD', 1400);
-      } else this.push();
+      const me = this.user.uid, snap = await this.doc().get(), remote = snap.exists ? snap.data() : null;
+      const mine = career.uid === me, owned = !!career.uid; let adopt = false, fresh = false;
+      if (remote) {
+        if (mine) adopt = (remote.updated || 0) > (career.updated || 0);
+        else if (!owned) adopt = ((remote.stats && remote.stats.earned) || 0) >= (career.stats.earned || 0);
+        else adopt = true;
+      } else if (owned && !mine) fresh = true;
+      if (adopt) careerAdopt(remote); else if (fresh) careerReset();
+      career.uid = me;
+      if (adopt || fresh) {
+        retune(); if (!ownsPaint(paintIdx)) setPaint(1); paintBarLocks(); if (typeof carSelect === 'function' && career.car !== carId) carSelect(career.car);
+        flash(adopt ? 'CAREER LOADED FROM THE CLOUD' : 'NEW CAREER FOR THIS ACCOUNT', 1400);
+      }
+      try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
+      if (!adopt) this.push();
+      this.status = this.label();
       if (career.name && await this.claimName(career.name) === 'TAKEN') { flash('THAT NAME IS TAKEN', 1600); nameOpen(false, 'THAT NAME IS TAKEN · PICK ANOTHER'); }
     } catch (e) { this.status = 'CLOUD ERROR'; }
     nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh();
@@ -586,7 +604,11 @@ const cloud = {
   push() {
     if (!this.ok || !this.user) return;
     clearTimeout(this.pending);
-    this.pending = setTimeout(() => this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, gifts: career.gifts || [], stats: career.stats, updated: career.updated, account: this.user.displayName || null }).catch(() => { this.status = 'CLOUD ERROR'; }), 800);
+    this.pending = setTimeout(() => {
+      if (!this.ok || !this.user) return;   // signed out while the push was waiting
+      this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, gifts: career.gifts || [], stats: career.stats, updated: career.updated, account: this.user.displayName || null })
+        .then(() => { if (this.user) this.status = this.label(); }, () => { this.status = 'CLOUD ERROR'; });
+    }, 800);
   },
 };
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -791,12 +813,13 @@ for (let i = 0; i < N; i++) {   // signed in-plane curvature (positive = turning
 { let sm = new Float32Array(N); for (let i = 0; i < N; i++) { let acc = 0; for (let k = -2; k <= 2; k++) acc += KAPPA[(i + k + N) % N]; sm[i] = acc / 5; } KAPPA.set(sm); }
 for (let i = 0; i < N; i++) if (Math.abs(KAPPA[i]) > 1 / 190 && LOOP[i] < 0 && ROLL[i] < 0) for (let k = -14; k <= 14; k++) KERB[(i + k + N) % N] = true;
 const SPECIAL = i => LOOP[i] >= 0 || ROLL[i] >= 0 || JUMP[i];
+const ARENA = TRACK.theme === 'arena';   // a 300 m bowl with a 32 m road: the circuit furniture below is sized for a 12 m road and spaced in samples that are 0.08 m apart here, so it stays out
 // booster pads: arrows on the road; run-up to each jump, the start of the main straight, the back straight before the loops
 const BOOST = new Array(N).fill(false), PADS = [], BOOST2 = new Array(N).fill(false), PADS2 = [];
 {
   const addPads = (from, count, step) => { for (let k = 0; k < count; k++) { const i = (from + k * step + N) % N; PADS.push(i); for (let q = -1; q <= 1; q++) BOOST[(i + q + N) % N] = true; } };
   for (const J of JUMPS) addPads(J.i0 - 40, 6, 6);
-  addPads(30, 4, 8);
+  if (!ARENA) addPads(30, 4, 8);
   for (const P of TRACK.pads) addPads(nearest(P) - 30, 5, 7);
   if (TRACK.superPads) for (const P of TRACK.superPads) { const i = nearest(P); PADS2.push(i); for (let q = -2; q <= 2; q++) BOOST2[(i + q + N) % N] = true; }
 }
@@ -1098,7 +1121,7 @@ function instancedColored(geo, mat, items, shadow) {
 }
 if (!OUTDOOR && TH.beacons !== false) { // light beacons along the circuit (not underground)
   const beacons = [];
-  for (let i = 0; i < N; i += 28) { if (UNDER[i] || SPECIAL(i)) continue; const side = (i / 28) % 2 ? 1 : -1, p = S[i].clone().addScaledVector(RT[i], side * 22); beacons.push({ x: p.x, y: p.y, z: p.z, s: 1, sy: 1 + rnd() * 0.6 }); }
+  for (let i = 0; i < N && !ARENA; i += 28) { if (UNDER[i] || SPECIAL(i)) continue; const side = (i / 28) % 2 ? 1 : -1, p = S[i].clone().addScaledVector(RT[i], side * 22); beacons.push({ x: p.x, y: p.y, z: p.z, s: 1, sy: 1 + rnd() * 0.6 }); }
   instanced(new THREE.BoxGeometry(0.35, 9, 0.35).translate(0, 4.5, 0), new THREE.MeshBasicMaterial({ color: TH.neon, toneMapped: false }), beacons, false);
 }
 // ---------------------------------------------------------------- track architecture: tunnels, gates, canyon, bridges, floating grid solids
@@ -1106,6 +1129,7 @@ const inRanges = (i, ranges) => ranges.some(([a, b]) => i >= a && i <= b);
 // tunnels go where the track bends most: three non-overlapping 150-sample windows of highest turning, off the main straight
 const TUBE = !!TH.tube;
 const TUNNELS = (TUBE || TH.allTunnel) ? (() => { const out = []; let cur = -1; for (let i = 0; i <= N; i++) { if (i < N && !JUMP[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { out.push([cur, i - 1]); cur = -1; } } return out; })() : OUTDOOR ? (() => { const out = []; let cur = -1; for (let i = 0; i <= N; i++) { if (i < N && CAVE[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { out.push([cur, i - 1]); cur = -1; } } return out; })() : (() => {
+  if (ARENA) return [];   // three 12 m neon hoops across a 32 m road, otherwise
   const turn = new Float32Array(N); for (let i = 0; i < N; i++) turn[i] = Math.abs(KAPPA[i]);
   const LEN = 150, cand = [], out = [];
   { let best = [0, -1], cur = -1; for (let i = 0; i <= N; i++) { if (i < N && UNDER[i]) { if (cur < 0) cur = i; } else if (cur >= 0) { if (i - cur > best[1] - best[0]) best = [cur, i - 1]; cur = -1; } } if (best[1] > 0) out.push([Math.max(0, best[0] - 8), Math.min(N - 1, best[1] + 8)]); }   // longest underground run only
@@ -1139,8 +1163,12 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   const arc = [];
   for (let k = 0; k <= SEG; k++) { const a = Math.PI * (1 - k / SEG), c = Math.cos(a), si = Math.sin(a); arc.push([W * Math.sign(c) * Math.pow(Math.abs(c), E), H * Math.pow(Math.max(0, si), E)]); }
   const pos = [], uv = [];
-  for (const [i0, i1] of TUNNELS) for (let i = i0; i < Math.min(i1, N - 2); i++) {
-    const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 12;
+  // a corridor that runs through the start line comes as two ranges, [.., N-1] and [0, ..]: the N-1 -> 0 segment belongs to
+  // it too, and neither end there is a mouth (the old N-2 clamp left a two-segment hole in the shell at the line, with a portal each side)
+  const seamed = TUNNELS.some(r => r[0] === 0) && TUNNELS.some(r => r[1] === N - 1);
+  const tEnd = (i0, i1) => (seamed && i1 === N - 1) ? N : i1, isMouth = i => !(seamed && (i === 0 || i === N - 1));
+  for (const [i0, i1] of TUNNELS) for (let i = i0; i < tEnd(i0, i1); i++) {
+    const j = (i + 1) % N, A = frameAt(i), B = frameAt(j), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[j])) / 12;
     for (let k = 0; k < SEG; k++) {
       const p = (f, q) => f.p.clone().addScaledVector(f.b, q[0]).addScaledVector(f.n, q[1]);
       const a = p(A, arc[k]), b = p(A, arc[k + 1]), c = p(B, arc[k + 1]), d = p(B, arc[k]);
@@ -1159,7 +1187,7 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
       const hex = CAVE_HEX[Math.floor((i0 + i1) / 2)] || TH.neon, hx = '#' + hex.toString(16).padStart(6, '0');
       const tex = canvasTex(512, (ctx, sz) => { ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 0, sz, sz); ctx.strokeStyle = '#1a2030'; ctx.lineWidth = 2; for (let x = 0; x < sz; x += 64) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, sz); ctx.stroke(); } ctx.fillStyle = hx; for (const u of [0.15, 0.35, 0.65, 0.85]) ctx.fillRect(u * sz - 3, 0, 6, sz); ctx.fillStyle = '#ffffff'; ctx.fillRect(0.5 * sz - 2, 0, 4, sz); });
       const pos2 = [], uv2 = [];
-      for (let i = i0; i < Math.min(i1, N - 2); i++) { const A = frameAt(i), B = frameAt(i + 1), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[i + 1])) / 12;
+      for (let i = i0; i < tEnd(i0, i1); i++) { const j = (i + 1) % N, A = frameAt(i), B = frameAt(j), v0 = CUM[i] / 12, v1 = (CUM[i] + S[i].distanceTo(S[j])) / 12;
         for (let k = 0; k < SEG; k++) { const p = (f, q) => f.p.clone().addScaledVector(f.b, q[0]).addScaledVector(f.n, q[1]); const a = p(A, arc[k]), b = p(A, arc[k + 1]), c = p(B, arc[k + 1]), d = p(B, arc[k]); pos2.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z); const u0 = k / SEG, u1 = (k + 1) / SEG; uv2.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1); } }
       const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(pos2, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(uv2, 2)); g2.computeVertexNormals();
       scene.add(new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.9, color: 0x6b7a8c, roughness: 0.4, metalness: 0.5, side: THREE.DoubleSide })));
@@ -1174,7 +1202,7 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
   const fins = [], portals = [];
   for (const [i0, i1] of TUNNELS) {
     for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
-    for (const i of [i0, i1]) { const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+    for (const i of [i0, i1]) { if (!isMouth(i)) continue; const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
     if (THEME === 'sky') {}
     else if (THEME === 'station') { for (let i = i0 + 20; i < i1 - 10; i += 70) { const m = frameAt(i), l = new THREE.PointLight(0xcfe8ff, 1.0, 90, 1.5); l.position.copy(m.p).addScaledVector(m.n, 5.5); scene.add(l); } }
     else if (TUBE) { for (let i = i0 + 100; i < i1 - 50; i += 230) { const m = frameAt(i), l = new THREE.PointLight(0x7fe8ff, 1.1, 120, 1.4); l.position.copy(m.p).addScaledVector(m.n, 4.5); scene.add(l); } }
@@ -1375,7 +1403,7 @@ const DRESS = {
     while (towers.length < 1300 && tries++ < 20000) { const x = x0 - 500 + rnd() * (x1 - x0 + 1000), z = z0 - 500 + rnd() * (z1 - z0 + 1000), d = trackDist(x, z), sz = 10 + rnd() * 16; if (d < 26 + sz * 0.75 || d > 1100) continue; const far = clamp((d - 24) / 500, 0, 1); towers.push({ x, y: 0, z, s: sz, sy: 16 + rnd() * rnd() * (50 + 130 * far), rot: Math.round(rnd() * 4) * Math.PI / 2, c: rnd() < 0.5 ? 0x9aa4b8 : 0xb8c0d0 }); }
     instancedColored(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), new THREE.MeshStandardMaterial({ map: winTex, emissiveMap: winTex, emissive: 0xffffff, emissiveIntensity: 1.0, roughness: 0.6, metalness: 0.3 }), towers, true);
     const signs = [], sc = [0xff2ad8, 0x2ee6ff, 0xffd23a, 0x8aff3a, 0xff4a4a];
-    for (let i = 6; i < N; i += 11) { if (UNDER[i] || SPECIAL(i) || CAVE[i]) continue; const f = frameAt(i), side = (i / 11) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 3 + rnd() * 6)); signs.push({ x: p.x, y: p.y + 4 + rnd() * 9, z: p.z, quat: f.quat, s: 1, sy: 2 + rnd() * 6, c: sc[Math.floor(rnd() * sc.length)] }); }
+    for (let i = 6; i < N; i += 11) { if (UNDER[i] || SPECIAL(i) || CAVE[i]) continue; const f = frameAt(i), side = Math.floor(i / 11) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 3 + rnd() * 6)); signs.push({ x: p.x, y: p.y + 4 + rnd() * 9, z: p.z, quat: f.quat, s: 1, sy: 2 + rnd() * 6, c: sc[Math.floor(rnd() * sc.length)] }); }
     instancedColored(new THREE.BoxGeometry(0.3, 1, 5), new THREE.MeshBasicMaterial({ toneMapped: false }), signs, false);
     const lamps = []; for (let i = 0; i < N; i += 16) { if (JUMP[i] || CAVE[i]) continue; const f = frameAt(i), side = (i / 16) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * (D_WALL + 1.2)); lamps.push({ x: p.x, y: p.y, z: p.z, quat: f.quat }); }
     instanced(new THREE.CylinderGeometry(0.08, 0.12, 7, 5).translate(0, 3.5, 0), new THREE.MeshStandardMaterial({ color: 0x3a3a44, metalness: 0.6, roughness: 0.5 }), lamps, false);
@@ -1434,7 +1462,7 @@ const DRESS = {
     const halo = new THREE.Mesh(new THREE.SphereGeometry(2690, 32, 24), new THREE.MeshBasicMaterial({ color: 0x7fc8ff, transparent: true, opacity: 0.12, side: THREE.BackSide, fog: false })); halo.position.copy(earth.position); scene.add(halo);
     const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(120, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false })); sunDisc.position.copy(sunDir).multiplyScalar(7000); scene.add(sunDisc);
     window.__worldAnimate = now => { earth.rotation.y = now * 0.00001; };
-    const wings = []; for (let i = 40; i < N; i += 140) { if (JUMP[i]) continue; const f = frameAt(i), side = (i / 140) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * 40); wings.push({ x: p.x, y: p.y, z: p.z, quat: f.quat, s: 1 }); }
+    const wings = []; for (let i = 40; i < N; i += 140) { if (JUMP[i]) continue; const f = frameAt(i), side = Math.floor(i / 140) % 2 ? 1 : -1, p = f.p.clone().addScaledVector(f.b, side * 40); wings.push({ x: p.x, y: p.y, z: p.z, quat: f.quat, s: 1 }); }
     instanced(new THREE.BoxGeometry(3, 0.3, 46).translate(0, 8, 0), new THREE.MeshStandardMaterial({ color: 0x1a3a6a, roughness: 0.3, metalness: 0.8, emissive: 0x0a2040, emissiveIntensity: 0.4 }), wings, false);
     instanced(new THREE.BoxGeometry(1.2, 1.2, 46).translate(0, 4, 0), new THREE.MeshStandardMaterial({ color: 0xb0b8c0, roughness: 0.5, metalness: 0.7 }), wings, false);
   },
@@ -1512,7 +1540,7 @@ const DRESS = {
   if (THEME === 'matrix') {
     // rain panels standing along both sides
     const pos = [];
-    for (let i = 8; i < N; i += 9) { if (UNDER[i] || SPECIAL(i)) continue; const side = (i / 9) % 2 ? 1 : -1, f = frameAt(i), off = D_WALL + 5 + rnd() * 6, w = 14 + rnd() * 10, h = 8 + rnd() * 9;
+    for (let i = 8; i < N; i += 9) { if (UNDER[i] || SPECIAL(i)) continue; const side = Math.floor(i / 9) % 2 ? 1 : -1, f = frameAt(i), off = D_WALL + 5 + rnd() * 6, w = 14 + rnd() * 10, h = 8 + rnd() * 9;
       const c = f.p.clone().addScaledVector(f.b, side * off), a = c.clone().addScaledVector(f.t, -w / 2), b = c.clone().addScaledVector(f.t, w / 2), a2 = a.clone().addScaledVector(WORLD_UP, h), b2 = b.clone().addScaledVector(WORLD_UP, h);
       pos.push(a.x, a.y, a.z, b.x, b.y, b.z, b2.x, b2.y, b2.z, a.x, a.y, a.z, b2.x, b2.y, b2.z, a2.x, a2.y, a2.z); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); scene.add(new THREE.Mesh(g, rainMat));
@@ -1617,7 +1645,7 @@ const DRESS = {
   lineTex.repeat.set(1, 12);
   const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
-  gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); scene.add(gantry);
+  gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); if (!ARENA) scene.add(gantry);   // its posts stand 12.4 m out: on the arena's 32 m road that is in the driving line
   // 0–8 s the words, then the intro clip (played from its start), then the main COREZ clip
   const vA = document.getElementById('revuelto-poster-video'), vB = document.getElementById('revuelto-poster-video2') || vA;
   const ready = v => v && v.readyState >= 2 && v.videoWidth;
@@ -1669,7 +1697,7 @@ const signs = [];
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x0a1220, metalness: 0.7, roughness: 0.35 });
   const edgeMat = new THREE.MeshBasicMaterial({ color: 0x2ee6ff, toneMapped: false });
   const posterImg = document.getElementById('revuelto-poster2') || document.getElementById('revuelto-poster'), posterVid = document.getElementById('revuelto-poster-video2') || document.getElementById('revuelto-poster-video');
-  for (const d of SIGNS) {
+  for (const d of (ARENA ? [] : SIGNS)) {   // 17 m out is inside the arena's light wall
     const f = frameAt(d.idx), g = new THREE.Group();
     g.position.copy(S[d.idx]).addScaledVector(RT[d.idx], d.side * 17).addScaledVector(UP[d.idx], 5 + d.h / 2);
     g.quaternion.copy(f.quat); g.rotateY(Math.PI + d.side * 0.35);       // face back down the track, angled toward the road
@@ -2031,9 +2059,10 @@ function roomLoad(name, cb) {
   else u.loading = false;
 }
 function garageRoom(name) {
-  if (!ROOMS[name]) return; garage.room = name; try { localStorage.setItem('revuelto.room', name); } catch (e) {}
+  if (!ROOMS[name]) return;
+  const wasPreview = previewCar; garagePreviewClear();   // before the room changes: the preview lives in the OLD room's scene
+  garage.room = name; try { localStorage.setItem('revuelto.room', name); } catch (e) {}
   document.querySelectorAll('#g-room button').forEach(b => b.classList.toggle('on', b.dataset.r === name));
-  const wasPreview = previewCar; garagePreviewClear();
   if (garage.on) { garage.on = false; garageEnter(); if (wasPreview) garagePreview(wasPreview); }
 }
 function garageEnter() {
@@ -2058,14 +2087,15 @@ function garageLeave() { if (!garage.on) return; garagePreviewClear(); garage.on
 // clicking a shop car's card drops a plain, unscaled-physics copy of it into the same spot the real car sits in the
 // garage, and hides the real car underneath; it never touches carId, career.car or career.cars, so nothing is bought
 // or driven by looking. Downloaded once per session (previewRoots), same fetch path as carSelect.
-let previewGroup = null, previewCar = null; const previewRoots = {};
+let previewGroup = null, previewCar = null, previewReq = 0; const previewRoots = {};
 function garagePreviewClear() {
   if (previewGroup) { const scn = roomScene(garage.room); scn.remove(previewGroup); previewGroup = null; }
   previewCar = null; if (garage.on) car.visible = true;
 }
 function garagePreviewShow(id, root) {
   const scn = roomScene(garage.room); if (previewGroup) scn.remove(previewGroup);
-  const g = root.clone(true); const C = CARS[id];
+  const src = (carWraps[id] && carWraps[id].wrap) || root;   // a car that has been driven: its root was scaled and its wheels re-hung on pivots in the wrap, so clone the wrap
+  const g = src.clone(true); g.rotation.set(0, 0, 0); g.position.set(0, 0, 0); g.scale.setScalar(1); const C = CARS[id];
   g.traverse(o => { if (o.isMesh && o.userData.simJunk) { o.visible = true; o.userData.simJunk = false; } });
   const bb = bodyBounds(g); for (const o of bb.junk) { o.visible = false; o.userData.simJunk = true; }
   const size = bb.box.getSize(new THREE.Vector3()), long = Math.max(size.x, size.z);
@@ -2086,9 +2116,9 @@ function garagePreview(id) {
   if (carRoots[id]) { garagePreviewShow(id, carRoots[id]); return; }
   if (previewRoots[id]) { garagePreviewShow(id, previewRoots[id]); return; }
   if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }
-  flash('LOADING ' + C.name + ' …', 3000);
+  flash('LOADING ' + C.name + ' …', 3000); const req = ++previewReq;
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
-    new THREE.GLTFLoader().parse(b, '', g => { previewRoots[id] = g.scene; if (garage.on) garagePreviewShow(id, g.scene); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
+    new THREE.GLTFLoader().parse(b, '', g => { previewRoots[id] = g.scene; if (garage.on && req === previewReq) garagePreviewShow(id, g.scene); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
   }).catch(() => flash('MODEL FAILED', 2000));
 }
 function garageFrame(dt, now) {
@@ -2159,8 +2189,11 @@ function installModelInner(root, name) {
   const from = (name === 'embedded' || name === 'revuelto.glb') ? 'revuelto' : (CARS[name] ? name : null);
   if (from) carRoots[from] = root;
   if (from && from !== carId) return;   // a slow download landing after another car was chosen: keep it, do not fit it
-  const cfg = CARS[from || carId] || {};
-  if (customModel) bodyGroup.remove(customModel);
+  const cfg = from ? (CARS[from] || {}) : {};   // a dropped file is fitted on its own merits, not with the current car's material names and hide list
+  if (customModel) { bodyGroup.remove(customModel); customModel = null; }   // null so a failure below still falls back to the procedural body
+  if (from && carWraps[from]) {   // switching BACK to a car: the fitted wrap is reused as it was, never measured or scaled a second time
+    const W = carWraps[from]; customWheels = W.wheels; installFinish(W.wrap, name); return;
+  }
   if (cfg.hide) { const gone = []; root.traverse(o => { if (o !== root && cfg.hide.test(o.name || '')) gone.push(o); }); for (const o of gone) if (o.parent) o.parent.remove(o); }   // stage text, ground planes
   const wrap = new THREE.Group();
   root.traverse(o => {
@@ -2207,6 +2240,10 @@ function installModelInner(root, name) {
   } else root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
   if (!customWheels.length && cfg.wheelGroups) customWheels = axleWheels(wrap, root, cfg);
   if (!customWheels.length) customWheels = null;
+  if (from) carWraps[from] = { wrap, wheels: customWheels };
+  installFinish(wrap, name);
+}
+function installFinish(wrap, name) {
   customModel = wrap; bodyGroup.add(wrap);
   if (sceneReady && garage.on) garagePlaceCar();
   procBody.visible = false;
@@ -2303,11 +2340,12 @@ function carApply(C) {
 function carSelect(id, save) {
   const C = CARS[id]; if (!C) return;
   const done = () => { if (save) { career.car = id; careerSave(); } if (typeof garageRefresh === 'function') garageRefresh(); };
+  const req = ++carReq;   // the last car clicked wins, however the downloads land
   if (carRoots[id]) { carId = id; carApply(C); installModel(carRoots[id], id); done(); return; }
   if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }   // the single-file page has only the Revuelto
   flash('LOADING ' + C.name + ' …', 4000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
-    new THREE.GLTFLoader().parse(b, '', g => { carRoots[id] = g.scene; carId = id; carApply(C); installModel(g.scene, id); flash('LAMBORGHINI ' + C.name, 1600, '#ffd21f'); done(); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
+    new THREE.GLTFLoader().parse(b, '', g => { carRoots[id] = g.scene; if (req !== carReq) return; carId = id; carApply(C); installModel(g.scene, id); flash('LAMBORGHINI ' + C.name, 1600, '#ffd21f'); done(); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
   }).catch(() => flash('MODEL FAILED', 2000));
 }
 function buyCar(id) { const C = CARS[id]; if (!C) return 'NO'; if (career.cars.includes(id)) return 'OWNED'; if (career.cash < C.price) return 'POOR'; career.cash -= C.price; career.cars.push(id); careerSave(); return 'OK'; }
@@ -2375,7 +2413,7 @@ const st = {
 try { const b = localStorage.getItem('revuelto.best.' + TRACK_ID); if (b) st.lapBest = +b; const r = localStorage.getItem('revuelto.vmax'); if (r) st.record = +r; const pm = localStorage.getItem('revuelto.paint'); if (pm != null && PAINTS[+pm] && ownsPaint(+pm)) paintIdx = +pm; const dm = localStorage.getItem('revuelto.drive'); if (dm != null && MODES[+dm]) st.mode = +dm; const cm = localStorage.getItem('revuelto.cam'); if (cm != null && +cm >= 0 && +cm < 5) st.cam = +cm; } catch (e) {}   // best lap is per world; paint, drive mode and camera come back too
 function placeOnTrack(idx) {
   const racing = GAME.state === 'racing';
-  if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); st.lapsDone = Math.max(0, st.lapsDone - 1); }   // put back behind the line: that crossing is owed again
+  if (racing && st.lastP < 0.08 && idx / N > 0.92) { st.crossings = Math.max(0, st.crossings - 1); if (st.lapsDone > 0) { st.lapsDone--; st.halfSeen = true; } }   // put back behind the line: that crossing is owed again, and the half-lap that earned it has been seen
   st.s = CUM[idx]; st.d = 0; st.psi = 0; syncPose(); st.lastP = idx / N;   // no phantom lap when resetting near the line
   st.u = st.w = st.yaw = 0; st.air = false; st.airT = 0; st.roof = st.roofIn = false; st.gear = 0; st.rpm = CAR.idle; st.reverse = false; st.spinT = 0;
   if (!racing) { st.lapStart = null; st.halfSeen = false; }               // mid-race the lap keeps running: a reset costs time, not the lap
@@ -2671,10 +2709,11 @@ function hitZones(x, y, side) {
 function damageZones(dmg, w) {
   let pool = dmg * 4;
   for (let pass = 0; pass < 4 && pool > 1e-4; pass++) {
-    const live = ZONES.filter(z => st.zone[z] > 0), tot = live.reduce((t, z) => t + (pass ? 1 : (w[z] || 0)), 0);
-    if (!live.length || tot <= 0) break;
+    const live = ZONES.filter(z => st.zone[z] > 0); if (!live.length) break;
+    let uni = pass > 0, tot = live.reduce((t, z) => t + (uni ? 1 : (w[z] || 0)), 0);
+    if (tot <= 0) { uni = true; tot = live.length; }   // the hit landed only on zones already gone (a nose-on hit with the front and middle dead): it spills, it does not vanish
     let spill = 0;
-    for (const z of live) { const take = pool * (pass ? 1 : (w[z] || 0)) / tot; const got = Math.min(st.zone[z], take); st.zone[z] -= got; spill += take - got; }
+    for (const z of live) { const take = pool * (uni ? 1 : (w[z] || 0)) / tot; const got = Math.min(st.zone[z], take); st.zone[z] -= got; spill += take - got; }
     pool = spill;
   }
   st.hp = ZONES.reduce((t, z) => t + st.zone[z], 0) / 4;
@@ -2687,6 +2726,7 @@ function playerDamage(dmg, w) {
   finishRace(st.wreckT);
 }
 function contacts(dt) {
+  for (const a of ai) { a.dmgT = Math.max(0, (a.dmgT || 0) - dt); if (a.pairT) for (const k in a.pairT) a.pairT[k] = Math.max(0, a.pairT[k] - dt); }   // derby damage cooldowns: a door lean is not a hit a frame
   if (!ai.length) return;
   const derby = GAME.mode === 'derby';
   if (!st.air) {
@@ -2697,14 +2737,15 @@ function contacts(dt) {
       const B = rivalProxy(a);
       const rel = resolveContact(_cp, B);
       if (rel > 0) { st.u = _cp.u * cp + _cp.v * sp; st.w = -_cp.u * sp + _cp.v * cp; a.u = B.u; a.dv = B.v; contactHit(rel); a.hitT = 0.25;
-        if (derby) { const k = rel * 1.2; playerDamage(k * (contactAgg ? 0.3 : 1), hitZones(_cp.x, _cp.y, false)); rivalDamage(a, k * (contactAgg ? 1 : 0.3), true); } }
+        if (derby && !(a.dmgT > 0)) { a.dmgT = 0.3; const k = rel * 1.2; playerDamage(k * (contactAgg ? 0.3 : 1), hitZones(_cp.x, _cp.y, false)); rivalDamage(a, k * (contactAgg ? 1 : 0.3), true); } }
     }
   }
   for (let p = 0; p < ai.length; p++) for (let q = p + 1; q < ai.length; q++) {
     const A = rivalProxy(ai[p]), B = rivalProxy(ai[q]);
     const rel = resolveContact(A, B);
     if (rel > 0) { ai[p].u = A.u; ai[p].dv = A.v; ai[q].u = B.u; ai[q].dv = B.v;
-      if (derby) { const k = rel * 0.9; rivalDamage(ai[p], k * (contactAgg ? 0.3 : 1), false); rivalDamage(ai[q], k * (contactAgg ? 1 : 0.3), false); } }
+      const PT = ai[p].pairT || (ai[p].pairT = {});
+      if (derby && !(PT[q] > 0)) { PT[q] = 0.3; const k = rel * 0.9; rivalDamage(ai[p], k * (contactAgg ? 0.3 : 1), false); rivalDamage(ai[q], k * (contactAgg ? 1 : 0.3), false); } }
   }
 }
 function placeAtS(s, d) { placeOnTrack(Math.floor(s / trackLen * N) % N); st.s = s; st.d = d; st.lastP = s / trackLen; syncPose(); }
@@ -2725,7 +2766,7 @@ function startRace(mode, laps) {
   else placeOnTrack(20);
   GAME.state = mode === 'solo' ? 'free' : 'countdown'; GAME.cd = START_CUES[0].at + 0.01; GAME.cue = 0; announcer.stop();
   GAME.bestAtStart = st.lapBest; GAME.prize = 0;   // for the payout: a new personal best in a Time Trial pays a bonus
-  $('race').classList.toggle('hidden', mode === 'solo'); $('race').classList.toggle('derby', mode === 'derby');
+  $('race').classList.toggle('hidden', mode === 'solo'); $('race').classList.toggle('derby', mode === 'derby'); document.body.classList.toggle('racing', mode !== 'solo');   // body.racing: on a phone the branding gives the top-left to the race box
   $('damage').classList.toggle('hidden', mode !== 'derby');
   $('lap-cur').parentElement.style.display = '';
   if (mode === 'versus') flash('VERSUS · ' + DIFFS[GAME.diff].name + ' · ' + laps + ' LAPS', 1600); else if (mode === 'time') flash('TIME TRIAL · ' + laps + ' LAPS', 1600);
@@ -2776,7 +2817,7 @@ function finishRace(now) {
   GAME.state = 'finished'; GAME.finishT = now - GAME.startT; GAME.resultsAt = now + 1800;
   const pos = standings().findIndex(r => r.me) + 1;
   const newBest = GAME.mode === 'time' && st.lapBest != null && (GAME.bestAtStart == null || st.lapBest < GAME.bestAtStart);
-  GAME.prize = prizeFor(GAME.mode, pos, GAME.laps, GAME.diff, newBest); GAME.prizeBest = newBest; if (GAME.prize > 0) payout(GAME.prize, pos);
+  GAME.prize = prizeFor(GAME.mode, pos, GAME.laps, GAME.diff, newBest); GAME.prizeBest = newBest; if (GAME.prize > 0 || GAME.mode === 'derby') payout(GAME.prize, pos);   // a derby lost with no wrecks pays $0 but is still a race
   if (GAME.mode === 'derby') {
     flash(pos === 1 ? 'LAST CAR STANDING' : 'WRECKED · P' + pos, 2200); audio.beep(pos === 1 ? 1568 : 988, 0.5);
     announcer.say(pos === 1 ? 'Last car standing. You win.' : 'Wrecked. P' + pos + '.', 1, 0.85); return;
@@ -2855,6 +2896,7 @@ placeOnTrack(20);
 // ------------------------------------------------------------------ input
 const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0, nos: 0, wheel: 0 };   // wheel is analogue, -1 .. 1
 const inp = { steer: 0, throttle: 0, brake: 0, hand: false, nos: false, shiftUp: false, shiftDown: false };
+const padLatch = {};
 function readInput() {
   const k = c => keys[c] ? 1 : 0;
   inp.steer = k('ArrowLeft') + k('KeyA') - k('ArrowRight') - k('KeyD') + touch.left - touch.right + touch.wheel;
@@ -2871,8 +2913,9 @@ function readInput() {
     inp.brake = Math.max(inp.brake, bt(6), bt(2));
     if (bt(1) > 0.5) inp.hand = true;
     if (bt(3) > 0.5) inp.nos = true;
-    if (bt(5) > 0.5 && !gp._u) { gp._u = true; shiftManual(1); } else if (bt(5) < 0.5) gp._u = false;
-    if (bt(4) > 0.5 && !gp._d) { gp._d = true; shiftManual(-1); } else if (bt(4) < 0.5) gp._d = false;
+    const L = padLatch[gp.index] || (padLatch[gp.index] = {});   // on our side, not on the Gamepad object: Chromium returns a new snapshot every poll
+    if (bt(5) > 0.5 && !L.u) { L.u = true; shiftManual(1); } else if (bt(5) < 0.5) L.u = false;
+    if (bt(4) > 0.5 && !L.d) { L.d = true; shiftManual(-1); } else if (bt(4) < 0.5) L.d = false;
   }
   wheelTick();                                                       // the wheel springs back on the game's own clock
   inp.steer = clamp(inp.steer, -1, 1);
@@ -2883,8 +2926,8 @@ window.addEventListener('keydown', e => {
   if (!$('namebox').classList.contains('hidden')) return;
   if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
+  if (!$('start').classList.contains('hidden')) { /* the menu is up: these keys navigate it, they do not drive the car behind it */ if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
   keys[e.code] = true;
-  if (!$('start').classList.contains('hidden')) { if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
   if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; } toMenu(); return; }
   switch (e.code) {
     case 'KeyM': setMode(st.mode + 1); break;
@@ -3014,7 +3057,7 @@ function startGame() {
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); for (const k in keys) keys[k] = false; document.body.classList.remove('racing'); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
 { // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
   // rebuilds the page) comes back to the mode screen with everything as it was
@@ -3276,6 +3319,7 @@ const audio = {
     if (!this.ctx) return; const t = this.ctx.currentTime + Math.random() * 0.03;
     this.cg.gain.cancelScheduledValues(t); this.cg.gain.setValueAtTime(0.5 + Math.random() * 0.4, t); this.cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.08);
   },
+  hush(on) { if (!this.ctx || !this.master) return; this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setTargetAtTime(on ? 0 : 0.7, this.ctx.currentTime, 0.04); },
   update(dt) {
     if (!this.ctx) return; const C = this.ctx; if (C.state === 'suspended') C.resume();
     const t = C.currentTime, on = st.sound ? 1 : 0, m = MODES[st.mode];
@@ -3302,7 +3346,7 @@ const audio = {
     const evOn = m.ev || (spd > 0.5 && x < 0.15);
     this.evg.gain.setTargetAtTime((evOn ? 0.03 + 0.05 * thr : 0) * on * clamp(spd / 3, 0, 1), t, 0.05);
     this.ev.frequency.setTargetAtTime(120 + spd * 26, t, 0.05); this.ev2.frequency.setTargetAtTime(240 + spd * 52, t, 0.05);
-    if (!m.ev && thr < 0.05 && st.rpm > 4200 && Math.random() < dt * (st.mode === 3 ? 9 : 4) * on) this.pop();
+    if (!m.ev && thr < 0.05 && st.rpm > CAR.redline * 0.44 && Math.random() < dt * (st.mode === 3 ? 9 : 4) * on) this.pop();
     for (const a of ai) {
       if (!a.snd) continue;
       const dist = a.pos.distanceTo(st.pos), att = 1 / (1 + (dist / 9) * (dist / 9));
@@ -3465,7 +3509,7 @@ function step(dt) {
   st.brake = inp.brake; st.hand = inp.hand;
   const u0 = st.u, v = Math.abs(st.u);
   // reverse logic
-  if (!st.reverse && v < 0.6 && st.brake > 0 && st.throttle < 0.05) st.reverse = true;
+  if (!st.reverse && !st.wrecked && v < 0.6 && st.brake > 0 && st.throttle < 0.05) st.reverse = true;   // a wreck holds the brake to stop, not to back away
   if (st.reverse && st.throttle > 0.05 && st.u > -0.6) st.reverse = false;
   // gearbox + rpm
   if (st.shiftT > 0) st.shiftT -= dt;
@@ -3475,9 +3519,12 @@ function step(dt) {
   st.rpm = damp(st.rpm, target, st.throttle > 0.5 ? 16 : 9, dt);
   st.rpm = clamp(st.rpm, CAR.idle * 0.92, CAR.redline);
   if (st.auto && st.shiftT <= 0 && !st.reverse && !m.ev) {
-    if (st.rpm > 9250 && st.gear < 7) shiftTo(st.gear + 1);
-    else if (st.gear > 0 && st.rpm < 3500) shiftTo(st.gear - 1);
-    else if (st.gear > 0 && st.throttle > 0.85 && st.rpm < 6300 && rpmForGear(st.u, st.gear - 1) < 8900) shiftTo(st.gear - 1);
+    // fractions of THIS car's redline: tuned on the Revuelto's 9500, and a hard 9250 was a wall no shop car could reach
+    // (Countach 7000, LPI 8500, Aventador / SC18 8700) -- on AUTO they sat on the limiter in 1st
+    const RL = CAR.redline;
+    if (st.rpm > RL * 0.974 && st.gear < 7) shiftTo(st.gear + 1);
+    else if (st.gear > 0 && st.rpm < RL * 0.368) shiftTo(st.gear - 1);
+    else if (st.gear > 0 && st.throttle > 0.85 && st.rpm < RL * 0.663 && rpmForGear(st.u, st.gear - 1) < RL * 0.937) shiftTo(st.gear - 1);
   }
   if (m.ev && st.gear !== 0) st.gear = 0;
   // longitudinal forces
@@ -3554,6 +3601,7 @@ function step(dt) {
   if (driftBoost) { mu *= 1.4; wTarget *= 1.35; }                                                                        // the boost hooks up, and the wheel has more say in the slide
   if (st.spinT > 0) { st.spinT -= dt; wTarget = st.spinW; mu *= 0.32; st.spinW *= Math.max(0, 1 - dt * 0.5); st.drift = Math.max(st.drift, 0.85); }   // spun by contact: the rear is gone, the car goes round
   if (v < 2.5 && st.throttle > 0.2 && !st.reverse) wTarget += st.steer * 1.0 * (1 - v / 2.5);   // pivot: the car can turn on the spot under power, so a spin never leaves you stranded
+  if (GAME.state === 'countdown') { wTarget = 0; st.yaw = 0; }                                    // ... but not on the grid, or a pre-loaded wheel spins the car before GO
   st.yaw = damp(st.yaw, wTarget, 1 / 0.06, dt);
   // facing backwards and stopped with the throttle down: swing the nose round rather than driving off the wrong way
   if (!st.air && Math.abs(st.psi) > 1.75 && v < 3 && st.throttle > 0.3 && st.spinT <= 0) { st.turnT = (st.turnT || 0) + dt; if (st.turnT > 0.6) { if (st.turnT - dt <= 0.6) flash('TURNING AROUND', 900); st.psi = damp(st.psi, 0, 5, dt); st.yaw = 0; st.u = Math.abs(st.u); st.w = 0; } }
@@ -3656,6 +3704,7 @@ function step(dt) {
   if (!st.air) st.offroad = Math.abs(st.d) > ROAD_HALF + 0.8;
   const p = st.trackIdx / N;
   if (p > 0.45 && p < 0.55) st.halfSeen = true;
+  if (st.lastP < 0.08 && p > 0.92 && GAME.mode !== 'derby') st.crossings = Math.max(0, st.crossings - 1);   // spun back over the line: that crossing is owed again, or the standings would put you a lap up
   if (st.lastP > 0.92 && p < 0.08 && st.u > 2 && GAME.mode !== 'derby') {   // the derby has no laps: the arena is 284 m round
     const now = performance.now(); st.crossings++; if (RING_AT) ringsRespawn();
     if (st.lapStart != null && st.halfSeen) {
@@ -3721,7 +3770,7 @@ function drawTach() {
   c.lineCap = 'butt'; c.lineWidth = 26;
   c.strokeStyle = 'rgba(255,255,255,0.09)'; c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke();
   c.strokeStyle = 'rgba(255,40,40,0.35)'; c.beginPath(); c.arc(cx, cy, r, a0 + sweep * 0.9, a1); c.stroke();
-  const frac = clamp(st.rpm / 10000, 0, 1);
+  const frac = clamp(st.rpm / (CAR.redline * 1.0526), 0, 1);   // the dial reads to just past the redline, whatever the car's is
   const grad = c.createLinearGradient(0, W, W, 0); grad.addColorStop(0, m.color); grad.addColorStop(1, frac > 0.88 ? '#ff2a2a' : '#ffffff');
   c.strokeStyle = grad; c.beginPath(); c.arc(cx, cy, r, a0, a0 + sweep * frac); c.stroke();
   c.fillStyle = 'rgba(244,241,234,0.75)'; c.font = '600 22px Barlow Condensed, Arial Narrow, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -3759,7 +3808,7 @@ let hudTick = 0;
 function updateHUD() {
   $('spd').textContent = String(Math.round(Math.abs(st.u) * 3.6));
   const g = $('gear'); g.textContent = st.reverse ? 'R' : (Math.abs(st.u) < 0.3 && st.throttle < 0.05 ? 'N' : String(st.gear + 1));
-  g.style.color = st.rpm > 9000 ? '#ff2a2a' : MODES[st.mode].color;
+  g.style.color = st.rpm > CAR.redline * 0.947 ? '#ff2a2a' : MODES[st.mode].color;
   drawTach();
   if ((hudTick++ & 3) === 0) {
     drawMini();
@@ -3786,12 +3835,25 @@ function updateHUD() {
 // ------------------------------------------------------------------ main loop
 const FIXED = 1 / 120; let acc = 0, last = performance.now(), frames = 0;
 
+// Lap and race times are wall-clock (performance.now minus a start stamp), so a pause -- settings open, or the tab
+// hidden, where rAF stops but the clock does not -- used to land in the lap. Every stamp moves forward by the gap.
+let pausedAt = null;
+function pauseClock(on, now) {
+  if (on && pausedAt == null) { pausedAt = now; audio.hush(true); }
+  else if (!on && pausedAt != null) {
+    const gap = now - pausedAt; pausedAt = null; audio.hush(false);
+    if (st.lapStart != null) st.lapStart += gap; if (GAME.startT) GAME.startT += gap; if (GAME.resultsAt) GAME.resultsAt += gap; if (st.wreckT) st.wreckT += gap;
+    for (const a of ai) { if (a.lapStart != null) a.lapStart += gap; if (a.wreckT) a.wreckT += gap; }
+  }
+}
+document.addEventListener('visibilitychange', () => { const now = performance.now(); if (document.hidden) pauseClock(true, now); else { pauseClock(false, now); last = now; } });
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   readInput();
   if (garage.on) { garageFrame(dt, now); frames++; return; }   // the world waits while the car is in the studio
   const paused = !$('settings').classList.contains('hidden');   // settings open mid-drive: freeze the race, don't just overlay it
+  pauseClock(paused, now);
   if (st.started && !paused) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } raceTick(dt); audio.update(dt); }
   car.position.copy(st.pos); car.quaternion.copy(basisQuat(st.fwd, st.up));
   underglow.position.copy(st.pos).addScaledVector(st.up, 0.25);
@@ -3835,6 +3897,6 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 loadHide();   // the start screen is ready
-window.__sim = { VERSION, get arenaLimit() { return ARENA_LIMIT; }, wallLimitAt, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, fitWing, get wingNode() { return wingNode; }, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, get arenaLimit() { return ARENA_LIMIT; }, wallLimitAt, damageZones, playerDamage, careerReset, get ARENA() { return ARENA; }, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, fitWing, get wingNode() { return wingNode; }, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }
 })();

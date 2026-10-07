@@ -674,6 +674,76 @@ Blender is a modelling and offline renderer, not a real-time engine. For a
 true photoreal *playable* sim the next step up is Unreal Engine 5 or Unity
 with the same GLB; this repo's physics constants transfer directly.
 
+## The static scan: what reading the code found that driving it did not
+
+The first bug sweep drove the game and watched it. This one read the code
+(six readers, one per region, each asked for findings they could show the
+triggering input for) and then verified the credible ones live before fixing
+them. The ones that mattered:
+
+- **AUTO gearbox stuck in 1st in every shop car.** The upshift fired at a
+  hard-coded 9250 rpm, tuned on the Revuelto's 9500 redline; the Countach
+  (7000), LPI (8500), Aventador and SC18 (8700) can never get there, so on
+  AUTO they sat on the limiter in first at 60-80 km/h. Manual worked, which
+  is how it hid. Every rpm threshold (up, down, kickdown, the tach dial, the
+  red gear digit, the overrun pops) is now a fraction of `CAR.redline`.
+- **Switching back to a car you had already driven re-fitted a root that had
+  already been fitted** -- scaled to native size again (the SC18 is exported
+  in centimetres: 5 cm long), and the Aventador's wheels, which the first fit
+  had moved onto steering pivots in a wrapper that was then thrown away, were
+  gone. That is Corey's "Aventador missing tyres". The fitted wrapper is now
+  cached per car (`carWraps`) and reused; the shop preview clones it too.
+- **Two download races**: click car A then car B before A lands and the
+  slower download won and was *saved* as your car. Both the car select and
+  the shop preview now carry a request token; the last click wins.
+- **Cloud sign-in was "newest timestamp wins"** with no idea whose record the
+  local one was. One Time Trial lap on a new laptop before signing in made
+  the local save newer, so it overwrote a real account; on a shared browser
+  player A's career was pushed into player B's account. Records now carry
+  the account uid they belong to: same account, newest wins; a browser that
+  has never signed in, the career with more lifetime earnings wins; another
+  account's career never touches this one (a fresh career if the account has
+  nothing). A pending push no longer throws if you sign out within 800 ms,
+  and `CLOUD ERROR` clears on the next successful save.
+- **Derby immunity**: a hit aimed at dead zones (nose-on with front and middle
+  gone) dealt zero -- the spill loop bailed when the weighted total was 0.
+  It now spills into whatever is standing. And damage was applied every
+  physics frame of a sustained contact, so a rival leaning on your door for
+  six seconds wrecked you with no hit landing; each pair now has a 0.3 s
+  damage cooldown (a clean hit is one or two frames of contact, unchanged).
+- **Lap counting edge cases**: an R reset just behind the line owed the lap
+  back but discarded the half-lap evidence, so the HUD stuck a lap short;
+  spinning backwards over the line and re-crossing counted a phantom
+  crossing and put you a lap up in the standings. Both corrected.
+- **Pause did not stop the clock.** Lap and race times are wall-clock stamps,
+  so Settings open for 20 s (or a hidden tab) landed in your lap. Every stamp
+  now moves forward by the pause, and the engine goes quiet while paused.
+- Smaller: a wreck latched into reverse and drove itself backwards across
+  the arena; a pre-loaded wheel spun the car on the grid during the
+  countdown; gamepad paddles fired a shift every frame (Chromium hands out a
+  fresh Gamepad object per poll, so a latch on it never survived); WASD drove
+  the car behind the mode menu and could set records from there; a derby lost
+  with no wrecks did not count as a race; a dropped GLB inherited the current
+  car's material names and hide list.
+- **Worlds**: the tunnel shell on DEEP BLUE and SPACE STATION had a two-
+  segment hole at the start line with a portal ring each side (an `N-2`
+  clamp); the arena was inheriting the circuit's start gantry, billboards,
+  neon tunnels and boost pads, all sized for a 12 m road and spaced in
+  samples 0.08 m apart there; THE SOURCE's code-rain panels, NEON CITY's
+  kerb signs and the station's solar wings all stood on one side because
+  `(i / step) % 2` is never 0 when the loop starts off a multiple of the step.
+- **Page**: `#g-paint`'s id rule outranked `.g-pane.hidden`, so the paint grid
+  showed under every garage tab; the game surface had no `touch-action`
+  (iOS pinch-zoomed when a finger slid off a pedal); on a phone the race box
+  sat on the LAMBORGHINI badge, the ◀ ▶ pads covered the tach and HB covered
+  the NOS block, and in landscape the damage card ran under the pedals.
+- **Build and deploy**: `build.py` now fails if the artifact crosses the 16 MiB
+  publish cap instead of writing an unpublishable file; the Actions workflow
+  rebuilds `dist/hosting` from source so a push that forgot `build.py` cannot
+  deploy yesterday's game; `firebase.json` gets a cache rule for `/`, which
+  is where `cleanUrls` actually serves the page (the `index.html` glob never
+  matched it, so the game sat behind the default one-hour cache).
+
 ## Changelog
 
 ### v1.0.0

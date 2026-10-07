@@ -37,6 +37,9 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      - name: Rebuild the deploy folder from source
+        run: python3 Simulator/build.py
+
       - name: Check the deploy folder is complete
         run: |
           cd Simulator/dist/hosting

@@ -1,6 +1,6 @@
 :root{--amber:#2ee6ff;--ink:#0a0a0c;--hud:#f4f1ea;--dim:rgba(244,241,234,.55);--panel:rgba(8,8,10,.55)}
 html,body{height:100%;margin:0;background:#06060a;color:var(--hud);font-family:"Barlow Condensed","Bahnschrift","Arial Narrow",Arial,sans-serif;overflow:hidden}
-#app{position:fixed;inset:0;background:#06060a}
+#app{position:fixed;inset:0;background:#06060a;touch-action:none;overscroll-behavior:none}   /* a finger sliding off a pedal onto the canvas must not pinch-zoom or pan the page (iOS ignores user-scalable=no) */
 #view{display:block;width:100%;height:100%}
 #hud{position:absolute;inset:0;pointer-events:none;user-select:none}
 #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.75) 100%);opacity:.25;transition:opacity .2s}
@@ -298,6 +298,7 @@ body.garage #start,body.garage #hud{display:none}
 .g-card button{margin-top:9px;font:inherit;font-size:12px;letter-spacing:.26em;font-weight:700;padding:8px 14px;border-radius:4px;border:0;background:#ffd21f;color:#1a1200;cursor:pointer;width:100%;box-shadow:0 0 16px rgba(255,210,31,.25)}
 .g-card button:disabled{background:rgba(255,255,255,.08);color:var(--dim);cursor:default;box-shadow:none}
 #g-paint{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+#g-paint.hidden{display:none}   /* the id rule above outranks .g-pane.hidden, so without this the paint grid showed under every other tab */
 #g-paint-toggle{grid-column:1/-1;font:inherit;font-size:14px;letter-spacing:.24em;font-weight:700;color:var(--amber);background:rgba(255,210,31,.08);border:1px dashed rgba(255,210,31,.5);border-radius:8px;padding:14px;cursor:pointer;text-align:center}
 #g-paint-toggle span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-top:4px;font-weight:400}
 .g-swatch{font:inherit;display:flex;align-items:center;gap:10px;border:1px solid rgba(255,255,255,.14);border-radius:6px;padding:8px 10px;background:rgba(255,255,255,.04);color:var(--hud);cursor:pointer;text-align:left}
@@ -339,3 +340,15 @@ body.garage #start,body.garage #hud{display:none}
 #namebox .btns button.hidden{display:none}
 #start-driver{font-size:12px;letter-spacing:.34em;color:#ffd21f;margin:-6px 0 8px;text-shadow:0 0 12px rgba(255,210,31,.4)}
 #start-driver.hidden{display:none}
+/* phone tap targets: the garage and settings buttons were 22-27px tall */
+body.touch #g-room button,body.touch #g-tabs button,body.touch #settings .rows button{min-height:40px}
+/* phone, either steering: the tach stands down (the big readout carries the speed), the readout keeps the bottom-left
+   clear of the arrows, the drive-mode / NOS block goes bottom-centre (HB sat on it), the race box is left-aligned under
+   the menu and the branding gives it the corner while a race is on; landscape moves the damage card off the pedals */
+body.touch #tach{display:none}
+body.touch:not(.wheelsteer) #cluster{left:24px;transform:none}
+body.touch:not(.wheelsteer) #mode{right:auto;left:50%;transform:translateX(-50%);bottom:14px;text-align:center}
+body.touch #mode-sub,body.touch #paint-name{display:none}
+body.touch #race-top{left:16px;transform:none}
+body.touch.racing #top-left{display:none}
+@media (max-height:480px){body.touch #damage{right:200px}}
