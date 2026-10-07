@@ -2,7 +2,7 @@
 
 **v0.4.0 tagged: real CLEAN channel + rebuilt tuner.** 26/26 bench, soak,
 auval PASS, CI green both platforms. AU deployed locally (CMake copy step);
-**VST3 deploy to Live's folder was refused because Live was open** — re-run
+VST3 + AU deployed to Live's folders 2026-10-08 (Live quit; verified 0.4.0 in both Info.plists). Originally refused because Live was open — the command was
 `../tools/deploy-plugin.sh build/TheBowotto_artefacts/Release/VST3/The\ Bowotto.vst3`
 and `../tools/deploy-au.sh ...component` with Live quit. v0.3.1 backed up to
 `~/Documents/Core Focus Plugins/Backups/`, source in `Archive/` (gitignored).
