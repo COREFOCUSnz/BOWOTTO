@@ -69,6 +69,8 @@ TheBowottoAudioProcessor::createParameterLayout()
     params.push_back (std::make_unique<P> ("sustain", "SUSTAIN", range (0.0f, 100.0f),   65.0f));
     params.push_back (std::make_unique<P> ("tone",    "TONE",    range (0.0f, 100.0f),   50.0f));
     params.push_back (std::make_unique<P> ("scoop",   "SCOOP",   range (0.0f, 100.0f),  100.0f));
+    params.push_back (std::make_unique<C> ("muffvoice", "MUFF TYPE",
+        juce::StringArray { "NYC", "SOVTEK" }, 1));   // default SOVTEK — Otto's own pedal
 
     // --- the amp
     params.push_back (std::make_unique<P> ("gain",    "GAIN",    range (0.0f, 100.0f),   20.0f));
@@ -139,6 +141,7 @@ TheBowottoAudioProcessor::TheBowottoAudioProcessor()
     pSustain    = apvts.getRawParameterValue ("sustain");
     pTone       = apvts.getRawParameterValue ("tone");
     pScoop      = apvts.getRawParameterValue ("scoop");
+    pMuffVoice  = apvts.getRawParameterValue ("muffvoice");
     pGain       = apvts.getRawParameterValue ("gain");
     pMorph      = apvts.getRawParameterValue ("morph");
     pSwell      = apvts.getRawParameterValue ("swell");
@@ -337,6 +340,8 @@ void TheBowottoAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     violin.setInstrument ((bowotto::Instrument) (int) pBody->load());
 
     const bool  muffOn  = pMuffOn->load() > 0.5f;
+    muff.setVoicing (pMuffVoice->load() > 0.5f ? bowotto::BigMuff::sovtek
+                                                : bowotto::BigMuff::nyc);
     const bool  echoOn  = pEchoOn->load() > 0.5f;
     const bool  revOn   = pReverbOn->load() > 0.5f;
     const bool  phaserOn  = pPhaserOn->load() > 0.5f;

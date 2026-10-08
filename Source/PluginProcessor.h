@@ -88,6 +88,7 @@ private:
     std::atomic<float>* pSustain    = nullptr;
     std::atomic<float>* pTone       = nullptr;
     std::atomic<float>* pScoop      = nullptr;
+    std::atomic<float>* pMuffVoice  = nullptr;
     std::atomic<float>* pGain       = nullptr;
     std::atomic<float>* pMorph      = nullptr;
     std::atomic<float>* pSwell      = nullptr;

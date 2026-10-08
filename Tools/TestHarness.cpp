@@ -174,6 +174,7 @@ namespace
         setParam (p, "sustain",  65.0f);
         setParam (p, "tone",     50.0f);
         setParam (p, "scoop",   100.0f);
+        setParam (p, "muffvoice", 0.0f);   // legacy bench runs on NYC; Sovtek has its own tests
         setParam (p, "gain",     35.0f);
         setParam (p, "morph",     0.0f);
         setParam (p, "swell",   300.0f);
@@ -1088,6 +1089,32 @@ static void runBench()
             detail += quiet ? "silence ok" : "silence FAIL(reports a note)";
         }
         report ("T26 TUNER tracks every open string at 64-sample blocks, silent on silence", ok, detail);
+    }
+
+    // T27 — the SOVTEK voicing is fatter in the low-mids than NYC, and T28
+    // darker up top. Measured with broadband NOISE (the bass riff has almost
+    // no 2.5-5 kHz content) and with OUTPUT pulled to -24 dB so the peak guard
+    // is OUT of the loop — at playing level softLimit compresses the hotter
+    // render and flattens the very delta we are trying to read (house rule 9).
+    // Both proven to FAIL on NYC-vs-NYC (delta ~0, well inside the gates).
+    {
+        auto nyc = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "sustain", 55.0f);
+                           setParam (q, "output", -24.0f); setParam (q, "muffvoice", 0.0f); });
+        auto sov = render (p, noise, [] (auto& q) { baseline (q); setParam (q, "sustain", 55.0f);
+                           setParam (q, "output", -24.0f); setParam (q, "muffvoice", 1.0f); });
+        const int len = (int) (3.0 * kSampleRate);
+        auto lowMid = [&] (const juce::AudioBuffer<float>& b)
+        { return bandDb (b, 150.0f, 320.0f, skip, len) - bandDb (b, 900.0f, 1100.0f, skip, len); };
+        auto fizz = [&] (const juce::AudioBuffer<float>& b)
+        { return bandDb (b, 2500.0f, 5000.0f, skip, len) - bandDb (b, 900.0f, 1100.0f, skip, len); };
+        const float dLow  = lowMid (sov) - lowMid (nyc);
+        const float dFizz = fizz (sov)   - fizz (nyc);
+        report ("T27 SOVTEK is fatter in the low-mids than NYC", dLow > 3.5f,
+                juce::String ("150-320 vs 1k: SOVTEK ") + juce::String (lowMid (sov), 1)
+                    + " dB, NYC " + juce::String (lowMid (nyc), 1) + " (delta +" + juce::String (dLow, 1) + ")");
+        report ("T28 SOVTEK is darker up top than NYC", dFizz < -5.0f,
+                juce::String ("2.5-5k vs 1k: SOVTEK ") + juce::String (fizz (sov), 1)
+                    + " dB, NYC " + juce::String (fizz (nyc), 1) + " (delta " + juce::String (dFizz, 1) + ")");
     }
 
     std::cout << "\n" << (gFailures == 0 ? "ALL PASS" : juce::String (gFailures) + " FAILURE(S)")

@@ -256,8 +256,23 @@ private:
 */
 struct BigMuff
 {
+    /** NYC = the stock USA Pi (unchanged, bit-identical to pre-v0.5.0).
+        SOVTEK = the Green Russian / Civil War voicing: bigger coupling caps
+        (fatter, woollier low end) and a much darker, smoother top than the
+        NYC Pi. Voiced against Otto's own Sovtek ("MIG MUFF", recorded 6 Oct
+        2026 through his Spider + SM58): isolating what the pedal ADDS over the
+        clean amp, the Russian put +14 dB into 157-315 Hz where our NYC model
+        added +6, and only +9 dB into 2.5-5 kHz where NYC piled on +22.
+
+        CAVEAT: that target delta was measured through Otto's Spider, so the
+        SOVTEK cutoffs below fold a little of that amp's own EQ into the pedal
+        voicing — right for matching what Otto hears today, worth revisiting
+        once the real Spider cab IRs land (v0.5.0). */
+    enum Voicing { nyc = 0, sovtek = 1 };
+
     void prepare (double osRate) noexcept
     {
+        sr = osRate;
         couple.prepare (osRate, 90.0f);
         pre1.prepare (osRate, 120.0f);
         pre2.prepare (osRate, 120.0f);
@@ -267,11 +282,12 @@ struct BigMuff
         dc2.prepare (osRate);
 
         toneLP.prepare (osRate);
-        toneLP.setCutoffQ (340.0f, 0.60f);
         toneHP.prepare (osRate);
-        toneHP.setCutoffQ (1700.0f, 0.60f);
         fill.prepare (osRate);
-        fill.setCutoffQ (750.0f, 0.90f);
+        sovLowShelf.prepare (osRate);
+        sovTopLP.prepare (osRate);
+        sovTopLP2.prepare (osRate);
+        applyVoicing();
 
         reset();
     }
@@ -288,6 +304,19 @@ struct BigMuff
         toneLP.reset();
         toneHP.reset();
         fill.reset();
+        sovLowShelf.reset();
+        sovTopLP.reset();
+        sovTopLP2.reset();
+    }
+
+    /** Switch voicing. Cheap (a handful of coefficient writes), click-safe
+        (TPT tone filters, one-pole couplings), and a no-op when unchanged —
+        safe to call every block from the choice parameter. */
+    void setVoicing (Voicing v) noexcept
+    {
+        if (v == voicing) return;
+        voicing = v;
+        applyVoicing();
     }
 
     /** sustain 0..1, tone 0..1, scoop 0..1 (1 = stock notch), all pre-smoothed. */
@@ -318,14 +347,66 @@ struct BigMuff
         // SCOOP down fills the notch back in with the very band the stock
         // stack throws away. bandpass() is unity-gain (house rule) so the
         // fill needs its own scale to matter against the summed branches.
-        y += (1.0f - scoop) * 0.9f * fill.bandpass (s);
+        // baseFill lifts the stock notch for the Sovtek (its scoop is shallower
+        // than the NYC Pi's); SCOOP fills the rest of the way on top.
+        y += (baseFill + (1.0f - scoop) * 0.9f) * fill.bandpass (s);
+
+        // SOVTEK voicing EQ. The clipper core is the NYC Pi's (same texture);
+        // what makes a Green Russian a Green Russian is the tonal balance, and
+        // that is what Otto's recording measured: a big low-mid shelf and a
+        // steep dark top. Shaped to the correction curve (target minus the raw
+        // clip output) rather than guessed from cap values — the clipper's own
+        // harmonics fight any attempt to voice this from the coupling network.
+        if (voicing == sovtek)
+        {
+            y = sovTopLP2.lowpass (sovTopLP.lowpass (y));   // 4-pole dark top (~2.9 kHz)
+            y += sovLowGain * sovLowShelf.lowpass (y);     // low-mid/mid shelf lift
+        }
 
         // Two clippers at unity ceiling still stack up hot: trim so the tone
         // stack's output sits near the input level for the chain after it.
-        return y * 0.7f;
+        return y * outTrim;
     }
 
 private:
+    void applyVoicing() noexcept
+    {
+        // The clipper core (coupling HPs, feedback caps, tone stack) is the
+        // SAME for both voicings — the NYC Pi. The Sovtek differs only in the
+        // post-clip voicing EQ below, tuned to Otto's measured pedal. Keeping
+        // the clip network identical keeps the clip texture and the bench's
+        // T3/T4 behaviour stable; the voicing lives entirely in the EQ.
+        couple.setCutoff (90.0f);
+        pre1.setCutoff   (120.0f);
+        pre2.setCutoff   (120.0f);
+        fb1.setCutoff    (5200.0f);
+        fb2.setCutoff    (5200.0f);
+        toneLP.setCutoffQ (340.0f, 0.60f);
+        toneHP.setCutoffQ (1700.0f, 0.60f);
+        fill.setCutoffQ   (750.0f, 0.90f);
+
+        if (voicing == sovtek)
+        {
+            // Dark top: a 2-pole lowpass ~2 kHz gives the Green Russian's
+            // famous smooth roll-off (NYC model ran ~+22 dB of 2.5-5 kHz fizz
+            // over the clean amp; Otto's Sovtek only +9). Low-mid shelf lifts
+            // 150-320 Hz, where the real pedal added ~+14 dB and the bare clip
+            // only ~+6 — sovLowShelf.lowpass * sovLowGain is a +~9 dB shelf.
+            sovTopLP.setCutoffQ    (2300.0f, 0.70f);
+            sovTopLP2.setCutoffQ   (2300.0f, 0.70f);
+            sovLowShelf.setCutoffQ (360.0f, 0.70f);
+            sovLowGain = 1.7f;
+            baseFill = 0.40f;   // lift the 500-800 Hz mid the real pedal keeps
+            outTrim  = 0.80f;
+        }
+        else
+        {
+            sovLowGain = 0.0f;
+            baseFill   = 0.0f;
+            outTrim    = 0.70f;
+        }
+    }
+
     static inline float clipStage (float x, float gain, OnePoleLP& fbCap) noexcept
     {
         // Diode pair in the feedback loop: soft symmetric clip, then the
@@ -334,10 +415,17 @@ private:
         return fbCap.process (clipped);
     }
 
+    double    sr { 44100.0 };
+    Voicing   voicing { nyc };
+    float     baseFill { 0.0f };
+    float     outTrim { 0.7f };
+    float     sovLowGain { 0.0f };
+
     OnePoleHP couple, pre1, pre2;
     OnePoleLP fb1, fb2;
     DcBlocker dc1, dc2;
     SvfTPT    toneLP, toneHP, fill;
+    SvfTPT    sovLowShelf, sovTopLP, sovTopLP2;
 };
 
 //==============================================================================
