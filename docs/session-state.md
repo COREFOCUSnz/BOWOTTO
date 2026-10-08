@@ -763,7 +763,7 @@ Math.floor(i/step) for the three one-sided prop loops. Page: #g-paint.hidden
 rule; #app touch-action:none; phone tap targets 40 px; phone HUD: tach hidden
 in both steer modes, cluster bottom-left, #mode bottom-centre, race box
 left-aligned and body.racing hides #top-left while a race is on, landscape
-damage card at right:200px (all overlaps confirmed by getBoundingClientRect
+damage card at right:200px and the drive block at left:42% (it sat on the card) (all overlaps confirmed by getBoundingClientRect
 before and after). build.py exits non-zero over the 16 MiB cap; workflow
 rebuilds dist/hosting before deploying; firebase.json cache rule for "/".
 
