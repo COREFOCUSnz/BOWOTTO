@@ -361,7 +361,37 @@ body.touch:not(.wheelsteer) #mode{right:auto;left:50%;transform:translateX(-50%)
 body.touch #mode-sub,body.touch #paint-name{display:none}
 body.touch #race-top{left:16px;transform:none}
 body.touch.racing #top-left{display:none}
-@media (max-height:480px){body.touch #damage{right:200px}body.touch:not(.wheelsteer) #mode{left:42%}}   /* landscape: the damage card moves off the pedals, the drive block steps left of it */
+/* landscape: the bottom third belongs to the pedals, the wheel and the drive block, so the damage card goes up into the top
+   bar beside the race box (needs #race.derby's weight to beat its scale origin) */
+@media (max-height:480px){body.touch #race.derby #damage{top:0;right:auto;left:232px;transform-origin:top left}}
+/* phone HUD layout, checked box-against-box at 360x740, 390x844, 430x932, 667x375, 800x360, 844x390 and 932x430 in both
+   steering modes. The touch pads are 88 px with their border, so pads that only "looked" apart on a 390 px phone (the
+   right arrow and the brake shared 64x64 px at 360 wide) now each get their own column */
+@media (max-width:480px){
+  #touch:not(.wheel) #t-left{left:8px;bottom:24px}
+  #touch:not(.wheel) #t-right{left:98px;bottom:24px}
+  #touch:not(.wheel) #t-nos{left:12px;bottom:120px}
+  #touch:not(.wheel) #t-gas{right:12px;bottom:120px}
+  #touch:not(.wheel) #t-brake{right:12px;bottom:24px}
+  #touch:not(.wheel) #t-hand{right:104px;bottom:34px}
+  body.touch:not(.wheelsteer) #cluster{left:12px;bottom:196px;transform:none}
+  body.touch:not(.wheelsteer) #mode{left:auto;right:12px;bottom:220px;transform:none;text-align:right}
+  #touch.wheel #t-gas{bottom:120px}
+  #touch.wheel #t-hand{bottom:214px}
+  #touch.wheel #t-nos{bottom:296px}
+  body.touch.wheelsteer #cluster{left:16px;bottom:376px;transform:none}
+  body.touch.wheelsteer #mode{right:12px;bottom:186px}
+}
+@media (max-height:480px){
+  body.touch:not(.wheelsteer) #cluster{bottom:4px}
+  #touch:not(.wheel) #t-gas{right:20px;bottom:104px}
+  #touch:not(.wheel) #t-brake{right:124px;bottom:56px}
+  #touch:not(.wheel) #t-hand{right:20px;bottom:20px}
+  #touch.wheel #t-nos{left:110px;top:auto;bottom:104px}
+  body.touch.wheelsteer #cluster{bottom:32px}
+  body.touch.wheelsteer #mode{right:auto;left:50%;transform:translateX(-50%);bottom:4px;text-align:center}
+  body.touch.wheelsteer #mode-name{display:none}
+}
 
 </style>
 </head>
@@ -6133,7 +6163,7 @@ const CAREER_START = 5000;
 // one-time driver gifts: a name gets a bonus exactly once, recorded in career.gifts so it never repeats, on this
 // device or, once cloud sync brings the record back, on any device signed into that account
 const GIFTS = { INDIE: 900000 };
-const careerFresh = () => ({ name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, updated: 0, uid: null });
+const careerFresh = () => ({ name: '', cash: CAREER_START, tiers: { tyres: 0, brakes: 0, susp: 0, engine: 0, nos: 0, aero: 0 }, paints: [0, 1], cars: ['revuelto'], car: 'revuelto', stats: { races: 0, wins: 0, podiums: 0, earned: 0 }, gifts: [], updated: 0, uid: null });
 const career = careerFresh();   // uid: the signed-in account this record belongs to, null while it has only ever lived in this browser
 function careerReset() { Object.assign(career, careerFresh()); }
 const TUNE = { power: 1, grip: 1, brake: 1, steer: 1, drag: 1, mass: 1, nosTank: 1, nosCharge: 1 };   // what the bought parts do to the car, applied in step()
@@ -6195,12 +6225,12 @@ careerLoad();
 const cloud = {
   // The hosted site (lambo-sim.web.app) loads Firebase from its reserved URLs before this script; the single-file page and
   // the artifact do not, and stay local-only. Newest record wins between the browser and the cloud.
-  ok: false, user: null, pending: null, status: 'LOCAL SAVE ONLY',
+  ok: false, user: null, pending: null, status: 'LOCAL SAVE ONLY', gen: 0, syncing: false,   // gen: one per sign-in sync, so a read that lands after a sign-out or account switch is ignored
   init() {
     try {
       if (!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth && firebase.firestore)) return;
       this.ok = true; this.status = 'NOT SIGNED IN';
-      firebase.auth().onAuthStateChanged(u => { this.user = u; this.status = this.label(); if (u) this.pull(); else if (typeof garageRefresh === 'function') garageRefresh(); });
+      firebase.auth().onAuthStateChanged(u => { this.user = u; this.status = this.label(); this.gen++; this.syncing = false; clearTimeout(this.pending); if (u) this.pull(); else if (typeof garageRefresh === 'function') garageRefresh(); });
     } catch (e) { this.ok = false; }
   },
   signIn() {
@@ -6214,25 +6244,35 @@ const cloud = {
     // Which record wins at sign-in depends on whose the local one is. Same account: newest wins (ordinary sync). A browser
     // that has never signed in: the career with more lifetime earnings wins, so one lap on a new laptop cannot wipe a real
     // account, and a long local career still follows you up. Another account's career: never let it near this one.
+    // Nothing is written while the read is out (syncing): a save made in that window used to arm an 800 ms push that
+    // replaced the account's record with the pre-sync local one before the read had even decided which record wins.
+    if (!this.ok || !this.user) return;
+    const gen = ++this.gen, me = this.user.uid; this.syncing = true; clearTimeout(this.pending);
     try {
-      const me = this.user.uid, snap = await this.doc().get(), remote = snap.exists ? snap.data() : null;
+      const snap = await this.doc().get(), remote = snap.exists ? snap.data() : null;
+      if (gen !== this.gen || !this.user || this.user.uid !== me) return;   // signed out or switched account while the read was out: this answer is stale
       const mine = career.uid === me, owned = !!career.uid; let adopt = false, fresh = false;
       if (remote) {
         if (mine) adopt = (remote.updated || 0) > (career.updated || 0);
         else if (!owned) adopt = ((remote.stats && remote.stats.earned) || 0) >= (career.stats.earned || 0);
         else adopt = true;
       } else if (owned && !mine) fresh = true;
-      if (adopt) careerAdopt(remote); else if (fresh) careerReset();
+      if (adopt) { if (owned && !mine) careerReset(); careerAdopt(remote); }   // another account's career is cleared first, so nothing of theirs (a name, gifts) survives a field the record lacks
+      else if (fresh) careerReset();
       career.uid = me;
       if (adopt || fresh) {
         retune(); if (!ownsPaint(paintIdx)) setPaint(1); paintBarLocks(); if (typeof carSelect === 'function' && career.car !== carId) carSelect(career.car);
         flash(adopt ? 'CAREER LOADED FROM THE CLOUD' : 'NEW CAREER FOR THIS ACCOUNT', 1400);
       }
       try { localStorage.setItem('revuelto.career', JSON.stringify(career)); } catch (e) {}
+      this.syncing = false;
       if (!adopt) this.push();
       this.status = this.label();
-      if (career.name && await this.claimName(career.name) === 'TAKEN') { flash('THAT NAME IS TAKEN', 1600); nameOpen(false, 'THAT NAME IS TAKEN · PICK ANOTHER'); }
-    } catch (e) { this.status = 'CLOUD ERROR'; }
+      if (!career.name) nameOpen(true);   // a synced career with no driver name: ask, as a first visit does, rather than racing as YOU and pushing a nameless record
+      else if (await this.claimName(career.name) === 'TAKEN' && gen === this.gen) { flash('THAT NAME IS TAKEN', 1600); nameOpen(false, 'THAT NAME IS TAKEN · PICK ANOTHER'); }
+    } catch (e) { if (gen === this.gen) this.status = 'CLOUD ERROR'; }
+    finally { if (gen === this.gen) this.syncing = false; }
+    if (gen !== this.gen) return;
     nameRefresh(); if (typeof garageRefresh === 'function') garageRefresh();
   },
   async claimName(name) {
@@ -6242,9 +6282,11 @@ const cloud = {
   },
   push() {
     if (!this.ok || !this.user) return;
-    clearTimeout(this.pending);
+    if (this.syncing) return;   // the sign-in read decides first; pull() pushes afterwards if this browser's record is the one that wins
+    if (career.uid !== this.user.uid) { this.pull(); return; }   // a record is only ever written to the account it belongs to; not settled yet (the sign-in read failed): settle it instead
+    clearTimeout(this.pending); const uid = this.user.uid;
     this.pending = setTimeout(() => {
-      if (!this.ok || !this.user) return;   // signed out while the push was waiting
+      if (!this.ok || !this.user || this.user.uid !== uid || career.uid !== uid || this.syncing) return;   // signed out, switched, or a sync started while the push was waiting
       this.doc().set({ name: career.name || null, cash: career.cash, tiers: career.tiers, paints: career.paints, cars: career.cars, car: career.car, gifts: career.gifts || [], stats: career.stats, updated: career.updated, account: this.user.displayName || null })
         .then(() => { if (this.user) this.status = this.label(); }, () => { this.status = 'CLOUD ERROR'; });
     }, 800);
@@ -6839,8 +6881,11 @@ const shellMat = new THREE.MeshStandardMaterial({ color: 0x0b1220, roughness: 0.
     { const dash = []; for (const [i0, i1] of TUNNELS) for (let i = i0 + 4; i < i1 - 4; i += 6) { const f = frameAt(i); dash.push({ x: f.p.x + f.n.x * (ROOF_H + 0.04), y: f.p.y + f.n.y * (ROOF_H + 0.04), z: f.p.z + f.n.z * (ROOF_H + 0.04), quat: f.quat }); } instanced(new THREE.BoxGeometry(2.4, 0.02, 0.18), new THREE.MeshBasicMaterial({ color: 0xf4f1ea }), dash, false); }
   }
   const fins = [], portals = [];
+  // fins keep 3 samples clear of a mouth; at the start-line seam there is no mouth, so they run on through it (they stopped
+  // for 38 m there on SPACE STATION once the shell itself was closed)
+  const finFrom = i0 => (seamed && i0 === 0) ? 0 : i0 + 3, finTo = i1 => (seamed && i1 === N - 1) ? N : i1 - 3;
   for (const [i0, i1] of TUNNELS) {
-    for (let i = i0 + 3; i < i1 - 3; i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
+    for (let i = finFrom(i0); i < finTo(i1); i += 3) { const f = frameAt(i); fins.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
     for (const i of [i0, i1]) { if (!isMouth(i)) continue; const f = frameAt(i); portals.push({ x: f.p.x, y: f.p.y, z: f.p.z, quat: f.quat }); }
     if (THEME === 'sky') {}
     else if (THEME === 'station') { for (let i = i0 + 20; i < i1 - 10; i += 70) { const m = frameAt(i), l = new THREE.PointLight(0xcfe8ff, 1.0, 90, 1.5); l.position.copy(m.p).addScaledVector(m.n, 5.5); scene.add(l); } }
@@ -7281,10 +7326,12 @@ const DRESS = {
   // LED dot mask, drawn once
   const mask = document.createElement('canvas'); mask.width = 2048; mask.height = 528; { const mc = mask.getContext('2d'); mc.fillStyle = '#000'; mc.fillRect(0, 0, 2048, 528); mc.globalCompositeOperation = 'destination-out'; for (let y = 4; y < 528; y += 8) for (let x = 4; x < 2048; x += 8) { mc.beginPath(); mc.arc(x, y, 3.1, 0, Math.PI * 2); mc.fill(); } }
   const lineTex = canvasTex(64, (ctx, sz) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { ctx.fillStyle = (x + y) % 2 ? '#06101c' : '#8ff4ff'; ctx.fillRect(x * 16, y * 16, 16, 16); } });
-  lineTex.repeat.set(1, 12);
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 12), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
+  const lineW = ARENA ? ROAD_HALF * 2 : 12;   // the arena keeps its lap line (Time Trial / Versus run there too), across its whole 32 m road, without the gantry
+  lineTex.repeat.set(1, lineW);
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(1.2, lineW), new THREE.MeshStandardMaterial({ map: lineTex, emissiveMap: lineTex, emissive: 0xffffff, emissiveIntensity: 1.2, roughness: 0.9 }));
   line.rotation.x = -Math.PI / 2; line.rotation.z = Math.PI / 2; line.position.y = 0.03; gantry.add(line);
-  gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat); if (!ARENA) scene.add(gantry);   // its posts stand 12.4 m out: on the arena's 32 m road that is in the driving line
+  gantry.position.copy(S[0]); gantry.quaternion.copy(frameAt(0).quat);
+  if (!ARENA) scene.add(gantry); else { gantry.remove(line); line.position.copy(S[0]).addScaledVector(UP[0], 0.03); line.quaternion.copy(frameAt(0).quat); line.rotateX(-Math.PI / 2); line.rotateZ(Math.PI / 2); scene.add(line); }   // its posts stand 12.4 m out: on the arena's 32 m road that is in the driving line
   // 0–8 s the words, then the intro clip (played from its start), then the main COREZ clip
   const vA = document.getElementById('revuelto-poster-video'), vB = document.getElementById('revuelto-poster-video2') || vA;
   const ready = v => v && v.readyState >= 2 && v.videoWidth;
@@ -7705,7 +7752,9 @@ function garageRoom(name) {
   if (garage.on) { garage.on = false; garageEnter(); if (wasPreview) garagePreview(wasPreview); }
 }
 function garageEnter() {
-  if (garage.on) return; garage.on = true; const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
+  if (garage.on) return; garage.on = true;
+  roofClip.constant = 1e9; tronMat.uniforms.uClip.value.w = 1e9;   // the cockpit cam's roof clip is a world-space plane at eye height: left set, it cut the whole car away in the raised SHOWROOM (updateCamera, which clears it, does not run in the garage)
+  const R = ROOMS[garage.room], s = roomScene(garage.room); s.add(car);   // add() moves it out of the world
   garage.at.fromArray(R.at); garage.yaw = R.yaw; garage.pitch = R.pitch; garage.dist = R.dist; garage.carYaw = R.carYaw || 0; garage.turn = 0;
   car.scale.setScalar(R.carScale || 1);
   garagePlaceCar(true);   // walking into the room is a cut, not a glide
@@ -7720,7 +7769,7 @@ function garagePlaceCar(snap) {
   if (snap || !Number.isFinite(garage.carY)) garage.carY = garage.carYTarget;
   car.position.set(garage.at.x, garage.carY, garage.at.z); car.updateMatrixWorld(true);
 }
-function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = true; }
+function garageReflect() { if (!garage.on) return; car.visible = false; cubeCam.position.set(garage.at.x, garage.carY + 0.7, garage.at.z); cubeCam.update(renderer, roomScene(garage.room)); car.visible = !previewGroup; }   // the real car stays hidden under a shop preview
 function garageLeave() { if (!garage.on) return; garagePreviewClear(); garage.on = false; scene.add(car); car.visible = true; car.scale.setScalar(1); }
 // ------------------------------------------------------------------ THE SHOP: look without buying
 // clicking a shop car's card drops a plain, unscaled-physics copy of it into the same spot the real car sits in the
@@ -7728,6 +7777,7 @@ function garageLeave() { if (!garage.on) return; garagePreviewClear(); garage.on
 // or driven by looking. Downloaded once per session (previewRoots), same fetch path as carSelect.
 let previewGroup = null, previewCar = null, previewReq = 0; const previewRoots = {};
 function garagePreviewClear() {
+  previewReq++;   /* BACK TO MY CAR / SELECT THIS CAR / a room change: an in-flight preview download must not land after this */
   if (previewGroup) { const scn = roomScene(garage.room); scn.remove(previewGroup); previewGroup = null; }
   previewCar = null; if (garage.on) car.visible = true;
 }
@@ -7749,13 +7799,14 @@ function garagePreviewShow(id, root) {
   if (typeof garageRefresh === 'function') garageRefresh();   // the model just arrived asynchronously: the VIEWING tag and card state were stale until now
 }
 function garagePreview(id) {
+  const req = ++previewReq;   /* every click claims the preview, cached or not, so a slow download cannot replace a later choice */
   if (id === carId) { garagePreviewClear(); return; }
   if (previewCar === id) return;
   const C = CARS[id]; if (!C) return;
   if (carRoots[id]) { garagePreviewShow(id, carRoots[id]); return; }
   if (previewRoots[id]) { garagePreviewShow(id, previewRoots[id]); return; }
   if (!C.file || location.protocol === 'file:' || document.getElementById('revuelto-glb')) { flash('HOSTED SITE ONLY · LAMBO-SIM.WEB.APP', 2400); return; }
-  flash('LOADING ' + C.name + ' …', 3000); const req = ++previewReq;
+  flash('LOADING ' + C.name + ' …', 3000);
   fetch(C.file).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (!b) { flash('MODEL NOT FOUND', 2000); return; }
     new THREE.GLTFLoader().parse(b, '', g => { previewRoots[id] = g.scene; if (garage.on && req === previewReq) garagePreviewShow(id, g.scene); }, e => { console.error(e); flash('MODEL FAILED', 2000); });
   }).catch(() => flash('MODEL FAILED', 2000));
@@ -7830,7 +7881,7 @@ function installModelInner(root, name) {
   if (from && from !== carId) return;   // a slow download landing after another car was chosen: keep it, do not fit it
   const cfg = from ? (CARS[from] || {}) : {};   // a dropped file is fitted on its own merits, not with the current car's material names and hide list
   if (customModel) { bodyGroup.remove(customModel); customModel = null; }   // null so a failure below still falls back to the procedural body
-  if (from && carWraps[from]) {   // switching BACK to a car: the fitted wrap is reused as it was, never measured or scaled a second time
+  if (from && carWraps[from] && carWraps[from].root === root) {   // switching BACK to a car: the fitted wrap is reused as it was, never measured or scaled a second time (a NEW root for the same car -- a dropped revuelto.glb -- is fitted fresh)
     const W = carWraps[from]; customWheels = W.wheels; installFinish(W.wrap, name); return;
   }
   if (cfg.hide) { const gone = []; root.traverse(o => { if (o !== root && cfg.hide.test(o.name || '')) gone.push(o); }); for (const o of gone) if (o.parent) o.parent.remove(o); }   // stage text, ground planes
@@ -7854,8 +7905,9 @@ function installModelInner(root, name) {
     }
   });
   wrap.add(root);
+  const yaw = from ? customYaw : 0;   // a dropped file is not the current car: its yaw (the Aventador's pi) would point a converter-output model tail-first
   let prescaled = !!root.userData.prescaled; root.traverse(o => { if (o.userData && o.userData.prescaled) prescaled = true; });
-  if (prescaled) { wrap.rotation.y = Math.PI / 2 + customYaw; }        // converter output: nose on +Z, real size, on the ground
+  if (prescaled) { wrap.rotation.y = Math.PI / 2 + yaw; }        // converter output: nose on +Z, real size, on the ground
   else {
     // undo OUR last pass first (only ours -- userData.simJunk): car roots are cached and re-installed when you
     // switch back to a car, and bodyBounds ignores hidden meshes, so without this the measured body shrinks a
@@ -7869,7 +7921,7 @@ function installModelInner(root, name) {
     const seated = bodyBounds(wrap).box;          // re-measure at the real scale to sit it on the ground
     const c = seated.getCenter(new THREE.Vector3());
     root.position.set(-c.x, -seated.min.y, -c.z);
-    wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + customYaw;
+    wrap.rotation.y = (size.z >= size.x ? Math.PI / 2 : 0) + yaw;
   }
   customWheels = [];
   if (cfg.bones) {   // the download names its own pivots: a steer bone holding a rotation bone, per corner
@@ -7879,7 +7931,7 @@ function installModelInner(root, name) {
   } else root.traverse(o => { const n = o.name.toLowerCase(); const m = n.match(/wheel[_\-\s]?(fl|fr|rl|rr)/); if (m) { o.rotation.order = 'YXZ'; customWheels.push({ node: o, front: m[1][0] === 'f' }); } });
   if (!customWheels.length && cfg.wheelGroups) customWheels = axleWheels(wrap, root, cfg);
   if (!customWheels.length) customWheels = null;
-  if (from) carWraps[from] = { wrap, wheels: customWheels };
+  if (from) carWraps[from] = { wrap, wheels: customWheels, root };
   installFinish(wrap, name);
 }
 function installFinish(wrap, name) {
@@ -8361,7 +8413,7 @@ function playerDamage(dmg, w) {
   if (GAME.mode !== 'derby' || st.wrecked || GAME.state !== 'racing') return;
   damageZones(dmg * DERBY_DMG[GAME.diff], w || { mid: 0.55, front: 0.15, rear: 0.15, wheels: 0.15 }); if (st.hp > 0) return;
   st.hp = 0; for (const z of ZONES) st.zone[z] = 0;
-  st.wrecked = true; st.wreckT = performance.now(); st.shake = 1; audio.crunch(1); flash('WRECKED', 1800, '#ff3b3b'); announcer.say("You're out.", 1, 0.8);
+  st.wrecked = true; st.reverse = false; /* out of reverse too: a wreck that was backing away when it died must not keep reversing on the held brake */ st.wreckT = performance.now(); st.shake = 1; audio.crunch(1); flash('WRECKED', 1800, '#ff3b3b'); announcer.say("You're out.", 1, 0.8);
   finishRace(st.wreckT);
 }
 function contacts(dt) {
@@ -8537,7 +8589,7 @@ const keys = {}, touch = { left: 0, right: 0, gas: 0, brake: 0, hand: 0, nos: 0,
 const inp = { steer: 0, throttle: 0, brake: 0, hand: false, nos: false, shiftUp: false, shiftDown: false };
 const padLatch = {};
 function readInput() {
-  const k = c => keys[c] ? 1 : 0;
+  const k = c => keys[c] ? 1 : 0, menu = !$('start').classList.contains('hidden');   // menu: the car behind it does not take driving input from any device
   inp.steer = k('ArrowLeft') + k('KeyA') - k('ArrowRight') - k('KeyD') + touch.left - touch.right + touch.wheel;
   inp.throttle = Math.max(k('ArrowUp'), k('KeyW'), touch.gas);
   inp.brake = Math.max(k('ArrowDown'), k('KeyS'), touch.brake);
@@ -8553,20 +8605,21 @@ function readInput() {
     if (bt(1) > 0.5) inp.hand = true;
     if (bt(3) > 0.5) inp.nos = true;
     const L = padLatch[gp.index] || (padLatch[gp.index] = {});   // on our side, not on the Gamepad object: Chromium returns a new snapshot every poll
-    if (bt(5) > 0.5 && !L.u) { L.u = true; shiftManual(1); } else if (bt(5) < 0.5) L.u = false;
-    if (bt(4) > 0.5 && !L.d) { L.d = true; shiftManual(-1); } else if (bt(4) < 0.5) L.d = false;
+    if (bt(5) > 0.5 && !L.u) { L.u = true; if (!menu) shiftManual(1); } else if (bt(5) < 0.5) L.u = false;
+    if (bt(4) > 0.5 && !L.d) { L.d = true; if (!menu) shiftManual(-1); } else if (bt(4) < 0.5) L.d = false;
   }
   wheelTick();                                                       // the wheel springs back on the game's own clock
   inp.steer = clamp(inp.steer, -1, 1);
   if (st.wrecked) { inp.throttle = 0; inp.brake = 1; inp.steer = 0; inp.hand = false; inp.nos = false; }   // wrecked: the car is done, it rolls to a stop
+  else if (menu) { inp.throttle = 0; inp.brake = 0; inp.steer = 0; inp.hand = false; inp.nos = false; }   // keys still latch on the menu (a throttle held through START ENGINE counts at GO), they just do not drive
 }
 window.addEventListener('keydown', e => {
   if (!$('welcome').classList.contains('hidden')) { if ((e.code === 'Enter' || e.code === 'Space') && window.__welcomePlay) { e.preventDefault(); window.__welcomePlay(); } return; }
   if (!$('namebox').classList.contains('hidden')) return;
   if (document.body.classList.contains('garage')) { if (e.code === 'Escape') garageClose(); return; }
   if (e.repeat) { if (e.code.startsWith('Arrow') || e.code === 'Space') e.preventDefault(); return; }
-  if (!$('start').classList.contains('hidden')) { /* the menu is up: these keys navigate it, they do not drive the car behind it */ if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
-  keys[e.code] = true;
+  keys[e.code] = true;   /* latched even on the menu: readInput keeps the car still while the menu is up, and a key held through START ENGINE then counts at GO */
+  if (!$('start').classList.contains('hidden')) { if (e.code === 'Enter' && !$('start-btn').classList.contains('hidden')) startGame(); else if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden'); else startNav(-1); } return; }
   if (e.code === 'Escape') { if (!$('settings').classList.contains('hidden')) { $('settings').classList.add('hidden'); return; } toMenu(); return; }
   switch (e.code) {
     case 'KeyM': setMode(st.mode + 1); break;
@@ -8696,7 +8749,7 @@ function startGame() {
   if (GAME.mode === 'solo') flash('AUTODROMO DI CORE FOCUS', 1500);
 }
 function toMenu() {
-  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); for (const k in keys) keys[k] = false; document.body.classList.remove('racing'); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
+  $('results').classList.add('hidden'); $('start').classList.remove('hidden'); $('paints').classList.remove('hidden'); GAME.state = 'free'; clearRivals(); document.body.classList.remove('racing'); $('race').classList.add('hidden'); announcer.stop(); audio.nosStop(); audio.rumbleStop(); placeOnTrack(sampleAt(st.s).i); if (window.startShow) startShow(2);
 }
 { // the start screens: course → mode (and laps) → rivals (Versus). Choices are remembered, so a course change (which
   // rebuilds the page) comes back to the mode screen with everything as it was
@@ -8958,7 +9011,14 @@ const audio = {
     if (!this.ctx) return; const t = this.ctx.currentTime + Math.random() * 0.03;
     this.cg.gain.cancelScheduledValues(t); this.cg.gain.setValueAtTime(0.5 + Math.random() * 0.4, t); this.cg.gain.exponentialRampToValueAtTime(0.001, t + 0.05 + Math.random() * 0.08);
   },
-  hush(on) { if (!this.ctx || !this.master) return; this.master.gain.cancelScheduledValues(this.ctx.currentTime); this.master.gain.setTargetAtTime(on ? 0 : 0.7, this.ctx.currentTime, 0.04); },
+  // 0 = normal; 1 = settings open: the car goes quiet (engine bus down, NOS hiss and drift rumble stopped -- step() restarts
+  // them when they are wanted) but music and UI blips carry on, so the MUSIC / FX sliders give feedback; 2 = tab hidden: everything
+  hush(level) {
+    if (!this.ctx || !this.master || !this.busCars) return; const t = this.ctx.currentTime;
+    if (level >= 1) { this.busCars.gain.cancelScheduledValues(t); this.busCars.gain.setTargetAtTime(0, t, 0.04); this.nosStop(); this.rumbleStop(); }
+    else this.applyVolumes();
+    this.master.gain.cancelScheduledValues(t); this.master.gain.setTargetAtTime(level >= 2 ? 0 : 0.7, t, 0.04);
+  },
   update(dt) {
     if (!this.ctx) return; const C = this.ctx; if (C.state === 'suspended') C.resume();
     const t = C.currentTime, on = st.sound ? 1 : 0, m = MODES[st.mode];
@@ -9161,7 +9221,7 @@ function step(dt) {
     // fractions of THIS car's redline: tuned on the Revuelto's 9500, and a hard 9250 was a wall no shop car could reach
     // (Countach 7000, LPI 8500, Aventador / SC18 8700) -- on AUTO they sat on the limiter in 1st
     const RL = CAR.redline;
-    if (st.rpm > RL * 0.974 && st.gear < 7) shiftTo(st.gear + 1);
+    if (st.rpm > RL * 0.974 && st.gear < 7 && CAR.gearTopKmh[st.gear + 1] > CAR.gearTopKmh[st.gear]) shiftTo(st.gear + 1);   // the Countach is a 6-speed listed as 8 (6th-8th all 295): never shift into a gear with no ratio change
     else if (st.gear > 0 && st.rpm < RL * 0.368) shiftTo(st.gear - 1);
     else if (st.gear > 0 && st.throttle > 0.85 && st.rpm < RL * 0.663 && rpmForGear(st.u, st.gear - 1) < RL * 0.937) shiftTo(st.gear - 1);
   }
@@ -9408,21 +9468,24 @@ function drawTach() {
   const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25, sweep = a1 - a0, m = MODES[st.mode];
   c.lineCap = 'butt'; c.lineWidth = 26;
   c.strokeStyle = 'rgba(255,255,255,0.09)'; c.beginPath(); c.arc(cx, cy, r, a0, a1); c.stroke();
-  c.strokeStyle = 'rgba(255,40,40,0.35)'; c.beginPath(); c.arc(cx, cy, r, a0 + sweep * 0.9, a1); c.stroke();
-  const frac = clamp(st.rpm / (CAR.redline * 1.0526), 0, 1);   // the dial reads to just past the redline, whatever the car's is
-  const grad = c.createLinearGradient(0, W, W, 0); grad.addColorStop(0, m.color); grad.addColorStop(1, frac > 0.88 ? '#ff2a2a' : '#ffffff');
+  // a fixed 0-10 x1000 dial, so the needle always reads true rpm against the printed numbers; what moves with the car is
+  // where its red zone, the colour change and SHIFT sit (they were tuned at 9000 / 8800 / 9000 on the Revuelto's 9500)
+  const FS = 10000, RL = CAR.redline, red = RL * 0.947 / FS;
+  c.strokeStyle = 'rgba(255,40,40,0.35)'; c.beginPath(); c.arc(cx, cy, r, a0 + sweep * red, a1); c.stroke();
+  const frac = clamp(st.rpm / FS, 0, 1);
+  const grad = c.createLinearGradient(0, W, W, 0); grad.addColorStop(0, m.color); grad.addColorStop(1, st.rpm > RL * 0.926 ? '#ff2a2a' : '#ffffff');
   c.strokeStyle = grad; c.beginPath(); c.arc(cx, cy, r, a0, a0 + sweep * frac); c.stroke();
   c.fillStyle = 'rgba(244,241,234,0.75)'; c.font = '600 22px Barlow Condensed, Arial Narrow, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
   for (let k = 0; k <= 10; k++) {
     const a = a0 + sweep * k / 10, ir = r - 26, or = r - 16;
-    c.strokeStyle = k >= 9 ? 'rgba(255,60,60,0.9)' : 'rgba(244,241,234,0.7)'; c.lineWidth = 3; c.beginPath(); c.moveTo(cx + Math.cos(a) * ir, cy + Math.sin(a) * ir); c.lineTo(cx + Math.cos(a) * or, cy + Math.sin(a) * or); c.stroke();
+    c.strokeStyle = k / 10 >= red - 1e-6 ? 'rgba(255,60,60,0.9)' : 'rgba(244,241,234,0.7)'; c.lineWidth = 3; c.beginPath(); c.moveTo(cx + Math.cos(a) * ir, cy + Math.sin(a) * ir); c.lineTo(cx + Math.cos(a) * or, cy + Math.sin(a) * or); c.stroke();
     c.fillText(String(k), cx + Math.cos(a) * (r - 48), cy + Math.sin(a) * (r - 48));
   }
   const na = a0 + sweep * frac;
   c.strokeStyle = '#fff'; c.lineWidth = 4; c.beginPath(); c.moveTo(cx + Math.cos(na) * (r - 60), cy + Math.sin(na) * (r - 60)); c.lineTo(cx + Math.cos(na) * (r + 16), cy + Math.sin(na) * (r + 16)); c.stroke();
   c.fillStyle = '#f4f1ea'; c.font = '700 54px Orbitron, Bahnschrift, Arial, sans-serif'; c.fillText(String(Math.round(st.rpm / 10) * 10), cx, cy - 6);
   c.fillStyle = 'rgba(244,241,234,0.5)'; c.font = '600 18px Barlow Condensed, Arial Narrow, sans-serif'; c.fillText('RPM  ×1000', cx, cy + 36);
-  if (frac > 0.9 && !MODES[st.mode].ev && Math.floor(performance.now() / 120) % 2) { c.fillStyle = '#ff2a2a'; c.font = '700 26px Barlow Condensed, Arial Narrow, sans-serif'; c.fillText('SHIFT', cx, cy + 90); }
+  if (st.rpm > RL * 0.947 && !MODES[st.mode].ev && Math.floor(performance.now() / 120) % 2) { c.fillStyle = '#ff2a2a'; c.font = '700 26px Barlow Condensed, Arial Narrow, sans-serif'; c.fillText('SHIFT', cx, cy + 90); }
 }
 function drawMini() {
   const c = mini, W = 300;
@@ -9476,23 +9539,24 @@ const FIXED = 1 / 120; let acc = 0, last = performance.now(), frames = 0;
 
 // Lap and race times are wall-clock (performance.now minus a start stamp), so a pause -- settings open, or the tab
 // hidden, where rAF stops but the clock does not -- used to land in the lap. Every stamp moves forward by the gap.
-let pausedAt = null;
+let pausedAt = null, hushLevel = 0;
+function hushSync(settingsOpen) { const want = document.hidden ? 2 : settingsOpen ? 1 : 0; if (want !== hushLevel) { hushLevel = want; audio.hush(want); } }
 function pauseClock(on, now) {
-  if (on && pausedAt == null) { pausedAt = now; audio.hush(true); }
+  if (on && pausedAt == null) pausedAt = now;
   else if (!on && pausedAt != null) {
-    const gap = now - pausedAt; pausedAt = null; audio.hush(false);
+    const gap = now - pausedAt; pausedAt = null;
     if (st.lapStart != null) st.lapStart += gap; if (GAME.startT) GAME.startT += gap; if (GAME.resultsAt) GAME.resultsAt += gap; if (st.wreckT) st.wreckT += gap;
     for (const a of ai) { if (a.lapStart != null) a.lapStart += gap; if (a.wreckT) a.wreckT += gap; }
   }
 }
-document.addEventListener('visibilitychange', () => { const now = performance.now(); if (document.hidden) pauseClock(true, now); else { pauseClock(false, now); last = now; } });
+document.addEventListener('visibilitychange', () => { const now = performance.now(); hushSync(!$('settings').classList.contains('hidden')); if (document.hidden) pauseClock(true, now); else { pauseClock(false, now); last = now; } });
 function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
   readInput();
   if (garage.on) { garageFrame(dt, now); frames++; return; }   // the world waits while the car is in the studio
   const paused = !$('settings').classList.contains('hidden');   // settings open mid-drive: freeze the race, don't just overlay it
-  pauseClock(paused, now);
+  pauseClock(paused, now); hushSync(paused);
   if (st.started && !paused) { acc += dt; while (acc >= FIXED) { step(FIXED); acc -= FIXED; } raceTick(dt); audio.update(dt); }
   car.position.copy(st.pos); car.quaternion.copy(basisQuat(st.fwd, st.up));
   underglow.position.copy(st.pos).addScaledVector(st.up, 0.25);
@@ -9536,7 +9600,7 @@ resize();
 if (snowfall.pts) { const A = snowfall.pts.geometry.attributes.position.array; for (let k = 0; k < A.length; k += 3) { A[k] += st.pos.x; A[k + 1] += st.pos.y + 20; A[k + 2] += st.pos.z; } }
 requestAnimationFrame(frame);
 loadHide();   // the start screen is ready
-window.__sim = { VERSION, get arenaLimit() { return ARENA_LIMIT; }, wallLimitAt, damageZones, playerDamage, careerReset, get ARENA() { return ARENA; }, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, fitWing, get wingNode() { return wingNode; }, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
+window.__sim = { VERSION, get arenaLimit() { return ARENA_LIMIT; }, wallLimitAt, damageZones, playerDamage, careerReset, get ARENA() { return ARENA; }, garagePreview, garagePreviewClear, garageReflect, get previewCar() { return previewCar; }, get customModel() { return customModel; }, roofClip, get hushLevel() { return hushLevel; }, shiftTo, career, SHOP, showResults, cloud, nameOpen, nameSubmit, nameValid, standings, TUNE, PRIZE, retune, buyPart, buyPaint, prizeFor, careerSave, careerLoad, ownsPaint, TRACKS, TRACK_ID, TRACK, THEME, CAVE, syncPose, applySteerMode, wheelState, get steerMode() { return steerMode; }, set steerMode(v) { steerMode = v; }, terrainH, nearField, COINS, superFin, touch, readInput, music, audio, announcer, liveryTex, DIFFS, resolveContact, GAME, ai, startRace, raceTick, updateRaceHUD, RIVALS, VLIM, contacts, st, inp, trailUpdate, PAINTS, TUNNELS, PADS, PADS2, KAPPA, CUM, trackLen, LOOP, UNDER, JUMP, ROLL, JUMPS, sampleAt, D_WALL, loadGLBBuffer, installModel, camera, renderer, scene, car, garage, garageEnter, garageLeave, garageRoom, ROOMS, CARS, fitWing, get wingNode() { return wingNode; }, carSelect, buyCar, get carId() { return carId; }, customWheels: () => customWheels, roadMesh, ground, S, T, N, placeOnTrack, step, MODES, CAR, setMode, setPaint, keys, startGame };
 }
 })();
 

@@ -780,6 +780,55 @@ Still open: Corey has NOT confirmed deleting the exposed Firebase key
 (f14d1dbf...). The firebase.json "/" rule and the `curl -I` check could not
 be verified from here (the sandbox proxy 403s lambo-sim.web.app).
 
+**Review of the static scan 2026-10-08 (round two).** A workflow re-read
+db61464..HEAD with five reviewers (physics/derby/laps, garage/install,
+cloud/career, pause/audio/input/UI, worlds/build/deploy); each finding faced
+two independent refuters (one for lows). 17 of 20 survived, all fixed:
+- roof clip left at cockpit height in the garage -> car invisible in the
+  SHOWROOM (pre-existing; garageEnter now sets roofClip/uClip to 1e9)
+- push armed during the in-flight sign-in read could overwrite the account
+  -> cloud.gen + cloud.syncing; push() is a no-op while syncing and refuses
+  any record whose career.uid != user.uid (it calls pull() instead); pull()
+  discards a stale answer after a sign-out/switch. Another account's record
+  is careerReset() before careerAdopt(); careerFresh() has gifts: [];
+  a nameless synced career opens nameOpen(true)
+- tach: fixed 0-10 dial again; red zone/colour/SHIFT at 0.947/0.926 x redline
+- Countach: AUTO never upshifts into a gear with the same gearTopKmh
+- garage: carWraps[id].root must match to reuse (dropped revuelto.glb fits
+  fresh); previewReq bumped on every garagePreview and garagePreviewClear;
+  garageReflect ends car.visible = !previewGroup; drop yaw = from ? customYaw : 0
+- input: keys[e.code] latches before the menu check again; readInput zeroes
+  every device's driving input while #start is visible; toMenu no longer
+  clears keys
+- audio.hush(level): 1 (settings) = busCars to 0 + nosStop/rumbleStop,
+  2 (hidden tab) = master to 0; hushSync() drives it from frame/visibility
+- wreck clears st.reverse; station fins run through the seam (finFrom/finTo);
+  arena keeps a 32 m lap line without the gantry
+- build.py: over-cap artifact only warns under GITHUB_ACTIONS
+Refuted (correctly): owed-lap branch unreachable; sign-out mid-pull (the
+Firestore client drops the listen); artifact cap blocking deploy (latent --
+fixed anyway as the CI warning above).
+
+Phone layout, done properly this time: test/layout.js renders a script-free
+copy of index.html + sim.css (rects match the real game; the readout width
+depends on the speed digits, the harness uses 3) and test/overlaps.py checks
+every HUD box pair. My first HUD pass had only been checked at 390x844 and
+844x390 -- the checker found overlaps at every size, worst the right arrow and
+the brake sharing 64x64 px at 360 wide. New rules at the end of sim.css
+(max-width:480 portrait, max-height:480 landscape) give 14/14 clean
+(360x740, 390x844, 430x932, 667x375, 800x360, 844x390, 932x430, both steer
+modes), confirmed on real renders. Lesson: measure layouts at the edge sizes,
+not the one on the desk.
+
+Lesson from this round, again: a mid-line replacement that appends a //
+comment comments out the rest of the line. It bit twice here (garageEnter,
+the wreck line); both caught before shipping. Use /* */ for mid-line notes.
+
+Verified on the worktree build: sweepA 19/19, 19/19 worlds, bugscan 8/8
+(menu test updated to the new contract), bugscan2 11/11 (new), derby run.
+Round-two finders (state machine, numerics, async, persistence, input,
+rival AI) and the critic were still running when this shipped.
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their

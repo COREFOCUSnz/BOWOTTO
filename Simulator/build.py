@@ -142,10 +142,16 @@ def main():
     CAP = 16 * 1024 * 1024
     size = len(frag.encode())
     if size > CAP:
-        sys.exit("artifact is %d bytes, %d over the 16 MiB publish cap: shrink a preview or a model first" % (size, size - CAP))
-    print("artifact %d bytes, %d KB under the 16 MiB cap" % (size, (CAP - size) // 1024))
-    with open(os.path.join(DIST, "revuelto.artifact.html"), "w", encoding="utf-8") as f:
-        f.write(frag)
+        msg = "artifact is %d bytes, %d over the 16 MiB publish cap: shrink a preview or a model first" % (size, size - CAP)
+        if os.environ.get("GITHUB_ACTIONS"):
+            # the deploy job only ships dist/hosting; the claude.ai artifact is never published from CI, so its cap must not hold the live site back
+            print("::warning::" + msg)
+        else:
+            sys.exit(msg)
+    else:
+        print("artifact %d bytes, %d KB under the 16 MiB cap" % (size, (CAP - size) // 1024))
+        with open(os.path.join(DIST, "revuelto.artifact.html"), "w", encoding="utf-8") as f:
+            f.write(frag)
     print("wrote", DIST, "(%d KB full)" % (len(full.encode()) // 1024))
 
 

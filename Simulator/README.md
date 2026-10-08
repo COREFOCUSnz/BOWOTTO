@@ -744,6 +744,56 @@ them. The ones that mattered:
   is where `cleanUrls` actually serves the page (the `index.html` glob never
   matched it, so the game sat behind the default one-hour cache).
 
+## Reviewing the review: what the fixes themselves got wrong
+
+The static-scan fixes were then read again by five reviewers, one per area of
+the diff, and every finding had to survive two independent attempts to refute
+it. Seventeen of twenty did. The ones worth knowing:
+
+- **The cockpit camera hid the car in the SHOWROOM.** Its roof clip is a
+  world-space plane at eye height that `updateCamera` sets every frame; the
+  garage skips `updateCamera`, so the plane stayed put and cut away the raised
+  showroom turntable (and any preview, which shares the car's materials).
+  Older than the scan, found by it. Entering the garage now clears the plane.
+- **A save during the sign-in read could still overwrite the account.** The
+  ownership rule decided correctly, but a purchase in the 1-3 s before the
+  first Firestore read landed armed an 800 ms push of the pre-sync career.
+  Now nothing is written while that read is out, a sign-in or sign-out
+  mid-read discards the stale answer, and a record is only ever pushed to the
+  account it belongs to (if that was never settled, the next save re-syncs
+  instead of writing). Adopting another account's record clears the old one
+  first, so a nameless record no longer inherits the previous player's name,
+  and gifts reset with everything else.
+- **The tach needle stopped matching its own numbers** on four of five cars
+  (it was rescaled to the redline; the 0-10 printing was not). The dial is a
+  fixed 0-10 x1000 again; what moves with the car is the red zone, the colour
+  change and SHIFT. A Countach now redlines at 7.
+- **The Countach's 6th, 7th and 8th are the same gear** (all 295 km/h), which
+  only showed once AUTO could reach them: the digit flicked 6-7-8. AUTO no
+  longer shifts into a gear with no ratio change.
+- **Garage**: a dropped `revuelto.glb` was swapped for the cached fit (the
+  README's own modding step); the shop preview's request token only moved on
+  the download path, so a slow download still beat a later cached click or
+  BACK TO MY CAR; a room finishing loading under a preview un-hid the real
+  car inside it; a dropped model inherited the Aventador's yaw.
+- **Input**: gating keys on the menu missed the gamepad, and moving the key
+  latch below the menu check meant a throttle held through START ENGINE was
+  ignored until re-pressed. Keys latch everywhere again; `readInput` zeroes
+  every device's driving input while the menu is up.
+- **The pause hush muted the music**, so the MUSIC slider in Settings gave no
+  feedback. Settings now quietens only the car (engine bus, NOS hiss, drift
+  rumble); a hidden tab silences everything.
+- **Worlds**: SPACE STATION's fins still stopped for 38 m at the closed seam;
+  the arena lost its lap line along with the gantry (Time Trial and Versus
+  run there too). Both restored; the arena's line spans its 32 m road.
+- **Phone layout, measured instead of eyeballed**: an overlap checker over
+  every HUD box pair at seven sizes (360x740 to 932x430, both steering modes)
+  found the earlier fix only held at the two sizes it was looked at. Worst:
+  at 360 px wide the right-arrow pad and the brake pad shared 64x64 px. All
+  fourteen layouts are now clear.
+- `build.py`'s 16 MiB artifact guard no longer fails the GitHub deploy (the
+  live site never ships the artifact); it warns there and fails locally.
+
 ## Changelog
 
 ### v1.0.0

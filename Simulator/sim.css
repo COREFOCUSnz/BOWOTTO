@@ -351,4 +351,34 @@ body.touch:not(.wheelsteer) #mode{right:auto;left:50%;transform:translateX(-50%)
 body.touch #mode-sub,body.touch #paint-name{display:none}
 body.touch #race-top{left:16px;transform:none}
 body.touch.racing #top-left{display:none}
-@media (max-height:480px){body.touch #damage{right:200px}body.touch:not(.wheelsteer) #mode{left:42%}}   /* landscape: the damage card moves off the pedals, the drive block steps left of it */
+/* landscape: the bottom third belongs to the pedals, the wheel and the drive block, so the damage card goes up into the top
+   bar beside the race box (needs #race.derby's weight to beat its scale origin) */
+@media (max-height:480px){body.touch #race.derby #damage{top:0;right:auto;left:232px;transform-origin:top left}}
+/* phone HUD layout, checked box-against-box at 360x740, 390x844, 430x932, 667x375, 800x360, 844x390 and 932x430 in both
+   steering modes. The touch pads are 88 px with their border, so pads that only "looked" apart on a 390 px phone (the
+   right arrow and the brake shared 64x64 px at 360 wide) now each get their own column */
+@media (max-width:480px){
+  #touch:not(.wheel) #t-left{left:8px;bottom:24px}
+  #touch:not(.wheel) #t-right{left:98px;bottom:24px}
+  #touch:not(.wheel) #t-nos{left:12px;bottom:120px}
+  #touch:not(.wheel) #t-gas{right:12px;bottom:120px}
+  #touch:not(.wheel) #t-brake{right:12px;bottom:24px}
+  #touch:not(.wheel) #t-hand{right:104px;bottom:34px}
+  body.touch:not(.wheelsteer) #cluster{left:12px;bottom:196px;transform:none}
+  body.touch:not(.wheelsteer) #mode{left:auto;right:12px;bottom:220px;transform:none;text-align:right}
+  #touch.wheel #t-gas{bottom:120px}
+  #touch.wheel #t-hand{bottom:214px}
+  #touch.wheel #t-nos{bottom:296px}
+  body.touch.wheelsteer #cluster{left:16px;bottom:376px;transform:none}
+  body.touch.wheelsteer #mode{right:12px;bottom:186px}
+}
+@media (max-height:480px){
+  body.touch:not(.wheelsteer) #cluster{bottom:4px}
+  #touch:not(.wheel) #t-gas{right:20px;bottom:104px}
+  #touch:not(.wheel) #t-brake{right:124px;bottom:56px}
+  #touch:not(.wheel) #t-hand{right:20px;bottom:20px}
+  #touch.wheel #t-nos{left:110px;top:auto;bottom:104px}
+  body.touch.wheelsteer #cluster{bottom:32px}
+  body.touch.wheelsteer #mode{right:auto;left:50%;transform:translateX(-50%);bottom:4px;text-align:center}
+  body.touch.wheelsteer #mode-name{display:none}
+}
