@@ -1,3 +1,57 @@
+# Session state — 2026-10-08 (v0.5.0 WIP: SOVTEK Muff voicing)
+
+**Started the v0.5.0 cab/mic/EQ port with the one piece that needed no new
+recordings: the Sovtek Muff re-voice. IR capture got pushed back, so the cab
+matrix / mic matrix / graphic EQ are still to come.** Committed to main as
+WIP (e817f35) — NO version bump, NO tag, NOT deployed; Corey bumps when he
+says. Plugin still reports v0.4.0.
+
+## What was done
+- Otto's MIG MUFF confirmed a **Sovtek** (Green Russian). Measured what his
+  real pedal ADDS over the clean amp (muff-on minus clean on the SAME rig, so
+  cab+mic cancel to first order): +14 dB at 157-315 Hz (NYC model only +6),
+  dip at 800, and only +9 dB at 2.5-5 kHz (NYC piled on +22 — the fizz).
+- `BigMuff` now has a `Voicing { nyc, sovtek }` enum + `setVoicing()`. NYC is
+  **bit-identical** to before. SOVTEK keeps the same clipper core and adds a
+  post-clip voicing EQ: a 4-pole dark top (two SvfTPT lowpasses at 2300 Hz)
+  and a low-mid shelf (sovLowShelf 360 Hz, gain 1.7) + baseFill 0.40.
+- New `muffvoice` choice param (NYC / SOVTEK), **default SOVTEK** (Otto's
+  pedal). Wired in processBlock via `muff.setVoicing()` per block (no-op when
+  unchanged). Param count 39 -> 40. **No on-face UI yet** — waiting on Corey's
+  call (see OPEN below); the param is automatable / host-visible meanwhile.
+- Match: ~3.8 dB mean abs error across 1/3-oct bands, low-mids dead-on, top
+  in the right zone. Remaining ~2.6 dB sag at 500-800 Hz and a 1.3-2.5 kHz
+  presence dip sit where Otto's SPIDER speaker colours it — the real cab IRs
+  (still to be captured) will own that, so stopped there per house rule 13.
+- Bench 26 -> 28: **T27** (SOVTEK fatter low-mids than NYC) and **T28**
+  (SOVTEK darker top), both on broadband noise with OUTPUT at -24 (headroom,
+  peak guard OUT of the loop — at playing level softLimit flattens the delta,
+  house rule 9), both proven to fail NYC-vs-NYC. Legacy T1-T23 pinned to NYC
+  in baseline(). 28/28 + soak + T12 peak guard all green.
+- A/B renders of Otto's DI (NYC vs SOVTEK, playing level) sent to Corey for
+  the ear pass.
+
+## KEY METHOD LESSON (cost ~6 iterations today)
+Measuring a voicing EQ by rendering a real DI through the WHOLE plugin at
+playing level is corrupted by the peak guard: softLimit compresses the hotter
+(muff-on) render more than the clean one and FLATTENS the exact delta you are
+measuring — boosting lows made the match look WORSE. Fix: render with
+OUTPUT=-24 so softLimit is inactive, measure the true EQ, THEN let the peak
+guard do its job at performance level. Also: the harness `--render` now takes
+`id=value` overrides (e.g. `output=-24 muffvoice=1`), and the scratch WAV
+reader must honour sample width (the 16-bit real extracts read as 24-bit gave
+a garbage "target" column that read ~0 everywhere). Scratch dir is WIPED
+between sessions — re-extract from otto.als each time (session read-only).
+
+## OPEN for Corey
+- **Ear pass on the A/B** — does the SOVTEK land? (house rule 13 is the final
+  word; the 3.8 dB match is a starting point, not the verdict.)
+- **MUFF TYPE selector on the face?** NYC + SOVTEK switch on the Muff panel
+  (default SOVTEK), or drop NYC and ship Sovtek-only? DSP identical either
+  way; this only decides the UI (house rule 7 — ask before a face change).
+- Which of the three 1-Audio takes is which (preset / Line 6 / Boss GT) —
+  still unanswered; not needed for the Muff, will matter for cab IR labelling.
+
 # Session state — 2026-10-06 (Otto's first PC report → v0.4.0)
 
 **v0.4.0 tagged: real CLEAN channel + rebuilt tuner.** 26/26 bench, soak,
