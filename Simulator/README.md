@@ -845,6 +845,7 @@ Simulator/vendor/           Three.js r128 + example passes (MIT)
 Simulator/tools/            convert-model.js (headless model converter)
 Simulator/Tools/            quantize_glb.py + reencode_textures.js (compression),
                             merge_car_draws.* (draw-call merge), decimate_glb.py
+Simulator/Tools/tests/      the bench: sweep, worlds, derby, bug probes, phone layout (see its README)
 Simulator/models/           Revuelto model (source + converted) and its licence
 Simulator/blender/          Blender export + hero-render script
 Simulator/build.py          bundles into dist/revuelto.html (single file)
