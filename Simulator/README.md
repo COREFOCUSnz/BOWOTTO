@@ -794,6 +794,64 @@ it. Seventeen of twenty did. The ones worth knowing:
 - `build.py`'s 16 MiB artifact guard no longer fails the GitHub deploy (the
   live site never ships the artifact); it warns there and fails locally.
 
+## Six lenses: what a third look found
+
+The third pass read the whole game six ways (state machines, numbers and frame
+rate, async timing, saved data and results, input devices, rival AI), and
+every finding had to get past one or two independent attempts to refute it.
+About thirty survived. The ones a player would notice:
+
+- **THE ARENA was 12 m wide for every first-time visitor.** The road
+  half-width was a constant read at load from the *stored* world, and the
+  lobby builds the world you pick in place without reloading. Pick THE ARENA
+  on a first visit (stored: THE GRID) and its walls stood 6 m out in a 32 m
+  bowl; come back from a derby and pick a circuit, and it was 32 m wide. Every
+  earlier sweep pre-set the stored world, which is why none of them saw it.
+  `Tools/tests/lobby.js` now walks the real first-visit path.
+- **TRON LEGACY paint stopped Versus and Derby starting.** It is a shader
+  with no colour, and the rivals' paint was cloned from it. Rivals now take
+  their paint from the real paint material.
+- **Rivals carried the cockpit camera's roof clip.** Cloning a material copies
+  its clipping plane, frozen at eye height where you pressed START: rival
+  roofs shaved off on the grid, whole bodies gone where the road rose.
+- **BUY THIS? could charge twice.** Enter or Space with the dialog up re-clicked
+  the still-focused BUY button underneath, stacking a second YES. One dialog
+  at a time now; Escape means NO, Enter means YES, once.
+- **Touch pads did not hand over.** A touch is captured by the pad it lands on,
+  so rolling a thumb from gas onto brake left gas on and brake off. Each
+  finger is now followed to whichever pad is under it.
+- **The car juddered on fast screens.** Physics steps at 120 Hz; the screen
+  drew the step state directly, so at 144 Hz one frame in six showed no
+  movement (and at 240 Hz every other one). The car and camera are now drawn
+  from a pose blended between the last two steps.
+- **Laps and records:** a car spun over the line tail-first lost the lap; R
+  at a crossing or overpass reset onto the *other* road (a 5 km short lap
+  on THE GRID, saved as a record, bonus paid); Versus laps, in a car boosted
+  by the difficulty, set the record a stock Time Trial car is paid against;
+  records lived in the browser, not the career, so they leaked between
+  accounts and re-paid the new-best bonus in every new browser. Records are
+  now part of the career and sync with it; old ones move in once.
+- **Derby:** a hit that wrecked both cars only counted against the player;
+  wrecked rivals turned shiny again when a car model finished loading;
+  rivals could drive through each other while you were in the air; the
+  contact box ignored the arena's tight bends (air gaps outside, overlap
+  inside); the HEALTH readout was labelled DAMAGE.
+- **Garage and menus:** the lobby's world picture covered the garage after
+  browsing another world; GARAGE and SETTINGS did nothing before the first
+  world loaded; a pinch that lifted one finger swung the camera 70-100
+  degrees; trackpad zoom slammed between limits; the results card ran off a
+  landscape phone (10-lap Time Trial); the car kept driving blind behind it.
+- **Car loading:** a parked car still downloading could land over a cloud
+  sync's choice; picking the Revuelto before its 13.8 MB download finished
+  said HOSTED SITE ONLY on the hosted site.
+- Smaller: rival wheels froze on three of five cars (now taken from the
+  car's own fitted pivots); the rivals' wall scrub depended on refresh rate;
+  a NOS held through Settings went silent; touchscreen laptops got the phone
+  controls (now only touch-first devices, or after a real touch).
+
+Not changed, listed for later: a gamepad cannot drive the menus (RACE AGAIN,
+START, MENU need the mouse, touch or keyboard) -- a missing feature, not a bug.
+
 ## Changelog
 
 ### v1.0.0

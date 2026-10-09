@@ -382,3 +382,10 @@ body.touch.racing #top-left{display:none}
   body.touch.wheelsteer #mode{right:auto;left:50%;transform:translateX(-50%);bottom:4px;text-align:center}
   body.touch.wheelsteer #mode-name{display:none}
 }
+/* the lobby's bird's-eye picture is part of the start screen: the garage hides it with the rest */
+body.garage #lobby-bg{display:none}
+/* GARAGE and SETTINGS are wired up when the world boots; before that they were dead links */
+body:not(.booted) #start p.credit{visibility:hidden}
+/* results: never taller than the screen (a 10-lap Time Trial card is ~600 px), and 'LAP 10' stays on one line */
+#results{max-height:calc(100% - 16px);overflow:auto;overscroll-behavior:contain}
+#res-rows .row b:first-child{white-space:nowrap;width:auto;min-width:26px}

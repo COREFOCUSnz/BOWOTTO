@@ -829,6 +829,61 @@ Verified on the worktree build: sweepA 19/19, 19/19 worlds, bugscan 8/8
 Round-two finders (state machine, numerics, async, persistence, input,
 rival AI) and the critic were still running when this shipped.
 
+**Third review round 2026-10-09 (six lenses + refuters).** Two cloud
+container restarts in a row killed workflow runs before they reported (a
+workflow only returns at the end, and its journal lived in the container),
+and the first restart also took the whole Playwright bench, which lived in
+the scratchpad. So: the bench is now committed under Simulator/Tools/tests
+(rebuilt; bugscan/bugscan2/phone/layout recovered from the transcript), and
+the review ran as separate background agents whose reports land in the
+transcript as they finish. Lens finders: state machines, numerics/frame rate,
+async, persistence/results, input devices, rival AI; every finding then got
+1-2 independent refuters (2 for high/medium). ~30 confirmed, all fixed:
+- ROAD_HALF was a load-time const from the STORED track; lobbyNext builds
+  the picked world in place (chooseTrack + boot, no reload) -> first visit
+  picking THE ARENA = 6 m walls in a 32 m bowl (and arena->circuit = 32 m
+  road). Now set in chooseTrack. Proven live by Tools/tests/lobby.js
+  (grid->arena wall 7.2 before, 17.2 after). Every older probe pre-set the
+  track, which is why nothing caught it.
+- TRON LEGACY (ShaderMaterial, no .color) made startRace throw in
+  buildRivalVisual; rival paint now from userData.origMat.
+- Rival materials: clone() copies clippingPlanes (frozen roof clip at eye
+  height); rivalMat/paint clones set clippingPlanes=null; wheel materials get
+  clip-free copies (cloneTree shared them).
+- confirmAsk re-entry: Enter/Space re-clicked the focused BUY under the
+  overlay -> two YES listeners -> two tiers. confirmOpen guard, focus blurred,
+  keydown: dialog owns keys (Escape NO, Enter YES once), garageClose -> NO.
+- Touch pads: implicit pointer capture meant no hand-over; padAt map +
+  document pointermove + elementFromPoint. TOUCH_DEV = pointer:coarse, else
+  touchOn() on the first pointerType=touch pointerdown.
+- Render pose rp (rpSave before each FIXED step, rpPose(acc/FIXED), snap
+  >10 m): car, underglow, cubeCam, trail, updateCamera use rp. Physics never.
+- Laps/records: crossing no longer needs st.u > 2; R resets to
+  sampleAt(st.s).i (trackDistSq jumped roads at crossings); records only in
+  solo/time; records moved into career.best (careerFresh/adopt/push/pull;
+  legacy revuelto.best.* folded in once and removed); results show this
+  race's best (+ RECORD in the TT subtitle).
+- Derby: rivalDamage before playerDamage (double knockout); burnRival() also
+  on rebuild; contacts() every step with only the player loop gated on
+  !air && !roof; contact box scaled by 1+kappa*d (arena bends); HEALTH label.
+- Garage/menus: body.garage hides #lobby-bg; .credit hidden until
+  body.booted; pinch lift re-anchors drag; wheel zoom exp(deltaY*0.0008);
+  #results max-height + overflow; readInput gates on #results too.
+- Car loading: carWant (last requested) used by pull; embedded Revuelto
+  without root takes procBody and waits/retries revuelto.glb.
+- Rival wheels from customWheels pivots (spinPath into the clone); wall scrub
+  pow(0.9, dt*60) (simulated: spread 171-274 m -> 202-239 m across 30-240 Hz;
+  aiming inside the wall instead would have made every rival harder);
+  NOS/rumble audio restarts for a held boost without re-firing the boost
+  (setting st.nosOn=false would have reset Supersonic coins and given a
+  second drift jolt -- caught before shipping).
+Not built (missing feature, listed): gamepad menu navigation.
+Bench on the worktree build: sweep 20/20, bugscan 8/8, bugscan2 11/11,
+bugscan3 16/16 + legacy migration, lobby 2/2, derby 8/8, layout 14/14.
+Probe traps this round: R is swallowed by the start-menu branch (press it
+in-race); a second heavy page in a long-lived SwiftShader browser times out
+(fresh browser per page/world).
+
 **CORE HUB LINK: PAUSED, comes later.** The game will eventually be a reward
 in Corey's Core Hub app (tasks there earn play in here). Decided already and
 not to be forgotten: **never cut a player off mid-lap or mid-race when their
