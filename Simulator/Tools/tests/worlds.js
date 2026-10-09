@@ -4,9 +4,9 @@ const { serve, launch, openGame } = require('./common');
 const ALL = ['grid', 'matrix', 'canyon', 'supersonic', 'woods', 'snow', 'ocean', 'sky', 'city', 'volcano', 'ice', 'docks', 'station', 'riviera', 'touge', 'salt', 'mars', 'jungle', 'arena'];
 const IDS = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
 (async () => {
-  const { srv, url } = await serve(); const b = await launch(); let clean = 0;
+  const { srv, url } = await serve(); let clean = 0;
   for (const id of IDS) {
-    let line;
+    let line; const b = await launch();   // a fresh browser per world: twelve worlds in one SwiftShader browser exhausted it (2026-10-09) and every later world failed to open
     try {
       const { ctx, page, errs } = await openGame(b, url, { track: id, viewport: { width: 900, height: 560 } });
       const r = await page.evaluate(() => {
@@ -36,8 +36,8 @@ const IDS = process.argv.slice(2).length ? process.argv.slice(2) : ALL;
       line = (ok ? 'PASS  ' : 'FAIL  ') + id + ' :: ' + JSON.stringify(r) + (errs.length ? ' errors: ' + errs.join(' | ') : '');
       await ctx.close();
     } catch (e) { line = 'ERROR ' + id + ' :: ' + e.message.slice(0, 200); }
-    console.log(line);
+    await b.close().catch(() => {}); console.log(line);
   }
   console.log('SUMMARY ' + clean + '/' + IDS.length + ' worlds clean');
-  await b.close(); srv.close(); process.exit(clean === IDS.length ? 0 : 1);
+  srv.close(); process.exit(clean === IDS.length ? 0 : 1);
 })();
